@@ -53,7 +53,9 @@ div[data-tag="floating-engagement-sheet"]
   client-side navigation, it modifies the page only when the URL matches a post.
 - All styles and scripts are packaged locally. The extension makes no network
   requests and accepts no remotely supplied selectors or code.
-- No browsing data is collected or sent anywhere.
+- The extension does not collect or transmit personal or sensitive user data.
+  Its only retained value is the hide/show preference stored locally in the
+  browser.
 
 ## Privacy
 
