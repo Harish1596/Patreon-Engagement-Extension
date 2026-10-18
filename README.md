@@ -18,7 +18,7 @@ Other browsers may be compatible, but have not been verified.
 
 Patreon's floating engagement toolbar was covering part of the text whenever I
 scrolled through a post, which made reading less comfortable. I built this
-extension to keep the toolbar hidden by default. I am sharing this in case any else wishes for the same.
+extension to keep the toolbar hidden by default. I am sharing this in case anyone else wishes for the same.
 
 ## Install it
 
