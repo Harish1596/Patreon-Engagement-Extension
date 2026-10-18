@@ -37,3 +37,10 @@ div[data-tag="floating-engagement-sheet"]
 - All styles and scripts are packaged locally. The extension makes no network
   requests and accepts no remotely supplied selectors or code.
 - No browsing data is collected or sent anywhere.
+
+## License
+
+Copyright (C) 2026 Harish Babu.
+
+This project is licensed under the [GNU General Public License version 3](LICENSE)
+only (`GPL-3.0-only`).
