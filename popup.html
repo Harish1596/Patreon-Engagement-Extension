@@ -3,23 +3,41 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Patreon floating element</title>
+    <title>Patreon engagement bar</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <main>
-      <div class="heading">
-        <div>
+    <main class="panel">
+      <header class="app-header">
+        <span class="app-mark" aria-hidden="true"></span>
+        <div class="header-copy">
           <h1>Engagement bar</h1>
-          <p id="status">Checking this page…</p>
+          <p id="status" data-tone="loading" aria-live="polite">
+            Checking Patreon…
+          </p>
         </div>
-        <label class="switch" aria-label="Hide floating engagement bar">
-          <input id="hidden-toggle" type="checkbox" checked />
-          <span class="slider"></span>
-        </label>
-      </div>
-      <p class="hint">
-        Controls Patreon's floating like, comment, repost, and share bar.
+      </header>
+
+      <label class="setting" for="hidden-toggle">
+        <span class="setting-copy">
+          <span class="setting-title">Hide floating bar</span>
+          <span class="setting-description">Likes, comments, reposts and shares</span>
+        </span>
+        <span class="switch">
+          <input
+            id="hidden-toggle"
+            type="checkbox"
+            role="switch"
+            aria-label="Hide floating engagement bar"
+            checked
+          />
+          <span class="slider" aria-hidden="true"></span>
+        </span>
+      </label>
+
+      <p class="scope-note">
+        <span class="lock" aria-hidden="true"></span>
+        Runs locally on Patreon post pages
       </p>
     </main>
     <script src="popup.js"></script>

@@ -1,6 +1,11 @@
 const toggle = document.querySelector("#hidden-toggle");
 const status = document.querySelector("#status");
 
+function setStatus(message, tone) {
+  status.textContent = message;
+  status.dataset.tone = tone;
+}
+
 async function activeTabId() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return typeof tab?.id === "number" ? tab.id : null;
@@ -23,12 +28,15 @@ async function send(message) {
 
 function render(state) {
   toggle.checked = state.isHidden;
+  toggle.disabled = false;
+
   if (!state.isPostPage) {
-    status.textContent = "Only active on Patreon post pages";
+    setStatus("Available on Patreon post pages", "inactive");
   } else {
-    status.textContent = state.isHidden
-      ? "Engagement bar hidden"
-      : "Engagement bar visible";
+    setStatus(
+      state.isHidden ? "Hidden on this post" : "Visible on this post",
+      state.isHidden ? "success" : "visible"
+    );
   }
 }
 
@@ -37,16 +45,21 @@ async function refresh() {
     render(await send({ type: "GET_STATE" }));
   } catch (error) {
     toggle.disabled = true;
-    status.textContent = error.message;
+    setStatus(error.message, "error");
   }
 }
 
 toggle.addEventListener("change", async () => {
+  const requestedValue = toggle.checked;
+  toggle.disabled = true;
+  setStatus("Saving preference…", "loading");
+
   try {
-    render(await send({ type: "SET_HIDDEN", value: toggle.checked }));
+    render(await send({ type: "SET_HIDDEN", value: requestedValue }));
   } catch (error) {
-    toggle.checked = !toggle.checked;
-    status.textContent = error.message;
+    toggle.checked = !requestedValue;
+    toggle.disabled = false;
+    setStatus(error.message, "error");
   }
 });
 
