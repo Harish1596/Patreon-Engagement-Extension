@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Dependencies
+node_modules/
+
+# Build and packaged-extension output
+dist/
+build/
+web-ext-artifacts/
+*.zip
+*.crx
+*.xpi
+
+# Test and coverage output
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
