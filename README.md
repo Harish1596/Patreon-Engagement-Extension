@@ -12,8 +12,15 @@ bar by default. The toolbar switch can show or hide it at any time.
 
 ## Use it
 
-The floating like, comment, repost, and share bar is hidden automatically. Click
-the extension icon and turn off the switch to show it again.
+On Patreon post pages, the floating like, comment, repost, and share bar is
+hidden automatically. Click the extension icon and turn off the switch to show
+it again.
+
+Post pages are recognized locally using this pathname structure:
+
+```text
+/<creator>/posts/<post-slug>-<numeric-post-id>
+```
 
 The extension targets only:
 
@@ -23,7 +30,10 @@ div[data-tag="floating-engagement-sheet"]
 
 ## Notes
 
-- The hide/show setting is shared across Patreon tabs through browser sync
-  storage.
+- The hide/show setting is stored only on the local device.
 - The extension only runs on `https://www.patreon.com/*`.
+- Although the content script remains loaded across Patreon to support its
+  client-side navigation, it modifies the page only when the URL matches a post.
+- All styles and scripts are packaged locally. The extension makes no network
+  requests and accepts no remotely supplied selectors or code.
 - No browsing data is collected or sent anywhere.

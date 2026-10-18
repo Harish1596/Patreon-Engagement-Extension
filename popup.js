@@ -1,25 +1,35 @@
 const toggle = document.querySelector("#hidden-toggle");
 const status = document.querySelector("#status");
 
-async function activePatreonTab() {
+async function activeTabId() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id || !tab.url?.startsWith("https://www.patreon.com/")) {
-    return null;
-  }
-  return tab;
+  return typeof tab?.id === "number" ? tab.id : null;
 }
 
 async function send(message) {
-  const tab = await activePatreonTab();
-  if (!tab) throw new Error("Open a Patreon page first.");
-  return chrome.tabs.sendMessage(tab.id, message);
+  const tabId = await activeTabId();
+  if (tabId === null) throw new Error("No active browser tab.");
+
+  let response;
+  try {
+    response = await chrome.tabs.sendMessage(tabId, message);
+  } catch (_) {
+    throw new Error("Open or refresh a Patreon page first.");
+  }
+
+  if (response?.error) throw new Error(response.error);
+  return response;
 }
 
 function render(state) {
   toggle.checked = state.isHidden;
-  status.textContent = state.isHidden
-    ? "Engagement bar hidden"
-    : "Engagement bar visible";
+  if (!state.isPostPage) {
+    status.textContent = "Only active on Patreon post pages";
+  } else {
+    status.textContent = state.isHidden
+      ? "Engagement bar hidden"
+      : "Engagement bar visible";
+  }
 }
 
 async function refresh() {
