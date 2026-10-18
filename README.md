@@ -53,7 +53,38 @@ div[data-tag="floating-engagement-sheet"]
   client-side navigation, it modifies the page only when the URL matches a post.
 - All styles and scripts are packaged locally. The extension makes no network
   requests and accepts no remotely supplied selectors or code.
-- No browsing data is collected or sent anywhere.
+- The extension does not collect or transmit personal or sensitive user data.
+  Its only retained value is the hide/show preference stored locally in the
+  browser.
+
+## Reporting Issues
+
+If the extension is not working as expected, first refresh the Patreon page and
+confirm that the extension is enabled and allowed to access `patreon.com`.
+
+You can report an issue in either of these ways:
+
+1. **Chrome Web Store Support:** Open the extension's Chrome Web Store listing,
+   scroll to the **Support** section, and submit a support request.
+2. **GitHub Issues:** Check the
+   [existing issues](https://github.com/Harish1596/Patreon-Engagement-Extension/issues)
+   and select **New issue** if the problem has not already been reported.
+
+Please include:
+
+- A brief description of what happened and what you expected to happen.
+- Your browser, browser version, and extension version.
+- Whether the problem occurs on every Patreon post or only certain posts.
+- A screenshot, if it helps explain the problem.
+
+Before sharing a screenshot or link, remove or obscure private content. Never
+include passwords, cookies, payment information, private messages, or other
+sensitive account information in a report.
+
+## Privacy
+
+See the [Privacy Policy](PRIVACY.md) for details about the extension's local
+data processing, permissions, and storage.
 
 ## License
 
