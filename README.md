@@ -14,6 +14,13 @@ The extension has been manually tested and confirmed to work in:
 
 Other browsers may be compatible, but have not been verified.
 
+## Why I Built This
+
+Patreon's floating engagement toolbar was covering part of the text whenever I
+scrolled through a post, which made reading less comfortable. I built this
+extension to keep the toolbar out of the way by default while preserving an
+easy way to show it whenever it is needed.
+
 ## Install it
 
 1. Open `chrome://extensions` (or `edge://extensions`).
