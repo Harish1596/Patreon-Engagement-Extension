@@ -1,4 +1,4 @@
-# Patreon Floating Engagement Toggle
+# Patreon Engagement Toggle
 
 A small Chrome/Edge/Brave extension that hides Patreon's floating engagement
 bar by default. The toolbar switch can show or hide it at any time.
