@@ -57,6 +57,26 @@ div[data-tag="floating-engagement-sheet"]
   Its only retained value is the hide/show preference stored locally in the
   browser.
 
+## Reporting Issues
+
+If the extension is not working as expected, first refresh the Patreon page and
+confirm that the extension is enabled and allowed to access `patreon.com`.
+
+To ask for help or report a problem, use the **Support** section on the Chrome
+Web Store listing or
+[open a GitHub issue](https://github.com/Harish1596/Patreon-Engagement-Extension/issues).
+
+Please include:
+
+- A brief description of what happened and what you expected to happen.
+- Your browser, browser version, and extension version.
+- Whether the problem occurs on every Patreon post or only certain posts.
+- A screenshot, if it helps explain the problem.
+
+Before sharing a screenshot or link, remove or obscure private content. Never
+include passwords, cookies, payment information, private messages, or other
+sensitive account information in a report.
+
 ## Privacy
 
 See the [Privacy Policy](PRIVACY.md) for details about the extension's local
