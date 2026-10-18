@@ -62,9 +62,13 @@ div[data-tag="floating-engagement-sheet"]
 If the extension is not working as expected, first refresh the Patreon page and
 confirm that the extension is enabled and allowed to access `patreon.com`.
 
-To ask for help or report a problem, use the **Support** section on the Chrome
-Web Store listing or
-[open a GitHub issue](https://github.com/Harish1596/Patreon-Engagement-Extension/issues).
+You can report an issue in either of these ways:
+
+1. **Chrome Web Store Support:** Open the extension's Chrome Web Store listing,
+   scroll to the **Support** section, and submit a support request.
+2. **GitHub Issues:** Check the
+   [existing issues](https://github.com/Harish1596/Patreon-Engagement-Extension/issues)
+   and select **New issue** if the problem has not already been reported.
 
 Please include:
 
