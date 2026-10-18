@@ -2,8 +2,6 @@
   color-scheme: light dark;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --accent: #ff424d;
-  --accent-hover: #e73742;
-  --accent-soft: #fff0f1;
   --background: #ffffff;
   --surface: #fafafa;
   --surface-hover: #f7f7f7;
@@ -41,37 +39,10 @@ body {
 }
 
 .app-mark {
-  position: relative;
+  display: block;
   width: 38px;
   height: 38px;
   flex: 0 0 auto;
-  overflow: hidden;
-  border: 1px solid rgb(255 66 77 / 12%);
-  border-radius: 12px;
-  background: var(--accent-soft);
-}
-
-.app-mark::before,
-.app-mark::after {
-  position: absolute;
-  background: var(--accent);
-  content: "";
-}
-
-.app-mark::before {
-  width: 6px;
-  height: 22px;
-  left: 9px;
-  top: 8px;
-  border-radius: 999px;
-}
-
-.app-mark::after {
-  width: 13px;
-  height: 13px;
-  right: 7px;
-  top: 7px;
-  border-radius: 50%;
 }
 
 .header-copy {
@@ -262,8 +233,6 @@ input:disabled + .slider {
 @media (prefers-color-scheme: dark) {
   :root {
     --accent: #ff5963;
-    --accent-hover: #ff6b74;
-    --accent-soft: #3a2023;
     --background: #1d1d1f;
     --surface: #272729;
     --surface-hover: #2d2d30;

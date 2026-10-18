@@ -1,5 +1,6 @@
 const toggle = document.querySelector("#hidden-toggle");
 const status = document.querySelector("#status");
+const PAGE_UNAVAILABLE_MESSAGE = "Available on Patreon post pages";
 
 function setStatus(message, tone) {
   status.textContent = message;
@@ -19,7 +20,7 @@ async function send(message) {
   try {
     response = await chrome.tabs.sendMessage(tabId, message);
   } catch (_) {
-    throw new Error("Open or refresh a Patreon page first.");
+    throw new Error(PAGE_UNAVAILABLE_MESSAGE);
   }
 
   if (response?.error) throw new Error(response.error);
@@ -31,7 +32,7 @@ function render(state) {
   toggle.disabled = false;
 
   if (!state.isPostPage) {
-    setStatus("Available on Patreon post pages", "inactive");
+    setStatus(PAGE_UNAVAILABLE_MESSAGE, "inactive");
   } else {
     setStatus(
       state.isHidden ? "Hidden on this post" : "Visible on this post",
@@ -45,7 +46,10 @@ async function refresh() {
     render(await send({ type: "GET_STATE" }));
   } catch (error) {
     toggle.disabled = true;
-    setStatus(error.message, "error");
+    setStatus(
+      error.message,
+      error.message === PAGE_UNAVAILABLE_MESSAGE ? "inactive" : "error"
+    );
   }
 }
 
@@ -59,7 +63,10 @@ toggle.addEventListener("change", async () => {
   } catch (error) {
     toggle.checked = !requestedValue;
     toggle.disabled = false;
-    setStatus(error.message, "error");
+    setStatus(
+      error.message,
+      error.message === PAGE_UNAVAILABLE_MESSAGE ? "inactive" : "error"
+    );
   }
 });
 

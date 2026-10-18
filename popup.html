@@ -9,7 +9,13 @@
   <body>
     <main class="panel">
       <header class="app-header">
-        <span class="app-mark" aria-hidden="true"></span>
+        <img
+          class="app-mark"
+          src="icons/engagement-bar.svg"
+          width="38"
+          height="38"
+          alt=""
+        />
         <div class="header-copy">
           <h1>Engagement bar</h1>
           <p id="status" data-tone="loading" aria-live="polite">
@@ -20,7 +26,7 @@
 
       <label class="setting" for="hidden-toggle">
         <span class="setting-copy">
-          <span class="setting-title">Hide floating bar</span>
+          <span class="setting-title">Hide Engagement Bar</span>
           <span class="setting-description">Likes, comments, reposts and shares</span>
         </span>
         <span class="switch">
@@ -28,7 +34,7 @@
             id="hidden-toggle"
             type="checkbox"
             role="switch"
-            aria-label="Hide floating engagement bar"
+            aria-label="Hide engagement bar"
             checked
           />
           <span class="slider" aria-hidden="true"></span>
