@@ -1,8 +1,7 @@
-# Patreon Floating Element Toggle
+# Patreon Floating Engagement Toggle
 
-A small Chrome/Edge/Brave extension that remembers a floating Patreon element
-and hides it by default. It also watches for Patreon recreating the element as
-you scroll or move between posts.
+A small Chrome/Edge/Brave extension that hides Patreon's floating engagement
+bar by default. The toolbar switch can show or hide it at any time.
 
 ## Install it
 
@@ -11,19 +10,20 @@ you scroll or move between posts.
 3. Click **Load unpacked** and select this folder.
 4. Open or refresh a Patreon page.
 
-## Select the element once
+## Use it
 
-1. Scroll down until the unwanted floating element is visible.
-2. Click the extension icon, then **Select element on page**.
-3. Move the pointer over the unwanted bar. The extension outlines the floating
-   container rather than only the button or text under the pointer.
-4. Click it. It is saved and immediately hidden.
+The floating like, comment, repost, and share bar is hidden automatically. Click
+the extension icon and turn off the switch to show it again.
 
-Use the extension's switch to show or hide it. **Forget selected element** lets
-you select it again if Patreon changes its page structure.
+The extension targets only:
+
+```css
+div[data-tag="floating-engagement-sheet"]
+```
 
 ## Notes
 
-- The setting is shared across Patreon tabs through browser sync storage.
+- The hide/show setting is shared across Patreon tabs through browser sync
+  storage.
 - The extension only runs on `https://www.patreon.com/*`.
 - No browsing data is collected or sent anywhere.
