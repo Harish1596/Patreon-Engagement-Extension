@@ -55,6 +55,11 @@ div[data-tag="floating-engagement-sheet"]
   requests and accepts no remotely supplied selectors or code.
 - No browsing data is collected or sent anywhere.
 
+## Privacy
+
+See the [Privacy Policy](PRIVACY.md) for details about the extension's local
+data processing, permissions, and storage.
+
 ## License
 
 Copyright (C) 2026 Harish Babu.
