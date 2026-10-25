@@ -222,7 +222,7 @@ attributes are preferable to build hashes, but Patreon can change either.
 | Related posts | `creator-home-horizontal-section`, `creator-home-horizontal-card` | Separate carousel, outside Reader's current surface. |
 | Navigation | `main-app-navigation`, `creator-sticky-nav` | Separate page chrome, outside Reader's current surface. |
 
-Current article-body selector in [reader.js](../extension/content/reader.js):
+Current article-body selector in [patreon-dom.js](../extension/content/patreon-dom.js):
 
 ```css
 [class*="PostBodies-module__"][class*="__postContent"]
@@ -520,12 +520,13 @@ Input tints and banner shadows are derived CSS, not extra saved preferences.
 | --- | --- |
 | [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS, ordered scripts, storage permission. |
 | [extension.js](../extension/shared/extension.js) | Browser API adapter, validated preference schema, fixed fonts/presets, contrast and legacy-color normalization. |
+| [patreon-dom.js](../extension/content/patreon-dom.js) | Patreon selectors, post discovery, and surface/action-row selection; no preference or panel state. |
 | [content.js](../extension/content/content.js) | Supported-route detection, storage events, popup state messages, floating-bar visibility, batched reconciliation. |
-| [reader.js](../extension/content/reader.js) | Post detection, markers, surface selection, Aa/panel lifecycle, controls, serialized saves. |
+| [reader.js](../extension/content/reader.js) | Uses the DOM adapter; owns markers, appearance state, Aa/panel lifecycle, controls, serialized saves. |
 | [content.css](../extension/content/content.css) | Page-side typography, surfaces, action contrast, floating-bar hiding. |
 | [popup.js](../extension/popup/popup.js) | Load/save master preferences and show page-connection status. |
 
-The manifest loads `shared/extension.js`, `content/reader.js`, and
+The manifest loads `shared/extension.js`, `content/patreon-dom.js`, `content/reader.js`, and
 `content/content.js` at document
 start. Post recognition currently accepts creator-prefixed routes shaped like
 `/<creator>/posts/<slug>-<numeric-id>` (or a numeric ID without a slug), excluding
@@ -547,7 +548,7 @@ The observer does not watch every attribute-only or character-data change, and
 there is no universal interception of every History API call. Do not claim
 arbitrary Patreon state transitions are covered solely because an observer exists.
 
-Detection/surface selection in `reader.js`, in order:
+Detection/surface selection in `patreon-dom.js`, used by `reader.js`, in order:
 
 1. Gather eligible titles outside floating/comment regions; prefer h1 candidates
    and a visible candidate. Otherwise consider titles outside post cards.
@@ -602,11 +603,16 @@ styles for investigation; the shipped extension itself does not fetch them.
 
 ## Verification and change history
 
-Latest completed runtime verification (1.3.9): 27 Chrome fixture tests and 28
+Original feature verification (1.3.9): 27 Chrome fixture tests and 28
 Brave tests, including one actual unpacked-extension test; syntax and whitespace
 checks passed. The installed-extension test still uses synthetic intercepted
 Patreon responses, not a signed-in/live Patreon session. Mocked promise-based
 `browser` API tests do not constitute Firefox-engine testing.
+
+Following DOM-adapter extraction, 28 Chrome cases and all 29 Brave cases passed,
+with one new direct adapter case. The existing visibility/discovery functions
+were preserved verbatim, and the version remains 1.3.9. This refactor adds no new
+Patreon feature behavior or claim of live compatibility.
 
 See [TESTING.md](../TESTING.md) for exact release records, the one-level canvas
 readback tolerance used in Brave, a prior intermittent popup-toggle failure,

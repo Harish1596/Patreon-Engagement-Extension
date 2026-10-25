@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const extensionRoot = path.resolve(__dirname, "../../extension");
 const fixture = fs.readFileSync(path.join(__dirname, "../fixtures/text-image-post.html"), "utf8").trimEnd();
+const contentScripts = JSON.parse(fs.readFileSync(path.join(extensionRoot, "manifest.json"), "utf8")).content_scripts[0];
 
 async function setup(page, { stored = {}, namespace = "chrome", content = fixture } = {}) {
   await page.route("https://www.patreon.com/**", (route) => route.fulfill({ contentType: "text/html", body: content }));
@@ -60,8 +61,8 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
       globalThis.chrome = api;
     }
   }, { stored, namespace });
-  await page.addStyleTag({ path: path.join(extensionRoot, "content/content.css") });
-  for (const name of ["shared/extension.js", "content/reader.js", "content/content.js"]) await page.addScriptTag({ path: path.join(extensionRoot, name) });
+  for (const name of contentScripts.css) await page.addStyleTag({ path: path.join(extensionRoot, name) });
+  for (const name of contentScripts.js) await page.addScriptTag({ path: path.join(extensionRoot, name) });
 }
 
 const button = (page) => page.getByRole("button", { name: "Customize reading appearance", exact: true });

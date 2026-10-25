@@ -20,8 +20,9 @@ tokens, private post text, or comment drafts. Use sanitized structural examples.
 Record verification results and limitations in [TESTING.md](TESTING.md).
 
 Runtime lives under `extension/`, with its manifest at `extension/manifest.json`.
-Ownership: `shared/extension.js` validates preferences; `content/reader.js` detects
-and mounts Reader; `content/content.js` handles routing/storage;
+Ownership: `shared/extension.js` validates preferences; `content/patreon-dom.js`
+owns DOM hooks/discovery/surface selection; `content/reader.js` manages and mounts
+Reader; `content/content.js` handles routing/storage;
 `content/content.css` styles the page; `popup/popup.js` controls the two master
 toggles. Browser specs are split by responsibility and use `tests/fixtures/` and
 `tests/helpers/`; Node tooling tests are in `tests/tooling/`. `scripts/` contains

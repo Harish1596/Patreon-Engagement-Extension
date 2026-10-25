@@ -25,7 +25,7 @@
     {
       "matches": ["https://www.patreon.com/*"],
       "css": ["content/content.css"],
-      "js": ["shared/extension.js", "content/reader.js", "content/content.js"],
+      "js": ["shared/extension.js", "content/patreon-dom.js", "content/reader.js", "content/content.js"],
       "run_at": "document_start"
     }
   ]

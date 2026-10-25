@@ -1,9 +1,6 @@
 (() => {
   const { fonts, colors, pageInk, defaults, normalize } = globalThis.PatreonExtension;
-  const TITLE = '[data-tag="post-title"]';
-  const BODY = '[class*="PostBodies-module__"][class*="__postContent"] [class*="RichText-module__"][class*="additionalStylesPostContentWrapper"]';
-  const CARD = '[data-tag="post-card"]';
-  const EXCLUDE = '[data-tag="floating-engagement-sheet"], [data-tag="comment"], [data-tag="comments"], [data-tag="comment-row"], [data-tag="comment-actions"], [data-tag="content-card-comment-thread-container"]';
+  const { TITLE, BODY, findPost, surfaceFor, actionRowFor } = globalThis.PatreonDOM;
   const PROPERTIES = ["font", "text-size", "title-size", "text-color", "background-color", "surface-color", "action-hover", "action-accent", "action-selected", "paragraph-spacing", "line-spacing"];
   let enabled = false;
   let preferences = { ...defaults };
@@ -300,7 +297,7 @@
 
   function mount(like) {
     anchor = like;
-    actionRow = like.closest('[data-tag="top-engagement"]') ?? like.parentElement;
+    actionRow = actionRowFor(like);
     actionRow.setAttribute("data-patreon-reader-actions", "");
     trigger = element("button", {
       type: "button", "data-patreon-reader-button": "", title: "Customize reading appearance",
@@ -335,36 +332,6 @@
     trigger = anchor = host = shadow = panel = undefined;
   }
 
-  function visible(node) {
-    return node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden";
-  }
-
-  function findPost() {
-    const titles = [...document.querySelectorAll(TITLE)].filter((node) => !node.closest(EXCLUDE));
-    // Patreon uses post-card for the actual post as well as previews. Prefer
-    // the page's h1, then keep all searches inside that title's own card.
-    const headings = titles.filter((node) => node.matches("h1") || node.querySelector("h1"));
-    const candidates = headings.length ? headings : titles.filter((node) => !node.closest(CARD));
-    for (const title of candidates.filter(visible)) {
-      const card = title.closest(CARD);
-      const belongs = (node) => !node.closest(EXCLUDE) && node.closest(CARD) === card;
-      const boundary = card ?? title.closest("main");
-      for (let parent = title.parentElement; parent && parent !== document.body && parent !== document.documentElement; parent = parent.parentElement) {
-        const likes = [...parent.querySelectorAll('[data-tag="like-button"]')].filter((node) => belongs(node) && visible(node));
-        const like = likes.find((node) => node.closest('[data-tag="top-engagement"]')) ?? likes[0];
-        if (like) {
-          let scope = parent;
-          // Responsive title copies may share the body at a higher ancestor.
-          // Their count must not prevent reaching that body.
-          while (scope !== boundary && ![...scope.querySelectorAll(BODY)].some(belongs)
-            && scope.parentElement && scope.parentElement !== document.body) scope = scope.parentElement;
-          return { scope, like, belongs };
-        }
-        if (parent === boundary) break;
-      }
-    }
-    return null;
-  }
 
   function reconcile(isPostPage) {
     if (route !== location.pathname) {
@@ -376,10 +343,7 @@
     const post = findPost();
     if (!post) { removeUI(); clearTargets(); return; }
     const { scope, like, belongs } = post;
-    // Prefer the outer wrapper explicitly: the inner column shares its prefix.
-    const nextSurface = like.closest('[class*="PostBodies-module__"][class*="__singleColumnContentWrapper"]')
-      ?? like.closest('[class*="PostBodies-module__"][class*="__singleColumnContent"]')
-      ?? like.closest('[data-testid="single-column-post-wrapper"]') ?? like.closest(CARD) ?? scope;
+    const nextSurface = surfaceFor(like, scope);
     if (surface !== nextSurface) surface?.removeAttribute("data-patreon-reader-surface");
     surface = nextSurface;
     if (!surface.hasAttribute("data-patreon-reader-surface")) surface.setAttribute("data-patreon-reader-surface", "");

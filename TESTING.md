@@ -8,6 +8,16 @@ below; documenting the captures does not establish live behavioral coverage.
 
 ## Automated checks
 
+DOM adapter extraction: `extension/content/patreon-dom.js` now owns the existing
+selectors/discovery and surface/action-row fallbacks, without changing their
+logic. The manifest loads it before Reader; fixture loading reads script order
+from the manifest instead of keeping another hard-coded list. Packaging explicitly
+allowlists the new file. A direct adapter test supplements the existing detection,
+appearance, and lifecycle coverage.
+After extraction, 28 Chrome cases and all 29 Brave cases passed, including the
+actual unpacked extension. All 11 Node tooling cases and syntax checks passed;
+visibility and discovery functions were compared verbatim before/after extraction.
+
 Local packaging tooling: `npm run test:tooling` runs Node tests independently of
 Playwright. Eight packaging tests passed for exact contents, version mismatches,
 missing/unsafe resources, corrupted/modified ZIPs, overwrite protection, and forced

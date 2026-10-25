@@ -1,6 +1,22 @@
 const { test, expect } = require("@playwright/test");
 const { fixture, extensionRoot, setup, button, dialog, enable, change } = require("./helpers/reader");
 
+test("DOM adapter discovers the main post and chooses scoped surface/action fallbacks", async ({ page }) => {
+  await setup(page, { stored: { readerEnabled: true } });
+  const result = await page.evaluate(() => {
+    const post = PatreonDOM.findPost();
+    return {
+      like: post.like.getAttribute("data-tag"),
+      surface: PatreonDOM.surfaceFor(post.like, post.scope).id,
+      row: PatreonDOM.actionRowFor(post.like).className,
+      excluded: [...document.querySelectorAll('aside [data-tag="like-button"]')].every(node => !post.belongs(node))
+    };
+  });
+  expect(result).toEqual({ like: "like-button", surface: "post", row: "actions", excluded: true });
+  await expect(page.locator('#post [data-patreon-reader-button]')).toHaveCount(1);
+  await expect(page.locator('aside [data-patreon-reader-button]')).toHaveCount(0);
+});
+
 for (const namespace of ["chrome", "browser"]) {
   test(`${namespace}: disabled by default; inserts Reader first only when enabled`, async ({ page }) => {
     await setup(page, { namespace });

@@ -130,8 +130,9 @@ div[data-tag="floating-engagement-sheet"]
 
 Runtime code has no third-party dependencies or build step. `extension.js` shares
 validated preferences and a small browser API adapter between the popup and
-content scripts. `reader.js` owns post detection, scoped styles, and an isolated
-Shadow DOM panel. `content.js` coordinates storage and page navigation.
+content scripts. `patreon-dom.js` owns Patreon hooks, post discovery, and surface
+selection; `reader.js` owns appearance state, markers, and the isolated Shadow
+DOM panel. `content.js` coordinates storage and page navigation.
 
 ### Repository layout
 
