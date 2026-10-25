@@ -460,6 +460,51 @@ for (const native of ["white", "black"]) {
   });
 }
 
+test("membership banner follows Post Color without changing Join buttons, images, or layout", async ({ page }) => {
+  const banner = `<div data-testid="cta-banner-wrapper"><div class="PostBodies-module__newHash__singleColumnContent"><div class="CTABanner-module__newHash__root" style="background:rgb(28,28,32);border-radius:12px;padding:24px;display:flex;gap:16px">
+    <img alt="Creator artwork" width="64" height="64" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3C/svg%3E">
+    <div><p style="color:white">Get more from the creator</p><p style="color:white">Join to get free updates.</p></div>
+    <button data-tag="join-for-free-button" style="color:white;background:rgb(82,48,255);border-radius:99px"><span style="color:white">Join for free</span></button>
+    <div><p style="color:white">Get free updates on mobile.</p><button style="color:white;background:rgb(82,48,255)"><span style="color:white">Join</span></button></div>
+  </div></div></div>`;
+  const content = fixture.replace('</main>', `${banner}</main><aside id="outside-banner">${banner}</aside>`);
+  await setup(page, { content, stored: { readerEnabled: true } });
+  await button(page).click();
+  await change(page, "textSize", "24");
+  const card = page.locator('#post [class*="CTABanner-module__"][class*="__root"]');
+  const palette = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
+  for (const [name, background, ink] of [
+    ["White", "rgb(255, 255, 255)", "rgb(34, 34, 34)"],
+    ["Sepia", "rgb(244, 236, 216)", "rgb(91, 70, 54)"],
+    ["Light Green", "rgb(227, 237, 223)", "rgb(34, 34, 34)"],
+    ["Charcoal", "rgb(32, 33, 36)", "rgb(245, 245, 240)"]
+  ]) {
+    await palette.getByRole("radio", { name, exact: true }).click();
+    await expect(card).toHaveCSS("background-color", background);
+    for (const paragraph of await card.locator("p").all()) {
+      await expect(paragraph).toHaveCSS("color", ink);
+      await expect(paragraph).toHaveCSS("font-size", "16px");
+    }
+    for (const join of await card.locator("button").all()) {
+      await expect(join).toHaveCSS("background-color", "rgb(82, 48, 255)");
+      await expect(join.locator("span")).toHaveCSS("color", "rgb(255, 255, 255)");
+    }
+    await expect(card).toHaveCSS("padding", "24px");
+    await expect(card).toHaveCSS("display", "flex");
+    await expect(card).toHaveCSS("border-radius", "12px");
+    await expect(card.locator("img")).toHaveCSS("width", "64px");
+    await expect(page.locator('#outside-banner [class*="CTABanner-module__"]')).toHaveCSS("background-color", "rgb(28, 28, 32)");
+    await expect(page.locator('#outside-banner p').first()).toHaveCSS("color", "rgb(255, 255, 255)");
+  }
+  await palette.getByRole("radio", { name: "Default", exact: true }).click();
+  await expect(card).toHaveCSS("background-color", "rgb(28, 28, 32)");
+  await expect(card.locator("p").first()).toHaveCSS("color", "rgb(255, 255, 255)");
+  await palette.getByRole("radio", { name: "Sepia", exact: true }).click();
+  await enable(page, false);
+  await expect(card).toHaveCSS("background-color", "rgb(28, 28, 32)");
+  await expect(card.locator("p").first()).toHaveCSS("color", "rgb(255, 255, 255)");
+});
+
 test("swatch groups support arrow keys and migrate older free-picker colors", async ({ page }) => {
   await setup(page, { stored: { readerEnabled: true, readerPreferences: { textColor: "#124567", backgroundColor: "#efdfcf" } } });
   await button(page).click();

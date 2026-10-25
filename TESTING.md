@@ -212,6 +212,20 @@ and browser-test radio names; historical release notes retain their original lab
 All 24 Chrome fixture tests and the focused unpacked-extension test in Brave
 passed. Syntax and whitespace checks passed.
 
+### Membership banner background — 1.3.6
+
+The nested `CTABanner` root inside `cta-banner-wrapper` now follows Post Color
+when inside the active reading surface. Previously its paragraphs received the
+new foreground while its card kept the native dark background. The background
+rule targets the inner card, not its images, Join buttons, or layout properties.
+The selector uses module/role prefixes instead of the captured generated hash.
+
+A new test reproduced the unchanged dark background before the fix. It covers
+every preset, desktop/mobile text, Join buttons, image dimensions, card layout,
+unrelated banners, and Default/disable restoration. All 25 Chrome fixture tests
+and all 26 Brave tests passed, including the unpacked-extension test in Brave.
+Syntax and whitespace checks passed. Live Patreon confirmation remains pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari

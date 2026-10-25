@@ -186,6 +186,7 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
   [class*="PostBodies-module__"][class*="__singleColumnContent"],
   [data-testid="single-column-post-wrapper"],
   [class*="PostBodies-module__"][class*="__singleColumnPost"],
+  [data-testid="cta-banner-wrapper"] [class*="CTABanner-module__"][class*="__root"],
   [data-patreon-reader-body]
 ) {
   background-color: var(--patreon-reader-background-color) !important;

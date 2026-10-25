@@ -17,6 +17,11 @@ including nested SVGs and counts. Earlier notes about preserving native comment
 action colors describe the captured 1.2.2 implementation. Comment-entry forms and
 unrelated controls still retain native styling.
 
+Implementation update (1.3.6): the membership banner's inner `CTABanner` card
+inside `cta-banner-wrapper` follows the selected background on the reading
+surface, matching its already-customized text. Artwork, native Join controls,
+and layout remain unchanged. Earlier native-card observations are historical.
+
 ## Evidence and limits
 
 The baseline combines three kinds of evidence:
