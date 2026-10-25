@@ -16,8 +16,9 @@ floating engagement bar and apply optional reading appearance preferences:
   recorded or retained.
 - It stores the Boolean `isHidden` preference, the Boolean `readerEnabled`
   preference, and a `readerPreferences` object in local extension storage. The
-  object contains the selected system-font identifier, text size, text and
-  background colors, paragraph spacing, and line spacing. These settings contain
+  object contains the selected system-font identifier, text size, paired Post
+  Color preset, paragraph spacing, and line spacing. Legacy separate colors are
+  read for migration and replaced on the next settings change. These settings contain
   no post identifiers, creator identifiers, or personal information.
 - It observes page structure changes and inspects DOM attributes and hierarchy
   to locate the post title, body, and action row, respond to navigation, and

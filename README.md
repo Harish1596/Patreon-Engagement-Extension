@@ -44,31 +44,32 @@ it again.
 1. Open the extension's toolbar popup and turn on **Enable Reader Customization**.
 2. On a supported post page, select the **Aa** button at the start of the action
    row: Reader → Like → Comment → Repost → Share → More.
-3. Adjust font family, text size (12–32px), text color, background color,
+3. Adjust font family, text size (12–32px), Post Color,
    paragraph spacing (0–48px), and line spacing (1–2.5×). Changes preview immediately.
 
-The title uses 1.5× the chosen body text size. Font, text color, size, and spacing
-customize the title/body reading text. Background color covers the full post
+The title uses 1.5× the chosen body text size. Font, size, and spacing
+customize the title/body reading text. Post Color covers the full post
 column and its outer wrapper/padding, including the title, creator information,
 action-row area, and comments.
 Metadata and comments receive a matching readable foreground when a background
 is selected. Reader, Like, Comment, Repost, Share, and More action icons, counts,
-and borders follow that background independently of the reading-text color.
+and borders use the same matched palette as the reading text.
 Hover, keyboard focus, selected/liked, and disabled states remain distinguishable.
 Navigation outside the column, other native controls, images, and embeds keep
 their own styling. Links remain underlined when overriding post text color.
 
-Colors use a small preset palette instead of a full color picker:
+Post Color pairs the background with readable text instead of separate color controls:
 
-- Background: site default, White, Sepia, Light Green, or Black.
-- Text: Auto/site default, Charcoal, Slate, Brown, or Soft White.
+- Default: restore Patreon's original colors.
+- White: white background and charcoal text.
+- Sepia: warm cream background and brown text.
+- Light Green: pale green background and charcoal text.
+- Black: dark background and soft white text.
 
-Auto chooses readable post text for the selected background. Text swatches with
-contrast below 4.5:1 against a selected background are disabled. Changing to an
-incompatible background switches the text choice to Auto. Resetting background
-to site default restores the site's original surface and metadata colors.
-Previously saved full-picker colors map to the nearest preset; the next settings
-change saves the migrated values.
+Every preset updates background, text, metadata, and action colors together.
+Previously saved backgrounds map to the nearest preset; old independent text
+overrides are dropped. Text-only legacy preferences become Default. The next
+settings change saves the migrated `postColor` value without legacy color fields.
 
 Each setting starts at **Site default**. Individual default buttons remove an
 override; **Reset to Patreon defaults** removes all appearance overrides without

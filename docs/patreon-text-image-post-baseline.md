@@ -4,6 +4,13 @@ Recorded: October 25, 2026. Extension implementation reviewed: 1.2.2, commit
 `89eff4b`. This is the working reference for future changes to a text post with
 inline images. Other post types can be documented separately after this baseline.
 
+Implementation update (1.3.0): the Reader panel now has one **Post Color** preset
+instead of independent text/background choices. Each preset derives matched
+text, surface, and action colors; internal CSS variables remain separate to style
+those elements. Saved legacy backgrounds select the nearest preset and legacy
+text overrides are discarded. References below to separate choices describe the
+1.2.2 capture, not the current controls.
+
 ## Evidence and limits
 
 The baseline combines three kinds of evidence:

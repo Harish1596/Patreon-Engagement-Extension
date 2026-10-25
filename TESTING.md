@@ -124,6 +124,22 @@ test checks nested white labels become dark on Light Green in two post tabs.
 All 20 Chrome fixture tests and all 21 Brave tests passed, with syntax and
 whitespace checks passing too. Live Patreon confirmation remains pending.
 
+### Paired Post Color — 1.3.0
+
+One Post Color radio group replaces independent text/background controls. Default,
+White, Sepia, Light Green, and Black apply matched text, surface, and action colors.
+Swatches preview both text and background. Legacy backgrounds migrate to the
+nearest preset; independent text overrides are discarded. New `postColor` values,
+including an explicit default, take precedence over legacy fields. Saved settings
+use only the new color field after the next change.
+
+Coverage includes paired foregrounds, contrast, invalid values, legacy migration,
+keyboard selection, reset/disable cleanup, and cross-tab installed-extension use.
+All 21 Chrome fixture tests passed (the Brave-only installed test is skipped).
+All 22 Brave tests passed, including the actual unpacked extension. Syntax and
+whitespace checks passed; the rendered panel screenshot was inspected.
+Live Patreon confirmation remains pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari
@@ -139,8 +155,9 @@ support claims are not evidence that the Reader feature passes this checklist.
   locked previews, and posts containing headings, lists, quotes, links, images,
   and embeds. Do not use the extension to obtain inaccessible content.
 - Check default fonts, unavailable-font fallbacks, bold/italic text, long
-  unbroken links, each background preset, automatic foreground matching, and
-  disabled low-contrast text swatches.
+  unbroken links, each Post Color preset, and matching text and action colors.
+- Upgrade from separate color settings. Check background migration, removal of
+  the old text override, persistence after a settings change, and Default reset.
 - Check Reader, Like, Comment, Repost, Share, and More against every background
   in both Patreon themes. Verify nested icons/counts, liked/selected states,
   disabled states, hover, focus, and original colors after reset or disable.

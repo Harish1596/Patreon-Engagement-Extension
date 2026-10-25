@@ -1,5 +1,5 @@
 (() => {
-  const { fonts, colors, contrast, pageInk, defaults, normalize } = globalThis.PatreonExtension;
+  const { fonts, colors, pageInk, defaults, normalize } = globalThis.PatreonExtension;
   const TITLE = '[data-tag="post-title"]';
   const BODY = '[class*="PostBodies-module__"][class*="__postContent"] [class*="RichText-module__"][class*="additionalStylesPostContentWrapper"]';
   const CARD = '[data-tag="post-card"]';
@@ -49,12 +49,12 @@
       font: fonts[preferences.font].value,
       "text-size": px(preferences.textSize),
       "title-size": preferences.textSize === null ? null : px(preferences.textSize * 1.5),
-      "text-color": preferences.textColor ?? pageInk(preferences.backgroundColor),
-      "background-color": preferences.backgroundColor,
-      "surface-color": pageInk(preferences.backgroundColor),
-      "action-hover": preferences.backgroundColor === null ? null : preferences.backgroundColor === "#202124" ? "#35373c" : "#d5d5ce",
-      "action-accent": preferences.backgroundColor === null ? null : preferences.backgroundColor === "#202124" ? "#ffb3bf" : "#9b2343",
-      "action-selected": preferences.backgroundColor === null ? null : preferences.backgroundColor === "#202124" ? "#452b36" : "#f4dce4",
+      "text-color": pageInk(preferences.postColor),
+      "background-color": preferences.postColor,
+      "surface-color": pageInk(preferences.postColor),
+      "action-hover": preferences.postColor === null ? null : preferences.postColor === "#202124" ? "#35373c" : "#d5d5ce",
+      "action-accent": preferences.postColor === null ? null : preferences.postColor === "#202124" ? "#ffb3bf" : "#9b2343",
+      "action-selected": preferences.postColor === null ? null : preferences.postColor === "#202124" ? "#452b36" : "#f4dce4",
       "paragraph-spacing": px(preferences.paragraphSpacing),
       "line-spacing": preferences.lineSpacing === null ? null : String(preferences.lineSpacing)
     };
@@ -156,19 +156,16 @@
       shadow.querySelector(`#${key}-value`).textContent = display;
       input.setAttribute("aria-valuetext", display);
     }
-    for (const key of ["textColor", "backgroundColor"]) {
+    for (const key of ["postColor"]) {
       const selected = preferences[key];
       shadow.querySelector(`#${key}-value`).textContent = colors[key].find((option) => option.value === selected)?.label
-        ?? (key === "textColor" && preferences.backgroundColor ? "Automatic" : "Site default");
+        ?? "Site default";
       for (const swatch of shadow.querySelectorAll(`#${key} [role="radio"]`)) {
         const value = swatch.dataset.color || null;
         const checked = value === selected;
         swatch.setAttribute("aria-checked", String(checked));
         swatch.tabIndex = checked ? 0 : -1;
-        swatch.disabled = key === "textColor" && value !== null && preferences.backgroundColor !== null
-          && contrast(value, preferences.backgroundColor) < 4.5;
-        swatch.title = swatch.disabled ? `${swatch.getAttribute("aria-label")}: insufficient contrast with this background`
-          : swatch.getAttribute("aria-label");
+        swatch.title = swatch.getAttribute("aria-label");
       }
     }
     shadow.querySelector("#font").value = preferences.font;
@@ -242,8 +239,7 @@
     panel.append(fontRow);
     for (const [key, label, type, min, max, step] of [
       ["textSize", "Text size", "range", 12, 32, 1],
-      ["textColor", "Text color", "palette"],
-      ["backgroundColor", "Background color", "palette"],
+      ["postColor", "Post Color", "palette"],
       ["paragraphSpacing", "Paragraph spacing", "range", 0, 48, 1],
       ["lineSpacing", "Line spacing", "range", 1, 2.5, 0.1]
     ]) {
@@ -259,11 +255,14 @@
         controls.id = key;
         controls.setAttribute("role", "radiogroup");
         controls.setAttribute("aria-labelledby", `${key}-label`);
-        for (const option of [{ label: key === "textColor" ? "Auto" : "Default", value: null }, ...colors[key]]) {
+        for (const option of [{ label: "Default", value: null }, ...colors[key]]) {
           const swatch = element("button", { type: "button", role: "radio", class: "swatch",
             "aria-label": option.label, "data-color": option.value ?? "" });
-          const face = element("span", { class: "swatch-face", "aria-hidden": "true" }, option.value ? "" : "↺");
-          if (option.value) face.style.setProperty("--swatch-color", option.value);
+          const face = element("span", { class: "swatch-face", "aria-hidden": "true" }, option.value ? "Aa" : "↺");
+          if (option.value) {
+            face.style.setProperty("--swatch-color", option.value);
+            face.style.color = option.ink;
+          }
           swatch.append(face, element("span", { "aria-hidden": "true" }, option.label));
           swatch.addEventListener("click", () => update(key, option.value));
           controls.append(swatch);
@@ -284,7 +283,7 @@
         heading.append(reset);
       }
       row.append(heading, controls);
-      if (type === "palette" && key === "textColor") row.append(element("p", {}, "Auto chooses a readable text color."));
+      if (type === "palette") row.append(element("p", {}, "Matching background, text, and action colors."));
       panel.append(row);
     }
     const footer = element("footer");

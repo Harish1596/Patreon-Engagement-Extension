@@ -50,14 +50,14 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await first.getByLabel("Font family", { exact: true }).selectOption("georgia");
     await expect(first.locator("#body")).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');
     await expect(second.locator("#body")).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');
-    await first.getByRole("radiogroup", { name: "Background color", exact: true }).getByRole("radio", { name: "Black", exact: true }).click();
+    await first.getByRole("radiogroup", { name: "Post Color", exact: true }).getByRole("radio", { name: "Black", exact: true }).click();
     await expect(first.locator("[data-patreon-reader-surface]")).toHaveCSS("background-color", "rgb(32, 33, 36)");
     await expect(first.locator("[data-patreon-reader-surface]")).toHaveClass(/__singleColumnContentWrapper/);
     await expect(first.locator('[class$="__singleColumnContent"]')).toHaveCSS("background-color", "rgb(32, 33, 36)");
     await expect(second.locator("[data-patreon-reader-surface]")).toHaveCSS("background-color", "rgb(32, 33, 36)");
     await expect(second.locator("#body")).toHaveCSS("color", "rgb(245, 245, 240)");
     await expect(first.locator('.actions [data-tag="like-button"] span')).toHaveCSS("color", "rgb(245, 245, 240)");
-    await first.getByRole("radiogroup", { name: "Background color", exact: true }).getByRole("radio", { name: "Light Green", exact: true }).click();
+    await first.getByRole("radiogroup", { name: "Post Color", exact: true }).getByRole("radio", { name: "Light Green", exact: true }).click();
     await expect(first.locator('.actions [data-tag="like-button"] span')).toHaveCSS("color", "rgb(34, 34, 34)");
     await expect(second.locator('.actions [data-tag="like-button"] span')).toHaveCSS("color", "rgb(34, 34, 34)");
     await first.getByRole("dialog").screenshot({ path: "test-results/reader-panel.png" });

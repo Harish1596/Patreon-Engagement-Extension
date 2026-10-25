@@ -22,18 +22,12 @@
     monospace: { label: "Monospace", value: 'ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace' }
   });
   const defaults = Object.freeze({
-    font: "default", textSize: null, textColor: null,
-    backgroundColor: null, paragraphSpacing: null, lineSpacing: null
+    font: "default", textSize: null, postColor: null,
+    paragraphSpacing: null, lineSpacing: null
   });
   // Independently chosen reading colors; no remote assets or branded palettes.
   const colors = Object.freeze({
-    textColor: [
-      { label: "Charcoal", value: "#222222" },
-      { label: "Slate", value: "#444444" },
-      { label: "Brown", value: "#5b4636" },
-      { label: "Soft White", value: "#f5f5f0" }
-    ],
-    backgroundColor: [
+    postColor: [
       { label: "White", value: "#ffffff", ink: "#222222" },
       { label: "Sepia", value: "#f4ecd8", ink: "#5b4636" },
       { label: "Light Green", value: "#e3eddf", ink: "#222222" },
@@ -52,7 +46,7 @@
     return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
   }
   function pageInk(background) {
-    return colors.backgroundColor.find((option) => option.value === background)?.ink ?? null;
+    return colors.postColor.find((option) => option.value === background)?.ink ?? null;
   }
   function presetColor(key, value) {
     if (typeof value !== "string" || !/^#[0-9a-f]{6}$/i.test(value)) return null;
@@ -71,14 +65,13 @@
       return typeof n === "number" && Number.isFinite(n)
         ? Math.round(Math.min(max, Math.max(min, n)) / step) * step : null;
     };
-    const backgroundColor = presetColor("backgroundColor", input.backgroundColor);
-    let textColor = presetColor("textColor", input.textColor);
-    if (textColor && backgroundColor && contrast(textColor, backgroundColor) < 4.5) textColor = null;
+    // An explicit new value (including Site default) wins over legacy settings.
+    // Legacy text overrides are discarded so each post preset stays a matched pair.
+    const postColor = presetColor("postColor", Object.hasOwn(input, "postColor") ? input.postColor : input.backgroundColor);
     return {
       font: Object.hasOwn(fonts, input.font) ? input.font : "default",
       textSize: number("textSize", 12, 32, 1),
-      textColor,
-      backgroundColor,
+      postColor,
       paragraphSpacing: number("paragraphSpacing", 0, 48, 1),
       lineSpacing: number("lineSpacing", 1, 2.5, 0.1)
     };
