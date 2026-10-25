@@ -146,7 +146,7 @@ tests/
   fixtures/                  Sanitized synthetic post HTML
   helpers/                   Fixture setup, API mocks, and test controls
   *.spec.js                  Browser regression and installed-extension tests
-scripts/                     Reserved for development tooling; packaging is next
+scripts/                     Local packaging and development tooling
 docs/                        Maintained Patreon page reference
 store-assets/                Store-listing promotional assets, not runtime assets
 dist/                        Ignored release output
@@ -164,12 +164,11 @@ Start there when planning changes to the common text-and-image post layout.
 
 For development checks, run `npm ci`, `npm run check`, and `npm test`. Playwright
 is a development-only dependency; see [TESTING.md](TESTING.md) for browser setup.
-Packaging automation is a separate follow-up. For now, a release must contain
-the contents of `extension/` (not an enclosing `extension/` directory), plus
-the repository-root `LICENSE` and `PRIVACY.md`, with `manifest.json` at the ZIP
-root and the `shared/`, `content/`, `popup/`, and `icons/` paths preserved.
-Do not include `node_modules`, tests, reports, docs, store assets, or `.git`.
-Existing ZIPs in `dist/` are historical outputs and were not rebuilt by this move.
+Run `npm run package` to create an allowlisted, version-checked, validated ZIP in
+`dist/`. It requires `zip` and `unzip` on PATH and refuses to overwrite an existing
+release unless you supply `--force`. See [release packaging](docs/release-packaging.md)
+for validation details. Tests, dependencies, docs, store assets, and Git data are
+excluded; packaging does not publish anything.
 
 ## Reporting Issues
 

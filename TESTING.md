@@ -8,6 +8,12 @@ below; documenting the captures does not establish live behavioral coverage.
 
 ## Automated checks
 
+Local packaging tooling: `npm run test:tooling` runs Node tests independently of
+Playwright. Eight packaging tests passed for exact contents, version mismatches,
+missing/unsafe resources, corrupted/modified ZIPs, overwrite protection, and forced
+rebuilds. See [release packaging](docs/release-packaging.md). Playwright discovers
+only `*.spec.js`; Node tooling tests use `*.test.cjs` under `tests/tooling/`.
+
 Repository-layout update: unpacked extensions now load from `extension/`, and
 the installed test opens `popup/popup.html`. Synthetic HTML is in `tests/fixtures/`;
 shared setup/API mocks and control helpers are in `tests/helpers/reader.js`.

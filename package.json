@@ -4,6 +4,8 @@
   "version": "1.3.9",
   "scripts": {
     "test": "playwright test",
+    "test:tooling": "node --test tests/tooling/*.test.cjs",
+    "package": "node scripts/package-extension.js",
     "test:brave": "TEST_BROWSER=brave playwright test",
     "check": "node --check extension/shared/extension.js && node --check extension/content/reader.js && node --check extension/content/content.js && node --check extension/popup/popup.js && node --check tests/helpers/reader.js"
   },
