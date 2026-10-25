@@ -9,6 +9,8 @@ test("compact popup keeps text and switches within its 320px layout", async ({ p
   await setup(page, { content: html });
   await page.addStyleTag({ path: path.join(extensionRoot, "popup/popup.css") });
   await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
+  await expect(page.getByText("Runs locally on Patreon post pages", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".scope-note, .lock")).toHaveCount(0);
   for (const colorScheme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme });
     await expect(page.locator("body")).toHaveCSS("width", "320px");
@@ -17,7 +19,7 @@ test("compact popup keeps text and switches within its 320px layout", async ({ p
       await page.locator("#status").evaluate((node, text) => { node.textContent = text; }, status);
       const fits = await page.evaluate(() => {
         const body = document.body.getBoundingClientRect();
-        return [...document.querySelectorAll(".app-header, .setting, .setting-copy, .switch, #status, .scope-note")]
+        return [...document.querySelectorAll(".app-header, .setting, .setting-copy, .switch, #status")]
           .every(node => {
             const rect = node.getBoundingClientRect();
             return rect.left >= body.left && rect.right <= body.right && node.scrollWidth <= node.clientWidth;

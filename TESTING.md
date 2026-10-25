@@ -53,6 +53,10 @@ including a new 320px popup layout check in light/dark modes with long status
 messages and usable switches. Syntax and ZIP packaging validation also passed.
 No new live Patreon verification is claimed for this popup-only change.
 
+After removing the popup footer, targeted checks passed: 3 Chrome popup tests
+and 4 Brave popup/installed-extension tests. The full suites were not rerun for
+this footer-only change; syntax, whitespace, and rebuilt ZIP validation passed.
+
 ## Browser configuration
 
 Shared discovery in `scripts/browser-config.js` checks common macOS, Linux, and

@@ -20,6 +20,17 @@ limitations are not resolved by assuming coverage that was not specified.
 
 ## Historical release and checkpoint records
 
+### Remove popup footer — October 25, 2026
+
+Removed the "Runs locally on Patreon post pages" footer, its lock icon, and
+unused styles. Popup width remains 320px; runtime preferences are unchanged.
+
+- Targeted Chrome popup tests: 3 passed.
+- Targeted Brave popup/installed-extension tests: 4 passed.
+- Added footer-absence assertions; retained light/dark overflow checks.
+- Syntax, whitespace, and rebuilt 1.3.9 ZIP validation passed.
+- Full browser suites were not rerun; no new live Patreon evidence is claimed.
+
 ### Compact extension popup — October 25, 2026
 
 Reduced the toolbar popup width from 360px to 320px without changing text sizes,
