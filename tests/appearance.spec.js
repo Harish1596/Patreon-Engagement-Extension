@@ -65,6 +65,55 @@ test("reading swatches cover the full supplied post column and preserve native c
 
 
 
+test("creator avatar shadow follows custom colors and preserves other images and native controls", async ({ page }) => {
+  const avatar = (id, radius) => `<div class="CreatorByLine-module__test__avatarContainerWithFreeMembership">
+    <a href="#creator"><div id="${id}" class="Avatar-module__test__container" style="width:40px;height:40px;border-radius:${radius};box-shadow:0 1px 2px rgba(0,0,0,.1)">
+      <img alt="Creator avatar" width="40" height="40" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">
+      <button class="CreatorByLine-module__test__followIcon" aria-label="Follow creator">+</button>
+    </div></a></div>`;
+  const content = fixture.replace('<main id="post">', `<nav>${avatar("nav-avatar", "50%")}</nav><main id="post">${avatar("square-avatar", "8px")}${avatar("circle-avatar", "50%")}`)
+    .replace('</main>', '<div data-tag="comment-avatar-wrapper"><div id="comment-avatar" class="Avatar-module__test__container" style="width:32px;height:32px">Comment avatar</div></div></main>');
+  await setup(page, { content, stored: { readerEnabled: true } });
+  await button(page).click();
+  const square = page.locator("#square-avatar");
+  const originalShadow = await square.evaluate(node => getComputedStyle(node).boxShadow);
+  const originalSize = await square.boundingBox();
+  const followShadow = await square.locator("button").evaluate(node => getComputedStyle(node).boxShadow);
+  for (const [value, ink] of [["#ffffff", "34, 34, 34"], ["#f4ecd8", "91, 70, 54"],
+    ["#e3eddf", "34, 34, 34"], ["#202124", "245, 245, 240"]]) {
+    await change(page, "postColor", value);
+    const expectedShadow = await page.evaluate(ink => {
+      const probe = document.createElement("div");
+      probe.style.boxShadow = `0 0 0 1px color-mix(in srgb, rgb(${ink}) 45%, transparent), 0 2px 6px rgba(0,0,0,.2)`;
+      document.body.append(probe);
+      const result = getComputedStyle(probe).boxShadow;
+      probe.remove();
+      return result;
+    }, ink);
+    for (const id of ["square-avatar", "circle-avatar"]) {
+      const shadow = await page.locator(`#${id}`).evaluate(node => getComputedStyle(node).boxShadow);
+      expect(shadow).toBe(expectedShadow);
+      expect(shadow).toContain("0px 0px 0px 1px");
+      expect(shadow).toContain("0px 2px 6px 0px");
+    }
+    await expect(square).toHaveCSS("border-radius", "8px");
+    await expect(page.locator("#circle-avatar")).toHaveCSS("border-radius", "50%");
+    expect(await square.boundingBox()).toEqual(originalSize);
+    await expect(square.locator("img")).toHaveCSS("width", "40px");
+    await expect(square.locator("button")).toHaveCSS("box-shadow", followShadow);
+    await expect(page.locator("#nav-avatar")).toHaveCSS("box-shadow", originalShadow);
+    await expect(page.locator("#comment-avatar")).toHaveCSS("box-shadow", "none");
+    await expect(page.locator('[data-patreon-reader-body] img')).toHaveCSS("box-shadow", "none");
+  }
+  await change(page, "postColor", "");
+  await expect(square).toHaveCSS("box-shadow", originalShadow);
+  await change(page, "postColor", "#f4ecd8");
+  await enable(page, false);
+  await expect(square).toHaveCSS("box-shadow", originalShadow);
+  await enable(page, true);
+  await expect(square).not.toHaveCSS("box-shadow", originalShadow);
+});
+
 test("membership banner follows Post Color without changing Join buttons, images, or layout", async ({ page }) => {
   const banner = `<div data-testid="cta-banner-wrapper"><div class="PostBodies-module__newHash__singleColumnContent"><div class="CTABanner-module__newHash__root" style="background:rgb(28,28,32);border-radius:12px;padding:24px;display:flex;gap:16px;box-shadow:0 2px 4px rgba(0,0,0,.12)">
     <img alt="Creator artwork" width="64" height="64" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3C/svg%3E">

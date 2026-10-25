@@ -192,6 +192,15 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
   background-color: var(--patreon-reader-background-color) !important;
 }
 
+/* Separate the post creator avatar from custom surfaces without resizing it.
+   Preserve native avatar shape, image rendering, and any follow-button overlay. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[class*="CreatorByLine-module__"][class*="__avatarContainer"]
+[class*="Avatar-module__"][class*="__container"] {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 45%, transparent),
+    0 2px 6px rgba(0, 0, 0, .2) !important;
+}
+
 /* Keep the same-color banner distinct without changing its box dimensions.
    Surface ink makes the outline light on Charcoal and dark on light presets. */
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]

@@ -20,6 +20,12 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Latest avatar-separation verification: **30 Chrome cases and 31 Brave cases
+passed**, including custom-color shadows, native shape/dimensions, Default and
+disable/re-enable, and out-of-scope image/control checks. Syntax, whitespace,
+and rebuilt 1.3.9 ZIP validation passed. Live confirmation of the new byline
+avatar rule is not yet recorded.
+
 Run these commands from the repository root with Node.js 22 or later:
 
 ```sh

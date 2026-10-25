@@ -1,7 +1,8 @@
 # Patreon post-page reference: text posts with inline images
 
 Last maintained: October 25, 2026. Current implementation reviewed: **1.3.9**,
-DOM ownership commit `c9a2c84` (feature behavior unchanged from `d59a994`).
+DOM ownership commit `c9a2c84`; later 1.3.9 refinements include swatch ordering
+and the creator-avatar separation rule documented below.
 Original HTML baseline: **1.2.2**, commit `89eff4b`.
 The filename is retained so existing links continue to work.
 
@@ -268,6 +269,7 @@ threshold, scroll direction rule, or animation behavior has been measured.
 | Article typography | Marked title/body for font/size; title size is 1.5× an explicit body size. Paragraph and line-spacing rules target body content only. |
 | Background | Marked outer wrapper plus known inner surfaces/body. |
 | Metadata and comment foreground | Matching surface ink on selected text elements; not article font/spacing. |
+| Post creator avatar | Byline avatar container receives a theme-aware outline/drop shadow for non-default colors; native shape and sizing retained. |
 | Main post actions | Marked top action row; known Reader/native controls only. |
 | Comment text and authors | Surface ink, including clickable parent rows and author-name buttons; native comment typography retained. |
 | Comment actions | Buttons within `comment-actions` inside the marked surface; icons/counts and interaction colors follow the palette. |
@@ -333,6 +335,26 @@ boundaries from a creator avatar or a generic `Stack` layout class.
 Scope to the selected top row before injecting Aa or styling main-post actions.
 Native counts and ARIA labels are dynamic, can be localized, and are not selectors.
 Native Repost/More actions are not created by the extension when absent.
+
+### Creator avatar separation
+
+The original HTML contains a `CreatorByLine-module__HASH__avatarContainerWithFreeMembership`
+wrapper around an anchor and an `Avatar-module__HASH__container` holding the
+image and follow-button overlay. The captured avatar is square; preserve native
+rounding rather than forcing every creator avatar into a circle. Navigation
+uses separate CreatorInfo markup and must not inherit this effect.
+
+The October 25, 2026 17:54:09 screenshot shows a different creator's byline avatar
+blending into the White post surface. Its exact DOM was not supplied; the fix
+uses the existing captured byline structure, not selectors inferred from pixels.
+Under the marked Reader surface, only Avatar containers within a
+`CreatorByLine-module__…__avatarContainer…` wrapper receive a one-pixel shadow
+outline at 45% surface-ink opacity and `0 2px 6px rgba(0,0,0,.2)` drop shadow.
+The outline is dark on light presets and light on Charcoal. Default or disabling
+Reader restores native shadows. No border width, radius, image filter, padding,
+or event behavior changes; follow overlays, article images, navigation, and
+comment avatars remain outside this rule. Synthetic checks cover square/round
+avatars; live confirmation on the new creator's markup is still needed.
 
 ### Comments and author names
 
@@ -632,8 +654,9 @@ installed test intentionally. Historical browser/OS versions in that log belong
 to their recorded runs, not a guarantee about every later test environment.
 Browser discovery now checks common install paths and supports explicit executable
 overrides through the shared development browser configuration.
-Live Patreon testing across the recorded history is completed, as confirmed by
-the user on October 25, 2026; this is separate evidence from the automated runs.
+Live Patreon testing across the history recorded at the time of confirmation
+is completed, as confirmed by the user on October 25, 2026; this is separate
+evidence from automated runs and does not cover subsequent changes automatically.
 The confirmation does not itemize Firefox, Safari, assistive technology, real
 authenticated comment submission, or every live UI variant, so specific coverage
 of those areas remains unestablished. CSS uses

@@ -20,6 +20,25 @@ limitations are not resolved by assuming coverage that was not specified.
 
 ## Historical release and checkpoint records
 
+### Creator byline avatar separation — October 25, 2026
+
+The 17:54:09 screenshot shows a creator avatar blending into a White post
+surface. Inspection of the original saved HTML established the CreatorByLine
+avatar wrapper and inner Avatar container; the new screenshot's DOM was not
+supplied. A non-default-color-only outline/drop shadow targets that container
+under the marked reading surface, preserving native shape and dimensions.
+
+- Chrome: 30 passed; the Brave-only installed test was skipped.
+- Brave: all 31 passed, including the installed-extension test.
+- Regression coverage includes every preset, square/round containers,
+  Default/disable/re-enable restoration, and unchanged navigation/comment
+  avatars, article images, and follow-button shadows.
+- Initial Chrome run: the new test failed because computed color-mix shadows
+  serialize as `color(srgb …)`, not `rgba(…)`. The assertion now compares against
+  an independently computed expected shadow. Both full suites then passed.
+- Syntax, whitespace, and rebuilt 1.3.9 ZIP validation passed.
+- Live confirmation on the newly supplied creator's page remains unrecorded.
+
 ### Remove popup footer — October 25, 2026
 
 Removed the "Runs locally on Patreon post pages" footer, its lock icon, and
