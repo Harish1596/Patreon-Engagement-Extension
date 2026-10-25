@@ -1,6 +1,8 @@
 # Patreon post-page reference: text posts with inline images
 
-Last maintained: October 25, 2026. Current implementation reviewed: **1.3.9**,
+Last maintained: October 25, 2026. Current release: **1.2.0**, renumbered from
+the local **1.3.9** development series without changing behavior or preferences.
+Historical 1.3.x references below retain their original checkpoint numbers.
 DOM ownership commit `c9a2c84`; later 1.3.9 refinements include swatch ordering
 and the creator-avatar separation rule documented below.
 Original HTML baseline: **1.2.2**, commit `89eff4b`.

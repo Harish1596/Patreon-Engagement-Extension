@@ -20,6 +20,20 @@ limitations are not resolved by assuming coverage that was not specified.
 
 ## Historical release and checkpoint records
 
+### Release renumbering to 1.2.0 — October 25, 2026
+
+At the user's request, changed the current manifest, package, and both root
+lockfile version fields from 1.3.9 to 1.2.0. This is release renumbering, not
+a rollback of features, settings, or compatibility. Earlier 1.2.0/1.3.x entries
+retain their original development-checkpoint numbers and should not be treated
+as a monotonic published-release sequence.
+
+- Syntax checks, all 13 tooling tests, whitespace, and packaging validation passed.
+- Generated `dist/patreon-reader-1.2.0.zip`; older local archives were retained.
+- Browser suites were not rerun for this version-metadata-only change.
+- Store upload eligibility remains unverified: the latest uploaded store version
+  must be lower than 1.2.0. No store upload or publication was performed.
+
 ### Rename to Patreon Reader — October 25, 2026
 
 Renamed the manifest display name, action tooltip, popup document title, README,
