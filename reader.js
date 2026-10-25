@@ -369,7 +369,9 @@
     const post = findPost();
     if (!post) { removeUI(); clearTargets(); return; }
     const { scope, like, belongs } = post;
-    const nextSurface = like.closest('[class*="PostBodies-module__"][class*="__singleColumnContent"]')
+    // Prefer the outer wrapper explicitly: the inner column shares its prefix.
+    const nextSurface = like.closest('[class*="PostBodies-module__"][class*="__singleColumnContentWrapper"]')
+      ?? like.closest('[class*="PostBodies-module__"][class*="__singleColumnContent"]')
       ?? like.closest('[data-testid="single-column-post-wrapper"]') ?? like.closest(CARD) ?? scope;
     if (surface !== nextSurface) surface?.removeAttribute("data-patreon-reader-surface");
     surface = nextSurface;

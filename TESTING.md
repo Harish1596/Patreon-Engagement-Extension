@@ -85,6 +85,19 @@ all 17 Chrome fixture tests and all 18 Brave tests passed. The Brave suite
 includes the actual unpacked-extension test. Live-site confirmation and Firefox/
 Safari validation remain pending.
 
+### Outer-wrapper background — 1.2.1
+
+The latest supplied markup adds `PostBodies-module__…__singleColumnContentWrapper`
+outside the inner content column. Reader explicitly prefers that outer wrapper
+and colors the inner column too, so its padding and surrounding space share the
+selected background. A regression fixture uses distinct original backgrounds
+and outer padding, verifies both surfaces change, and checks reset/disable
+restores both originals. The actual unpacked-extension fixture now includes
+the same outer/inner nesting.
+
+All 18 Chrome fixture tests and all 19 Brave tests passed, along with syntax and
+whitespace checks. Live Patreon confirmation remains pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari

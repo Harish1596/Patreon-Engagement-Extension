@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Patreon Engagement Toggle",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Hide Patreon's floating engagement bar and customize post fonts, colors, text size, and spacing locally.",
   "permissions": ["storage"],
   "content_security_policy": {

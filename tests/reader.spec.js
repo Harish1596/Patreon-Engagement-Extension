@@ -387,3 +387,23 @@ test("swatch groups support arrow keys and migrate older free-picker colors", as
   expect(["#222222", "#444444", "#5b4636", "#f5f5f0", null]).toContain(normalized.textColor);
   expect(normalized.backgroundColor).toBe("#f4ecd8");
 });
+
+test("background covers the outer single-column wrapper and its padding", async ({ page }) => {
+  const content = fixture.replace('<main id="post">', '<main id="post" data-tag="post-card"><div id="outer-surface" class="PostBodies-module__changedHash__singleColumnContentWrapper" style="padding:40px;background:rgb(200,210,220)"><div id="inner-surface" class="PostBodies-module__changedHash__singleColumnContent" style="background:white">')
+    .replace('</main>', '</div></div></main>');
+  await setup(page, { content, stored: { readerEnabled: true, readerPreferences: { backgroundColor: "#f4ecd8" } } });
+  await expect(page.locator("#outer-surface")).toHaveAttribute("data-patreon-reader-surface", "");
+  await expect(page.locator("#inner-surface")).not.toHaveAttribute("data-patreon-reader-surface", "");
+  await expect(page.locator("#outer-surface")).toHaveCSS("background-color", "rgb(244, 236, 216)");
+  await expect(page.locator("#inner-surface")).toHaveCSS("background-color", "rgb(244, 236, 216)");
+  await expect(page.locator("#outer-surface")).toHaveCSS("padding", "40px");
+  await button(page).click();
+  await dialog(page).getByRole("radiogroup", { name: "Background color", exact: true }).getByRole("radio", { name: "Default", exact: true }).click();
+  await expect(page.locator("#outer-surface")).toHaveCSS("background-color", "rgb(200, 210, 220)");
+  await expect(page.locator("#inner-surface")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await change(page, "backgroundColor", "#202124");
+  await expect(page.locator("#outer-surface")).toHaveCSS("background-color", "rgb(32, 33, 36)");
+  await enable(page, false);
+  await expect(page.locator("[data-patreon-reader-surface]")).toHaveCount(0);
+  await expect(page.locator("#outer-surface")).toHaveCSS("background-color", "rgb(200, 210, 220)");
+});

@@ -74,6 +74,7 @@ html[data-patreon-reader-text-color] :is([data-patreon-reader-body] a, [data-pat
 
 html[data-patreon-reader-background-color] [data-patreon-reader-surface],
 html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
+  [class*="PostBodies-module__"][class*="__singleColumnContent"],
   [data-testid="single-column-post-wrapper"],
   [class*="PostBodies-module__"][class*="__singleColumnPost"],
   [data-patreon-reader-body]

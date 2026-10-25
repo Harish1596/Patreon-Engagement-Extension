@@ -49,7 +49,8 @@ it again.
 
 The title uses 1.5× the chosen body text size. Font, text color, size, and spacing
 customize the title/body reading text. Background color covers the full post
-column, including its title, creator information, action-row area, and comments.
+column and its outer wrapper/padding, including the title, creator information,
+action-row area, and comments.
 Metadata and comments receive a matching readable foreground when a background
 is selected. Navigation outside the column, native controls, images, and embeds
 keep their own styling. Links remain underlined when overriding post text color.
