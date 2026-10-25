@@ -342,7 +342,7 @@ test("reading swatches cover the full supplied post column and preserve native c
   await expect(backgrounds.getByRole("radio")).toHaveCount(5);
   await expect(dialog(page).getByRole("radiogroup")).toHaveCount(1);
   await expect(dialog(page).locator('input[type="color"]')).toHaveCount(0);
-  await backgrounds.getByRole("radio", { name: "Black", exact: true }).click();
+  await backgrounds.getByRole("radio", { name: "Dark", exact: true }).click();
   await expect(page.locator("#surface")).toHaveCSS("background-color", "rgb(32, 33, 36)");
   await expect(page.locator("#shell")).toHaveCSS("background-color", "rgb(32, 33, 36)");
   await expect(page.locator("#byline")).toHaveCSS("color", "rgb(245, 245, 240)");
@@ -355,7 +355,7 @@ test("reading swatches cover the full supplied post column and preserve native c
   await expect(page.locator("#surface")).toHaveCSS("background-color", "rgb(244, 236, 216)");
   await expect(page.locator("#byline")).toHaveCSS("color", "rgb(91, 70, 54)");
   await expect(page.locator('[data-patreon-reader-body] > p').first()).toHaveCSS("color", "rgb(91, 70, 54)");
-  await backgrounds.getByRole("radio", { name: "Black", exact: true }).click();
+  await backgrounds.getByRole("radio", { name: "Dark", exact: true }).click();
   await expect(page.locator('[data-patreon-reader-body] > p').first()).toHaveCSS("color", "rgb(245, 245, 240)");
   await backgrounds.getByRole("radio", { name: "Default", exact: true }).click();
   await expect(page.locator("#shell")).toHaveCSS("background-color", "rgb(255, 255, 255)");
@@ -384,7 +384,7 @@ test("clickable parent comments and replies receive post ink without recoloring 
   await button(page).click();
   const swatches = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
   await expect(swatches.locator('.swatch-face')).toHaveText(["↺", "", "", "", ""]);
-  for (const [name, ink] of [["White", "rgb(34, 34, 34)"], ["Sepia", "rgb(91, 70, 54)"], ["Light Green", "rgb(34, 34, 34)"], ["Black", "rgb(245, 245, 240)"]]) {
+  for (const [name, ink] of [["White", "rgb(34, 34, 34)"], ["Sepia", "rgb(91, 70, 54)"], ["Light Green", "rgb(34, 34, 34)"], ["Dark", "rgb(245, 245, 240)"]]) {
     await swatches.getByRole("radio", { name, exact: true }).click();
     for (const text of await page.locator('[data-tag="comment-body"], [data-tag="comment-body"] p, [data-tag="comment-body"] span, [data-tag="commenter-name"], [data-tag="commenter-name"] span, [data-tag="comment-row"] time').all()) {
       await expect(text).toHaveCSS("color", ink);
@@ -421,7 +421,7 @@ for (const native of ["white", "black"]) {
     const palette = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
     const controls = page.locator('#post [data-tag="comment-actions"] button');
     const original = native === "white" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
-    for (const [name, ink] of [["White", "rgb(34, 34, 34)"], ["Sepia", "rgb(91, 70, 54)"], ["Light Green", "rgb(34, 34, 34)"], ["Black", "rgb(245, 245, 240)"]]) {
+    for (const [name, ink] of [["White", "rgb(34, 34, 34)"], ["Sepia", "rgb(91, 70, 54)"], ["Light Green", "rgb(34, 34, 34)"], ["Dark", "rgb(245, 245, 240)"]]) {
       await palette.getByRole("radio", { name, exact: true }).click();
       for (const control of await controls.all()) {
         await expect(control).toHaveCSS("color", ink);
@@ -453,7 +453,7 @@ for (const native of ["white", "black"]) {
     await palette.getByRole("radio", { name: "Default", exact: true }).click();
     await expect(like.locator("span").first()).toHaveCSS("color", original);
     for (const icon of await controls.locator("svg").all()) await expect(icon).toHaveCSS("fill", original);
-    await palette.getByRole("radio", { name: "Black", exact: true }).click();
+    await palette.getByRole("radio", { name: "Dark", exact: true }).click();
     await enable(page, false);
     await expect(like.locator("span").first()).toHaveCSS("color", original);
     for (const icon of await controls.locator("svg").all()) await expect(icon).toHaveCSS("fill", original);
@@ -470,7 +470,7 @@ test("swatch groups support arrow keys and migrate older free-picker colors", as
   await expect(colors.getByRole("radio", { name: "Light Green", exact: true })).toBeFocused();
   await expect(colors.getByRole("radio", { name: "Light Green", exact: true })).toHaveAttribute("aria-checked", "true");
   await page.keyboard.press("End");
-  await expect(colors.getByRole("radio", { name: "Black", exact: true })).toBeFocused();
+  await expect(colors.getByRole("radio", { name: "Dark", exact: true })).toBeFocused();
   await expect.poll(() => page.evaluate(async () => (await readStored()).readerPreferences?.postColor)).toBe("#202124");
   const normalized = await page.evaluate(() => PatreonExtension.normalize({ textColor: "#124567", backgroundColor: "#efdfcf" }));
   expect(normalized.postColor).toBe("#f4ecd8");
@@ -532,7 +532,7 @@ for (const nativeColor of ["white", "black"]) {
     const original = nativeColor === "white" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
     await expect(like.locator(".native-count")).toHaveCSS("color", original);
     await button(page).click();
-    for (const [name, ink] of [["White", "rgb(34, 34, 34)"], ["Sepia", "rgb(91, 70, 54)"], ["Light Green", "rgb(34, 34, 34)"], ["Black", "rgb(245, 245, 240)"]]) {
+    for (const [name, ink] of [["White", "rgb(34, 34, 34)"], ["Sepia", "rgb(91, 70, 54)"], ["Light Green", "rgb(34, 34, 34)"], ["Dark", "rgb(245, 245, 240)"]]) {
       await dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true }).getByRole("radio", { name, exact: true }).click();
       for (const tag of ["like-button", "comment-post-icon", "reshare-button", "share-post-icon", "more-actions-button"]) {
         await expect(page.locator(`#post [data-tag="${tag}"]`)).toHaveCSS("color", ink);
@@ -541,7 +541,7 @@ for (const nativeColor of ["white", "black"]) {
       await expect(like.locator(".native-count")).toHaveCSS("color", ink);
       await expect(like.locator("circle")).toHaveCSS("fill", ink);
       await expect(page.locator('[data-patreon-reader-body] > p').first()).toHaveCSS("color", ink);
-      await expect(button(page)).toHaveCSS("color", name === "Black" ? "rgb(255, 179, 191)" : "rgb(155, 35, 67)");
+      await expect(button(page)).toHaveCSS("color", name === "Dark" ? "rgb(255, 179, 191)" : "rgb(155, 35, 67)");
     }
     await dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true }).getByRole("radio", { name: "Light Green", exact: true }).click();
     await expect(like).toHaveCSS("color", "rgb(34, 34, 34)");

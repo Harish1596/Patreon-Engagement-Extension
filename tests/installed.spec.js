@@ -50,7 +50,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await first.getByLabel("Font family", { exact: true }).selectOption("georgia");
     await expect(first.locator("#body")).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');
     await expect(second.locator("#body")).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');
-    await first.getByRole("radiogroup", { name: "Post Color", exact: true }).getByRole("radio", { name: "Black", exact: true }).click();
+    await first.getByRole("radiogroup", { name: "Post Color", exact: true }).getByRole("radio", { name: "Dark", exact: true }).click();
     await expect(first.locator("[data-patreon-reader-surface]")).toHaveCSS("background-color", "rgb(32, 33, 36)");
     await expect(first.locator("[data-patreon-reader-surface]")).toHaveClass(/__singleColumnContentWrapper/);
     await expect(first.locator('[class$="__singleColumnContent"]')).toHaveCSS("background-color", "rgb(32, 33, 36)");

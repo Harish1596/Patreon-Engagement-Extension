@@ -31,7 +31,7 @@
       { label: "White", value: "#ffffff", ink: "#222222" },
       { label: "Sepia", value: "#f4ecd8", ink: "#5b4636" },
       { label: "Light Green", value: "#e3eddf", ink: "#222222" },
-      { label: "Black", value: "#202124", ink: "#f5f5f0" }
+      { label: "Dark", value: "#202124", ink: "#f5f5f0" }
     ]
   });
   function luminance(hex) {

@@ -192,6 +192,15 @@ the same computed fill as their button foreground. This is an offline snapshot
 check, not validation of current live interactions.
 Live Patreon confirmation remains pending.
 
+### Dark preset label — 1.3.4
+
+Renamed the Post Color option from Black to Dark. Its background (`#202124`),
+foreground (`#f5f5f0`), interaction palette, and stored value are unchanged.
+Existing saved selections therefore remain valid without migration. Reader and
+installed-extension tests select the updated accessible radio name.
+All 24 Chrome fixture tests and the focused unpacked-extension test in Brave
+passed. Syntax and whitespace checks passed.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari
