@@ -1,6 +1,65 @@
 const { test, expect } = require("@playwright/test");
 const { setup, button, dialog, enable, change } = require("./helpers/reader");
 
+for (const readerEnabled of [false, true]) {
+  test(`engagement hiding recovers after page flag removal with Reader enabled=${readerEnabled}`, async ({ page }) => {
+    await setup(page, { stored: { isHidden: true, readerEnabled, readerPreferences: { postColor: "#f4ecd8" } } });
+    const bar = page.locator('[data-tag="floating-engagement-sheet"]');
+    await expect(bar).toBeHidden();
+    // Attribute-only removal must recover even without a route or DOM change.
+    await page.evaluate(() => document.documentElement.removeAttribute("data-hide-patreon-floating-engagement"));
+    await expect(page.locator("html")).toHaveAttribute("data-hide-patreon-floating-engagement", "", { timeout: 1000 });
+    await expect(bar).toBeHidden();
+    // Simulate the page stripping the flag while rerendering on the same URL.
+    await page.evaluate(() => {
+      document.documentElement.removeAttribute("data-hide-patreon-floating-engagement");
+      document.body.append(document.createElement("div"));
+    });
+    await expect(bar).toBeHidden();
+    if (readerEnabled) await expect(page.locator("[data-patreon-reader-body]")).toHaveCSS("background-color", "rgb(244, 236, 216)");
+    // Reconciliation must not continually rewrite the flag or cause an observer loop.
+    const writes = await page.evaluate(async () => {
+      let count = 0;
+      const observer = new MutationObserver(records => { count += records.length; });
+      observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-hide-patreon-floating-engagement"] });
+      for (let i = 0; i < 3; i++) {
+        document.body.append(document.createElement("div"));
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
+      observer.disconnect();
+      return count;
+    });
+    expect(writes).toBe(0);
+    expect(await page.evaluate(async () => (await readStored()).isHidden)).toBe(true);
+  });
+}
+
+test("engagement recovery respects show preference and unsupported routes", async ({ page }) => {
+  await setup(page, { stored: { isHidden: false } });
+  const bar = page.locator('[data-tag="floating-engagement-sheet"]');
+  await expect(bar).toBeVisible();
+  await page.evaluate(() => document.documentElement.setAttribute("data-hide-patreon-floating-engagement", ""));
+  await expect(page.locator("html")).not.toHaveAttribute("data-hide-patreon-floating-engagement");
+  await expect(bar).toBeVisible();
+  await page.evaluate(() => setStored({ isHidden: true }));
+  await expect(bar).toBeHidden();
+  await page.evaluate(() => {
+    history.pushState({}, "", "/example");
+    document.body.append(document.createElement("div"));
+  });
+  await expect(bar).toBeVisible();
+  await page.evaluate(() => document.documentElement.setAttribute("data-hide-patreon-floating-engagement", ""));
+  await expect(page.locator("html")).not.toHaveAttribute("data-hide-patreon-floating-engagement");
+  await page.evaluate(() => {
+    history.pushState({}, "", "/example/posts/next-124");
+    document.body.append(document.createElement("div"));
+  });
+  await expect(bar).toBeHidden();
+  await page.evaluate(() => setStored({ isHidden: false }));
+  await page.evaluate(() => document.body.append(document.createElement("div")));
+  await expect(bar).toBeVisible();
+});
+
 test("disable removes UI and restores CSS; re-enable restores saved choices", async ({ page }) => {
   await setup(page, { stored: { readerEnabled: true, readerPreferences: { textSize: 26, font: "verdana" } } });
   await button(page).click();

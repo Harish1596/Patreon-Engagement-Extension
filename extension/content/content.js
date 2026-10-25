@@ -22,7 +22,6 @@
   let isHidden = true;
   let readerEnabled = false;
   let readerPreferences = normalize(null);
-  let lastPathname = window.location.pathname;
   let scheduled = false;
 
   const saveReader = (value) => call(api.storage.local, "set", { readerPreferences: value });
@@ -37,10 +36,12 @@
   }
 
   function applyVisibility() {
-    document.documentElement.toggleAttribute(
-      ROOT_ATTRIBUTE,
-      isHidden && isPostPage()
-    );
+    const root = document.documentElement;
+    const shouldHide = isHidden && isPostPage();
+    // Avoid redundant attribute writes and observer feedback loops.
+    if (root.hasAttribute(ROOT_ATTRIBUTE) !== shouldHide) {
+      root.toggleAttribute(ROOT_ATTRIBUTE, shouldHide);
+    }
   }
 
   function state() {
@@ -57,10 +58,8 @@
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
-      if (window.location.pathname !== lastPathname) {
-        lastPathname = window.location.pathname;
-        applyVisibility();
-      }
+      // Same-URL hydration/rerenders can remove extension-owned page state.
+      applyVisibility();
       globalThis.PatreonReader.reconcile(isPostPage());
     });
   }
@@ -125,5 +124,13 @@
   routeObserver.observe(document.documentElement, {
     childList: true,
     subtree: true
+  });
+
+  // Restore only our visibility flag if the page strips it during loading.
+  // This also runs in background tabs without waiting for an animation frame.
+  const visibilityObserver = new MutationObserver(applyVisibility);
+  visibilityObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: [ROOT_ATTRIBUTE]
   });
 })();
