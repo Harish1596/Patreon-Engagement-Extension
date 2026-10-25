@@ -20,6 +20,20 @@ limitations are not resolved by assuming coverage that was not specified.
 
 ## Historical release and checkpoint records
 
+### Release version corrected to 1.1.0 — October 25, 2026
+
+The user confirmed the Chrome Web Store extension version is 1.0.0 and selected
+1.1.0 for the next backward-compatible feature release. Updated all four release
+version fields from the temporary local 1.2.0 value to 1.1.0. No runtime behavior,
+permissions, or saved preferences changed. Earlier checkpoints retain their
+original version labels; the temporary 1.2.0 package is superseded.
+
+- Syntax, all 13 tooling tests, whitespace, and packaging validation passed.
+- Generated `dist/patreon-reader-1.1.0.zip`; older local archives were retained.
+- Browser suites were not rerun for this metadata-only change.
+- The store version is user-reported, not independently checked in the dashboard.
+  No upload or publication was performed.
+
 ### Release renumbering to 1.2.0 — October 25, 2026
 
 At the user's request, changed the current manifest, package, and both root

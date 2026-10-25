@@ -20,9 +20,9 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
-Release-renumbering verification (1.2.0): syntax checks and all 13 tooling tests
+Release-renumbering verification (1.1.0): syntax checks and all 13 tooling tests
 passed. Packaging validated the consistent version fields and generated
-`dist/patreon-reader-1.2.0.zip`. Browser suites were not rerun for this
+`dist/patreon-reader-1.1.0.zip`. Browser suites were not rerun for this
 metadata-only change; earlier browser results remain historical evidence.
 
 Rename verification (Patreon Reader): all 13 tooling tests and 4 targeted Brave
@@ -57,8 +57,9 @@ Node tooling cases passed**, plus syntax and whitespace checks. Chrome skips
 the Brave-only installed test intentionally. Detailed dated results, earlier
 failures/retries, and original browser/OS versions are retained in
 [testing history](docs/testing-history.md); historical counts are not current totals.
-The current release version is **1.2.0**, renumbered from the local 1.3.9
-development series at the user's request. Historical version numbers below
+The current release version is **1.1.0**, following the user-confirmed Chrome
+Web Store version **1.0.0**. This renumbers the local 1.3.9 development series
+without changing behavior or preferences. Historical version numbers below
 describe their original checkpoints, not the current release metadata.
 
 The subsequent swatch-order change also passed 28 Chrome and 29 Brave cases,
