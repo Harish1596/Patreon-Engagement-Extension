@@ -1,5 +1,10 @@
 # Reader validation
 
+The [text-and-image post baseline](docs/patreon-text-image-post-baseline.md)
+records the supplied HTML and seven screenshots as architectural evidence.
+Its observations are distinct from the synthetic and installed-extension tests
+below; documenting the captures does not establish live behavioral coverage.
+
 ## Automated checks
 
 Install Node.js 22 or later and a local Chrome installation, then run:
