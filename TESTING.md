@@ -172,6 +172,26 @@ unrelated form controls, reset, and disable. All 24 Chrome fixture tests and all
 25 Brave tests passed, including the installed-extension test in Brave. Syntax
 and whitespace checks passed. Live Patreon confirmation is pending.
 
+### Reply/More SVG-fill override — 1.3.3
+
+Patreon's TextLink rule forces `fill: var(--TextLinkStyle-color) !important`
+on SVGs in buttons without `hasIconColor`. Like has that class; Reply and More
+do not. The 1.3.2 non-important fill override therefore lost to the native rule.
+The fix adds `!important` only to comment-action SVG fill inside the active reading
+surface. Text, layout, handlers, and other icons are unchanged by this fix.
+
+The regression fixture now includes the actual TextLink class distinction and
+competing important rule, with paths inheriting SVG fill as in the supplied HTML.
+Both native-theme cases failed at Reply before the fix. Tests also check More's
+expanded fill, reset/disable cleanup, and icons outside the reading surface.
+After the fix, all 24 Chrome fixture tests and all 25 Brave tests passed; syntax
+and whitespace checks passed. An isolated Chrome check using the supplied full
+HTML and its linked public styles (with website scripts removed and browser
+network requests blocked) confirmed all six rendered comment action icons have
+the same computed fill as their button foreground. This is an offline snapshot
+check, not validation of current live interactions.
+Live Patreon confirmation remains pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari

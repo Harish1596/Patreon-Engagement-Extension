@@ -120,7 +120,8 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface]
 
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]
 [data-tag="comment-actions"] :is(button, [role="button"]) svg {
-  fill: currentColor;
+  /* Patreon forces TextLink SVG fill with !important for Reply and More. */
+  fill: currentColor !important;
 }
 
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]

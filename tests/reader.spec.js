@@ -404,12 +404,18 @@ test("clickable parent comments and replies receive post ink without recoloring 
 for (const native of ["white", "black"]) {
   test(`comment action icons and counts contrast with presets over native ${native}`, async ({ page }) => {
     const actions = `<div data-tag="comment-actions">
-      <button data-tag="like-button" aria-label="Like comment" aria-pressed="false"><span><svg width="20" height="20"><path d="M0 0h10v10z" fill="currentColor"/></svg></span><span class="count">4</span></button>
-      <button aria-label="Reply to comment"><span><svg width="20" height="20"><path d="M0 0h10v10z" fill="currentColor"/></svg></span><span class="count">3</span></button>
-      <button data-tag="comment-more-actions" aria-label="More actions" aria-expanded="false"><span><svg width="20" height="20"><path d="M0 0h10v10z" fill="currentColor"/></svg></span></button>
+      <button class="TextLinkStyle-module__PNsRYa__root TextLinkStyle-module__PNsRYa__hasIconColor" data-tag="like-button" aria-label="Like comment" aria-pressed="false"><span><svg width="20" height="20"><path d="M0 0h10v10z"/></svg></span><span class="count">4</span></button>
+      <button class="TextLinkStyle-module__PNsRYa__root" aria-label="Reply to comment"><span><svg width="20" height="20"><path d="M0 0h10v10z"/></svg></span><span class="count">3</span></button>
+      <button class="TextLinkStyle-module__PNsRYa__root" data-tag="comment-more-actions" aria-label="More actions" aria-expanded="false"><span><svg width="20" height="20"><path d="M0 0h10v10z"/></svg></span></button>
     </div>`;
-    const content = fixture.replace('</style>', `[data-tag="comment-actions"] button, [data-tag="comment-actions"] span { color:${native}; background:transparent; } </style>`)
-      .replace('</main>', `<section data-tag="content-card-comment-thread-container"><div data-tag="comment-row" role="button" tabindex="0">${actions}</div><div data-tag="comment-row">${actions}</div><button id="comment-form-control" style="color:rgb(10,20,30)">Submit</button></section></main>`);
+    // Match Patreon's rule: Reply/More lack hasIconColor and force SVG fill.
+    // Paths deliberately inherit fill, as in the supplied real-page HTML.
+    const content = fixture.replace('</style>', `[data-tag="comment-actions"] button, [data-tag="comment-actions"] span { color:${native}; background:transparent; }
+      .TextLinkStyle-module__PNsRYa__root { --TextLinkStyle-color:${native}; }
+      .TextLinkStyle-module__PNsRYa__root svg { fill:currentColor; }
+      .TextLinkStyle-module__PNsRYa__root:not(.TextLinkStyle-module__PNsRYa__hasIconColor) svg { fill:var(--TextLinkStyle-color) !important; }
+      </style>`)
+      .replace('</main>', `<section data-tag="content-card-comment-thread-container"><div data-tag="comment-row" role="button" tabindex="0">${actions}</div><div data-tag="comment-row">${actions}</div><button id="comment-form-control" style="color:rgb(10,20,30)">Submit</button></section></main><aside id="outside-comment-actions">${actions}</aside>`);
     await setup(page, { content, stored: { readerEnabled: true } });
     await button(page).click();
     const palette = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
@@ -424,6 +430,7 @@ for (const native of ["white", "black"]) {
       }
       for (const count of await page.locator('#post [data-tag="comment-actions"] .count').all()) await expect(count).toHaveCSS("color", ink);
       await expect(page.locator('#comment-form-control')).toHaveCSS("color", "rgb(10, 20, 30)");
+      for (const icon of await page.locator('#outside-comment-actions svg').all()) await expect(icon).toHaveCSS("fill", original);
     }
     await palette.getByRole("radio", { name: "Light Green", exact: true }).click();
     await page.keyboard.press("Escape");
@@ -438,15 +445,18 @@ for (const native of ["white", "black"]) {
     const more = controls.nth(2);
     await more.evaluate(node => node.setAttribute("aria-expanded", "true"));
     await expect(more).toHaveCSS("color", "rgb(155, 35, 67)");
+    await expect(more.locator("path")).toHaveCSS("fill", "rgb(155, 35, 67)");
     await more.evaluate(node => node.setAttribute("aria-disabled", "true"));
     await expect(more).toHaveCSS("opacity", "0.55");
     await expect(more).toHaveCSS("cursor", "not-allowed");
     await button(page).click();
     await palette.getByRole("radio", { name: "Default", exact: true }).click();
     await expect(like.locator("span").first()).toHaveCSS("color", original);
+    for (const icon of await controls.locator("svg").all()) await expect(icon).toHaveCSS("fill", original);
     await palette.getByRole("radio", { name: "Black", exact: true }).click();
     await enable(page, false);
     await expect(like.locator("span").first()).toHaveCSS("color", original);
+    for (const icon of await controls.locator("svg").all()) await expect(icon).toHaveCSS("fill", original);
   });
 }
 
