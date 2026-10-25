@@ -38,6 +38,72 @@ button[data-patreon-reader-button]:focus-visible {
   outline-offset: 3px !important;
 }
 
+/* The action row follows the reading background independently of post text.
+   Leave other controls (join, login, comment forms, etc.) in their native theme. */
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+) {
+  color: var(--patreon-reader-surface-color) !important;
+  background: transparent !important;
+  border: 1px solid currentColor !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+) * {
+  color: inherit !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+) svg {
+  fill: currentColor;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+):hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--patreon-reader-action-hover) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+):is([aria-pressed="true"], [aria-expanded="true"]) {
+  color: var(--patreon-reader-action-accent) !important;
+  background: var(--patreon-reader-action-selected) !important;
+  box-shadow: inset 0 0 0 1px currentColor !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+):focus-visible {
+  outline: 2px solid var(--patreon-reader-surface-color) !important;
+  outline-offset: 3px !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+):is(:disabled, [aria-disabled="true"]) {
+  opacity: .55 !important;
+  cursor: not-allowed !important;
+}
+
 /* Override only text properties, preserving weight, emphasis, and media styles. */
 html[data-patreon-reader-font] :is(
   [data-patreon-reader-title], [data-patreon-reader-title] *,

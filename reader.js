@@ -4,12 +4,13 @@
   const BODY = '[class*="PostBodies-module__"][class*="__postContent"] [class*="RichText-module__"][class*="additionalStylesPostContentWrapper"]';
   const CARD = '[data-tag="post-card"]';
   const EXCLUDE = '[data-tag="floating-engagement-sheet"], [data-tag="comment"], [data-tag="comments"], [data-tag="comment-row"], [data-tag="comment-actions"], [data-tag="content-card-comment-thread-container"]';
-  const PROPERTIES = ["font", "text-size", "title-size", "text-color", "background-color", "surface-color", "paragraph-spacing", "line-spacing"];
+  const PROPERTIES = ["font", "text-size", "title-size", "text-color", "background-color", "surface-color", "action-hover", "action-accent", "action-selected", "paragraph-spacing", "line-spacing"];
   let enabled = false;
   let preferences = { ...defaults };
   let savePreference;
   let trigger;
   let anchor;
+  let actionRow;
   let host;
   let shadow;
   let panel;
@@ -51,6 +52,9 @@
       "text-color": preferences.textColor ?? pageInk(preferences.backgroundColor),
       "background-color": preferences.backgroundColor,
       "surface-color": pageInk(preferences.backgroundColor),
+      "action-hover": preferences.backgroundColor === null ? null : preferences.backgroundColor === "#202124" ? "#35373c" : "#d5d5ce",
+      "action-accent": preferences.backgroundColor === null ? null : preferences.backgroundColor === "#202124" ? "#ffb3bf" : "#9b2343",
+      "action-selected": preferences.backgroundColor === null ? null : preferences.backgroundColor === "#202124" ? "#452b36" : "#f4dce4",
       "paragraph-spacing": px(preferences.paragraphSpacing),
       "line-spacing": preferences.lineSpacing === null ? null : String(preferences.lineSpacing)
     };
@@ -297,6 +301,8 @@
 
   function mount(like) {
     anchor = like;
+    actionRow = like.closest('[data-tag="top-engagement"]') ?? like.parentElement;
+    actionRow.setAttribute("data-patreon-reader-actions", "");
     trigger = element("button", {
       type: "button", "data-patreon-reader-button": "", title: "Customize reading appearance",
       "aria-label": "Customize reading appearance", "aria-haspopup": "dialog", "aria-expanded": "false"
@@ -325,6 +331,8 @@
   function removeUI() {
     closePanel(true);
     trigger?.remove(); host?.remove();
+    actionRow?.removeAttribute("data-patreon-reader-actions");
+    actionRow = undefined;
     trigger = anchor = host = shadow = panel = undefined;
   }
 
@@ -386,7 +394,7 @@
       if (!target.hasAttribute(attribute)) target.setAttribute(attribute, "");
     }
     applyStyles();
-    if (anchor !== like || !trigger?.isConnected || trigger.nextElementSibling !== like) {
+    if (anchor !== like || !trigger?.isConnected || trigger.nextElementSibling !== like || !actionRow?.isConnected || !actionRow.contains(like)) {
       removeUI(); mount(like);
     }
     position();

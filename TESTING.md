@@ -98,6 +98,27 @@ the same outer/inner nesting.
 All 18 Chrome fixture tests and all 19 Brave tests passed, along with syntax and
 whitespace checks. Live Patreon confirmation remains pending.
 
+### Action contrast — 1.2.2
+
+When an explicit reading background is selected, the main post's action row
+receives foreground, border, hover, and selected-state colors matched to the
+background. Descendant icon wrappers and counts inherit that foreground; SVGs
+use currentColor. Native handlers and aria state attributes are preserved.
+Keyboard-focus outlines and disabled opacity/cursors are styled explicitly.
+Resetting background or disabling Reader restores the native appearance.
+
+The rules apply only to Reader and the known main-post action controls. Comment
+actions, join/login buttons, media, and navigation outside that row retain their
+styles. The action palette is independent of the selected reading-text color.
+
+Regression coverage simulates both white-on-dark and black-on-light native
+icons across every reading background, including nested count/icon colors,
+selected/disabled states, hover/focus, reset, and cleanup. The installed-extension
+test checks nested white labels become dark on Light Green in two post tabs.
+
+All 20 Chrome fixture tests and all 21 Brave tests passed, with syntax and
+whitespace checks passing too. Live Patreon confirmation remains pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari
@@ -115,6 +136,9 @@ support claims are not evidence that the Reader feature passes this checklist.
 - Check default fonts, unavailable-font fallbacks, bold/italic text, long
   unbroken links, each background preset, automatic foreground matching, and
   disabled low-contrast text swatches.
+- Check Reader, Like, Comment, Repost, Share, and More against every background
+  in both Patreon themes. Verify nested icons/counts, liked/selected states,
+  disabled states, hover, focus, and original colors after reset or disable.
 - Confirm background covers the complete post column and metadata/comments are
   readable in both Patreon themes. Native controls, navigation outside the
   column, images, attachments, and embeds should retain their styling. Font

@@ -25,9 +25,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     });
     await context.route("https://www.patreon.com/**", (route) => route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html><head><style>body { font: 16px Arial; } .actions { display:flex; gap:8px; }</style></head><body>
+      body: `<!doctype html><html><head><style>body { font: 16px Arial; } .actions { display:flex; gap:8px; } .actions button { color:white; background:transparent; border:1px solid white; } .actions button span { color:white; }</style></head><body>
       <main data-tag="post-card"><div class="PostBodies-module__hash__singleColumnContentWrapper"><div class="PostBodies-module__hash__singleColumnContent"><div data-testid="single-column-post-wrapper"><div hidden><h1 data-tag="post-title">Responsive title copy</h1><div data-tag="top-engagement"><button data-tag="like-button">Hidden like</button></div></div><h1 data-tag="post-title">Installed extension test</h1>
-      <div class="actions" data-tag="top-engagement"><button data-tag="like-button">Like</button><button data-tag="more-actions-button">More</button></div>
+      <div class="actions" data-tag="top-engagement"><button data-tag="like-button"><span>Like</span></button><button data-tag="more-actions-button">More</button></div>
       <div class="PostBodies-module__hash__postContent"><div class="RichText-module__hash__additionalStylesPostContentWrapper"><p id="body">Post content.</p></div></div></div></div></div></main>
       <div data-tag="floating-engagement-sheet">Floating engagement</div></body></html>`
     }));
@@ -56,6 +56,10 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect(first.locator('[class$="__singleColumnContent"]')).toHaveCSS("background-color", "rgb(32, 33, 36)");
     await expect(second.locator("[data-patreon-reader-surface]")).toHaveCSS("background-color", "rgb(32, 33, 36)");
     await expect(second.locator("#body")).toHaveCSS("color", "rgb(245, 245, 240)");
+    await expect(first.locator('.actions [data-tag="like-button"] span')).toHaveCSS("color", "rgb(245, 245, 240)");
+    await first.getByRole("radiogroup", { name: "Background color", exact: true }).getByRole("radio", { name: "Light Green", exact: true }).click();
+    await expect(first.locator('.actions [data-tag="like-button"] span')).toHaveCSS("color", "rgb(34, 34, 34)");
+    await expect(second.locator('.actions [data-tag="like-button"] span')).toHaveCSS("color", "rgb(34, 34, 34)");
     await first.getByRole("dialog").screenshot({ path: "test-results/reader-panel.png" });
     await popup.locator("body").screenshot({ path: "test-results/popup.png" });
     await toggle.uncheck();

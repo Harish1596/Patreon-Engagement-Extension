@@ -407,3 +407,49 @@ test("background covers the outer single-column wrapper and its padding", async 
   await expect(page.locator("[data-patreon-reader-surface]")).toHaveCount(0);
   await expect(page.locator("#outer-surface")).toHaveCSS("background-color", "rgb(200, 210, 220)");
 });
+
+for (const nativeColor of ["white", "black"]) {
+  test(`post actions contrast with every reading background over native ${nativeColor} icons`, async ({ page }) => {
+    const content = fixture.replace('</style>', `.actions button { color:${nativeColor}; border:1px solid ${nativeColor}; background:transparent; } .native-icon, .native-count { color:${nativeColor}; } </style>`)
+      .replace('<div class="actions">', '<div class="actions" data-tag="top-engagement">')
+      .replace('<button data-tag="like-button">Like</button>', '<button data-tag="like-button" aria-pressed="false"><span class="native-icon"><svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5" fill="currentColor"/></svg></span><span class="native-count">16</span></button>');
+    await setup(page, { content, stored: { readerEnabled: true } });
+    const like = page.locator('#post [data-tag="like-button"]');
+    const original = nativeColor === "white" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
+    await expect(like.locator(".native-count")).toHaveCSS("color", original);
+    await button(page).click();
+    for (const [name, ink] of [["White", "rgb(34, 34, 34)"], ["Sepia", "rgb(91, 70, 54)"], ["Light Green", "rgb(34, 34, 34)"], ["Black", "rgb(245, 245, 240)"]]) {
+      await dialog(page).getByRole("radiogroup", { name: "Background color", exact: true }).getByRole("radio", { name, exact: true }).click();
+      for (const tag of ["like-button", "comment-post-icon", "reshare-button", "share-post-icon", "more-actions-button"]) {
+        await expect(page.locator(`#post [data-tag="${tag}"]`)).toHaveCSS("color", ink);
+        await expect(page.locator(`#post [data-tag="${tag}"]`)).toHaveCSS("border-top-color", ink);
+      }
+      await expect(like.locator(".native-count")).toHaveCSS("color", ink);
+      await expect(like.locator("circle")).toHaveCSS("fill", ink);
+      await expect(button(page)).toHaveCSS("color", name === "Black" ? "rgb(255, 179, 191)" : "rgb(155, 35, 67)");
+    }
+    await dialog(page).getByRole("radiogroup", { name: "Background color", exact: true }).getByRole("radio", { name: "Light Green", exact: true }).click();
+    await dialog(page).getByRole("radiogroup", { name: "Text color", exact: true }).getByRole("radio", { name: "Brown", exact: true }).click();
+    await expect(like).toHaveCSS("color", "rgb(34, 34, 34)");
+    await page.keyboard.press("Escape");
+    await button(page).focus();
+    await expect(button(page)).toHaveCSS("outline-style", "solid");
+    await expect(button(page)).toHaveCSS("outline-color", "rgb(34, 34, 34)");
+    await like.hover();
+    await expect(like).toHaveCSS("background-color", "rgb(213, 213, 206)");
+    await like.evaluate((node) => node.setAttribute("aria-pressed", "true"));
+    await expect(like).toHaveCSS("color", "rgb(155, 35, 67)");
+    await expect(like.locator(".native-count")).toHaveCSS("color", "rgb(155, 35, 67)");
+    await like.evaluate((node) => node.setAttribute("aria-disabled", "true"));
+    await expect(like).toHaveCSS("opacity", "0.55");
+    await expect(like).toHaveCSS("cursor", "not-allowed");
+    await button(page).click();
+    await dialog(page).getByRole("radiogroup", { name: "Background color", exact: true }).getByRole("radio", { name: "Default", exact: true }).click();
+    await expect(like.locator(".native-count")).toHaveCSS("color", original);
+    await change(page, "backgroundColor", "#202124");
+    await enable(page, false);
+    await expect(like.locator(".native-count")).toHaveCSS("color", original);
+    await expect(page.locator("[data-patreon-reader-actions]")).toHaveCount(0);
+    await expect(page.locator("html")).not.toHaveAttribute("data-patreon-reader-action-hover", "");
+  });
+}

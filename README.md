@@ -52,8 +52,11 @@ customize the title/body reading text. Background color covers the full post
 column and its outer wrapper/padding, including the title, creator information,
 action-row area, and comments.
 Metadata and comments receive a matching readable foreground when a background
-is selected. Navigation outside the column, native controls, images, and embeds
-keep their own styling. Links remain underlined when overriding post text color.
+is selected. Reader, Like, Comment, Repost, Share, and More action icons, counts,
+and borders follow that background independently of the reading-text color.
+Hover, keyboard focus, selected/liked, and disabled states remain distinguishable.
+Navigation outside the column, other native controls, images, and embeds keep
+their own styling. Links remain underlined when overriding post text color.
 
 Colors use a small preset palette instead of a full color picker:
 
