@@ -157,6 +157,21 @@ extension test in Brave. Syntax and whitespace checks passed. The updated panel
 screenshot was inspected to confirm plain color swatches.
 Live Patreon confirmation remains pending.
 
+### Comment action contrast — 1.3.2
+
+Like, Reply, and More buttons within `comment-actions` now use the surface ink,
+including nested icon wrappers and counts. SVGs use currentColor. Hover, keyboard
+focus, liked/expanded, and disabled states receive matching palette styles.
+Comment rows keep their native layout; join/login controls, comment-entry forms,
+and buttons outside the reading surface remain untouched. Default and disable
+restore original styling. Native handlers and ARIA attributes are not replaced.
+
+Regression tests cover white and black native icons, parent and reply actions,
+every preset, nested SVG/count colors, focus/hover, selected/disabled states,
+unrelated form controls, reset, and disable. All 24 Chrome fixture tests and all
+25 Brave tests passed, including the installed-extension test in Brave. Syntax
+and whitespace checks passed. Live Patreon confirmation is pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari
@@ -178,6 +193,8 @@ support claims are not evidence that the Reader feature passes this checklist.
 - Check Reader, Like, Comment, Repost, Share, and More against every background
   in both Patreon themes. Verify nested icons/counts, liked/selected states,
   disabled states, hover, focus, and original colors after reset or disable.
+- Check comment Like, Reply, and More on parent comments and expanded replies
+  against every preset, including counts, liked/menu states, hover, and focus.
 - Confirm background covers the complete post column and metadata/comments are
   readable in both Patreon themes. Native controls, navigation outside the
   column, images, attachments, and embeds should retain their styling. Font

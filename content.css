@@ -104,6 +104,48 @@ html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
   cursor: not-allowed !important;
 }
 
+/* Comment actions share the reading palette, but retain their compact native
+   layout rather than acquiring the main action row's pill borders. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]) {
+  color: var(--patreon-reader-surface-color) !important;
+  background: transparent !important;
+  opacity: 1 !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]) * {
+  color: inherit !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]) svg {
+  fill: currentColor;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]):hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--patreon-reader-action-hover) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]):is([aria-pressed="true"], [aria-expanded="true"]) {
+  color: var(--patreon-reader-action-accent) !important;
+  background: var(--patreon-reader-action-selected) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]):focus-visible {
+  outline: 2px solid var(--patreon-reader-surface-color) !important;
+  outline-offset: 3px !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]):is(:disabled, [aria-disabled="true"]) {
+  opacity: .55 !important;
+  cursor: not-allowed !important;
+}
+
 /* Override only text properties, preserving weight, emphasis, and media styles. */
 html[data-patreon-reader-font] :is(
   [data-patreon-reader-title], [data-patreon-reader-title] *,

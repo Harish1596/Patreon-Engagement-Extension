@@ -55,6 +55,8 @@ Metadata and comments receive a matching readable foreground when a background
 is selected. Reader, Like, Comment, Repost, Share, and More action icons, counts,
 and borders use the same matched palette as the reading text.
 Hover, keyboard focus, selected/liked, and disabled states remain distinguishable.
+Comment Like, Reply, and More icons and counts also follow Post Color, including
+parent comments and replies, while retaining their compact native layout.
 Navigation outside the column, other native controls, images, and embeds keep
 their own styling. Links remain underlined when overriding post text color.
 

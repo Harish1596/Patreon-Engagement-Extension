@@ -11,6 +11,12 @@ those elements. Saved legacy backgrounds select the nearest preset and legacy
 text overrides are discarded. References below to separate choices describe the
 1.2.2 capture, not the current controls.
 
+Implementation update (1.3.2): comment-action groups within the reading surface
+now use the preset foreground and interaction palette for Like, Reply, and More,
+including nested SVGs and counts. Earlier notes about preserving native comment
+action colors describe the captured 1.2.2 implementation. Comment-entry forms and
+unrelated controls still retain native styling.
+
 ## Evidence and limits
 
 The baseline combines three kinds of evidence:
