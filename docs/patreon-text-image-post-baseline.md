@@ -1,13 +1,16 @@
 # Patreon post-page reference: text posts with inline images
 
-Last maintained: October 25, 2026. Current release: **1.1.0**, renumbered from
+Last maintained: October 25, 2026. Current hotfix: **1.1.1** (live confirmation pending).
+Feature baseline: **1.1.0**, renumbered from
 the local **1.3.9** development series without changing behavior or preferences.
 Historical 1.3.x references below retain their original checkpoint numbers.
-The user confirms all completed testing, including live Patreon and the latest
-changes, applies to release **1.1.0**. Earlier labels describe development
+The user confirms completed testing at that checkpoint, including live Patreon
+and the latest 1.1.0 changes, applies to release **1.1.0**, not the subsequent
+1.1.1 hotfix. Earlier labels describe development
 checkpoints for that release, not separate published versions.
-The user reports Chrome Web Store version **1.0.0**; **1.1.0** is the intended
-next feature release. The temporary local 1.2.0 release number is superseded.
+The user reports Chrome Web Store version **1.0.0** and a dashboard upload of
+**1.1.0**; approval/publication was not confirmed. The temporary local 1.2.0
+release number is superseded.
 DOM ownership commit `c9a2c84`; later 1.3.9 refinements include swatch ordering
 and the creator-avatar separation rule documented below.
 Original HTML baseline: **1.2.2**, commit `89eff4b`.
@@ -584,9 +587,28 @@ Startup and storage changes configure/reconcile Reader. Child-list/subtree DOM
 changes are batched with `requestAnimationFrame`; popstate, resize, and the
 Navigation API (when available) also trigger reconciliation. Unsupported routes,
 route changes, missing target structure, and disablement trigger cleanup.
-The observer does not watch every attribute-only or character-data change, and
+The Reader observer does not watch every attribute-only or character-data change, and
 there is no universal interception of every History API call. Do not claim
 arbitrary Patreon state transitions are covered solely because an observer exists.
+
+### Engagement visibility recovery (1.1.1)
+
+Visibility is reconciled after each batched page update even when the pathname
+is unchanged. A separate root-only MutationObserver watches just
+`data-hide-patreon-floating-engagement`, restoring/removing it according to the
+saved hide preference and recognized post route. It does not wait for an
+animation frame, so background-tab recovery is not gated by frame scheduling.
+The guarded writer changes the attribute only when presence differs from the
+desired state, preventing redundant mutations/observer feedback loops. It does
+not inspect all page attributes, change Reader settings, or broaden URL support.
+
+Evidence: the user reported identical recognized URLs, enabled Hide Engagement
+Bar in the new tab, a working off/on workaround, and persistent Reader settings.
+An installed-extension synthetic check reproduced the symptom by removing the
+flag without changing URLs; ordinary new-tab storage persistence worked. This
+establishes a recoverable failure mode, not proof that live Patreon hydration
+removed the flag. Recovery tests fail on the old code and pass on 1.1.1; final
+verification on the user's affected live page is still needed.
 
 Detection/surface selection in `patreon-dom.js`, used by `reader.js`, in order:
 
@@ -662,10 +684,10 @@ installed test intentionally. Historical browser/OS versions in that log belong
 to their recorded runs, not a guarantee about every later test environment.
 Browser discovery now checks common install paths and supports explicit executable
 overrides through the shared development browser configuration.
-All completed testing across the recorded history is attributed to release
-1.1.0, including live Patreon and the latest changes, as confirmed by the user
-on October 25, 2026. This is separate evidence from the automated run records;
-it does not automatically cover future changes.
+Completed testing recorded before the 1.1.1 hotfix is attributed to release
+1.1.0, including live Patreon and the latest 1.1.0 changes, as confirmed by the
+user on October 25, 2026. This is separate evidence from automated run records
+and does not cover the subsequent hide-bar hotfix or future changes.
 The confirmation does not itemize Firefox, Safari, assistive technology, real
 authenticated comment submission, or every live UI variant, so specific coverage
 of those areas remains unestablished. CSS uses

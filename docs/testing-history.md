@@ -24,7 +24,39 @@ OS, or accessibility matrix, change the scope of synthetic tests, or claim store
 approval. Chrome Web Store 1.0.0 remains the user-reported published baseline;
 no upload or publication is recorded here.
 
+That completion statement applies to the 1.1.0 work available at confirmation,
+not the later 1.1.1 hotfix below. The user subsequently reported uploading
+1.1.0 to the Chrome dashboard; publication/approval was not confirmed.
+
 ## Historical release and checkpoint records
+
+### Hide-bar recovery hotfix — 1.1.1
+
+The user reports the same recognized post URL works in one tab but shows the
+floating engagement bar in a newly opened tab. The popup remains enabled,
+toggling off/on restores hiding, and Reader settings persist across tabs,
+reloads, and restarts. Normal synthetic fresh-tab startup preserved storage;
+simulating removal of the root hide flag reproduced the visible bar even with
+the saved preference still true. No live DOM capture proves what removed it.
+
+`applyVisibility()` now writes only when flag presence differs from the desired
+state. Every batched page update reconciles visibility even on the same URL.
+A second observer watches only the root hide attribute and repairs it immediately,
+without depending on animation frames or watching all page attributes. Saved
+show preference and non-post routes still remove the flag. No new permissions,
+storage keys, or selectors were introduced. Version fields advance to 1.1.1
+because the user already uploaded 1.1.0; the earlier archive is retained.
+
+- Before the fix, both new Chrome lost-flag tests failed (Reader on and off).
+- After the fix: 33 Chrome cases passed; the installed-extension case skipped.
+- Brave: all 34 cases passed, including actual extension storage and popup.
+- Installed test now strips the flag during synthetic page loading and verifies
+  fresh same-post tabs, attribute-only recovery, reloads, and both toggle states.
+- Fixture tests also cover same-URL rerenders, zero redundant flag mutations,
+  preserved Reader colors, unsupported routes, and saved preferences.
+- All 15 tooling tests, syntax (23 JavaScript files), whitespace, and 1.1.1 ZIP
+  packaging validation passed.
+- Live user confirmation remains required; no upload or publication was performed.
 
 ### Reader icons and store artwork — 1.1.0, October 25, 2026
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- Fix engagement-bar hiding being lost after page loading or rerendering.
+- Restore the hide flag automatically while respecting the saved toggle setting.
+
 ## 1.1.0
 
 - Renamed the extension to **Patreon Reader**, with updated icons and store artwork.

@@ -9,10 +9,14 @@ below; documenting the captures does not establish live behavioral coverage.
 ## Live Patreon verification
 
 **Release 1.1.0 testing completed — user-confirmed October 25, 2026.** All
-completed testing in this project history, including live Patreon testing and
-the latest changes, is attributed to the 1.1.0 release. This supersedes earlier live-Patreon-pending
+completed testing recorded at that confirmation, including live Patreon testing
+and the latest 1.1.0 changes, is attributed to the 1.1.0 release. This supersedes earlier live-Patreon-pending
 notes in [testing history](docs/testing-history.md). Those notes are retained
 as historical records of the status at the time.
+
+The subsequent **1.1.1 hide-bar hotfix** has automated coverage below, but still
+needs user confirmation on the affected live post. The 1.1.0 confirmation does
+not establish live verification for this hotfix.
 
 Earlier version labels are intermediate development checkpoints for this release,
 not separate published versions. Automated execution records retain their actual
@@ -24,6 +28,15 @@ itemized in this confirmation; it does not establish an exhaustive browser or
 accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
+
+Current hotfix (1.1.1): **33 Chrome cases, 34 Brave cases, and 15 tooling tests
+passed**. Chrome intentionally skips the installed-extension case. New coverage
+includes root hide-flag removal with Reader on/off, stable-state mutation counts,
+show preference, unsupported routes, actual extension storage, fresh same-post
+tabs, simulated load-time flag removal, and reloads with hiding on/off. Two new
+Chrome recovery tests failed before the fix and passed afterward. Syntax,
+whitespace, and 1.1.1 ZIP validation passed. These are synthetic-page runs, not
+new live Patreon sessions.
 
 Artwork refresh (1.1.0, after the release-testing confirmation): 15 tooling
 tests and 4 targeted Brave popup/installed-extension tests passed. SVG sources
@@ -69,10 +82,10 @@ Node tooling cases passed**, plus syntax and whitespace checks. Chrome skips
 the Brave-only installed test intentionally. Detailed dated results, earlier
 failures/retries, and original browser/OS versions are retained in
 [testing history](docs/testing-history.md); historical counts are not current totals.
-The current release version is **1.1.0**, following the user-confirmed Chrome
-Web Store version **1.0.0**. This renumbers the local 1.3.9 development series
-without changing behavior or preferences. Historical version numbers below
-describe their original checkpoints, not the current release metadata.
+The current hotfix version is **1.1.1**, following the user-reported 1.1.0
+dashboard upload. The 1.1.0 feature release consolidated the local 1.3.9
+development series. Historical version numbers below describe their original
+checkpoints, not the current release metadata.
 
 The subsequent swatch-order change also passed 28 Chrome and 29 Brave cases,
 including exact visual-order semantics via DOM order, keyboard navigation, and
@@ -138,6 +151,11 @@ or approval by a browser store. Preserve native handlers, ARIA state, access
 permissions, and draft content when changing appearance.
 
 ## Manual release checklist
+
+For 1.1.1, enable Hide Engagement Bar, open the same affected post in a new tab,
+refresh/reload it, and confirm the bar remains hidden without cycling the toggle.
+Repeat with hiding off to confirm it stays visible; check with Reader on/off.
+Record live results separately from the synthetic flag-removal regression tests.
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari
 for macOS. Test an actual installed build in each browser. Original manual

@@ -27,7 +27,13 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     });
     await context.route("https://www.patreon.com/**", (route) => route.fulfill({
       contentType: "text/html",
+      // Simulate a framework removing the early-injected flag on initial load.
       body: fs.readFileSync(path.join(__dirname, "fixtures/installed-post.html"), "utf8")
+        .replace("</body>", `<script>addEventListener("load", () => {
+          document.documentElement.removeAttribute("data-hide-patreon-floating-engagement");
+          document.body.append(document.createElement("div"));
+          window.hideFlagRemovedOnLoad = true;
+        });</script></body>`)
     }));
     const first = await context.newPage();
     await first.goto("https://www.patreon.com/example/posts/test-123");
@@ -38,6 +44,31 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect(popup).toHaveTitle("Patreon Reader");
     await expect(popup.locator(".app-mark")).toHaveAttribute("src", "../icons/reader.svg");
     await expect.poll(() => popup.locator(".app-mark").evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+    const hideToggle = popup.getByRole("switch", { name: "Hide engagement bar", exact: true });
+    await expect(hideToggle).toBeChecked();
+    await expect(first.locator('[data-tag="floating-engagement-sheet"]')).toBeHidden();
+    await expect(second.locator('[data-tag="floating-engagement-sheet"]')).toBeHidden();
+    // Persist the setting through the real popup before opening the same post again.
+    await hideToggle.uncheck();
+    await expect(first.locator('[data-tag="floating-engagement-sheet"]')).toBeVisible();
+    await hideToggle.check();
+    const fresh = await context.newPage();
+    await fresh.goto(first.url());
+    await fresh.waitForFunction(() => window.hideFlagRemovedOnLoad);
+    await expect(fresh.locator('[data-tag="floating-engagement-sheet"]')).toBeHidden();
+    await fresh.evaluate(() => document.documentElement.removeAttribute("data-hide-patreon-floating-engagement"));
+    await expect(fresh.locator("html")).toHaveAttribute("data-hide-patreon-floating-engagement", "");
+    await fresh.reload();
+    await fresh.waitForFunction(() => window.hideFlagRemovedOnLoad);
+    await expect(fresh.locator('[data-tag="floating-engagement-sheet"]')).toBeHidden();
+    await hideToggle.uncheck();
+    await expect(fresh.locator('[data-tag="floating-engagement-sheet"]')).toBeVisible();
+    await fresh.reload();
+    await fresh.waitForFunction(() => window.hideFlagRemovedOnLoad);
+    await expect(fresh.locator('[data-tag="floating-engagement-sheet"]')).toBeVisible();
+    await hideToggle.check();
+    await expect(fresh.locator('[data-tag="floating-engagement-sheet"]')).toBeHidden();
+    await fresh.close();
     const toggle = popup.getByRole("switch", { name: "Enable Reader Customization", exact: true });
     await expect(toggle).not.toBeChecked();
     await toggle.check();
