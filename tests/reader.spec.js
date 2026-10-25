@@ -1,0 +1,276 @@
+const { test, expect } = require("@playwright/test");
+const path = require("node:path");
+const root = path.resolve(__dirname, "..");
+
+const fixture = `<!doctype html><html><head><style>
+  body { margin: 24px; font: 16px Arial; }
+  .actions { display: flex; gap: 8px; }
+  button { min-width: 44px; min-height: 44px; }
+  h1 { font-size: 30px; } p { margin: 0 0 16px; line-height: 1.4; }
+</style></head><body>
+<main id="post">
+  <div><h1 data-tag="post-title"><div>A sample post</div></h1></div>
+  <div class="actions"><button data-tag="like-button">Like</button><button data-tag="comment-post-icon">Comment</button><button data-tag="reshare-button">Repost</button><button data-tag="share-post-icon">Share</button><button data-tag="more-actions-button">More</button></div>
+  <div class="PostBodies-module__newHash__postContent"><div class="RichText-module__newHash__root RichText-module__newHash__additionalStylesPostContentWrapper">
+    <p>First <strong>bold</strong> paragraph with <a href="#link">a link</a>.</p><p>Another paragraph.</p>
+    <h2>A heading</h2><ul><li>A list item</li></ul><blockquote><p>A quotation.</p></blockquote>
+    <img width="80" height="40" alt="Sample image" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40'%3E%3C/svg%3E">
+  </div></div>
+</main>
+<aside data-tag="comments"><p id="comment">A comment.</p></aside>
+<aside data-tag="post-card"><h2 data-tag="post-title">Recommended post</h2><button data-tag="like-button">Other like</button></aside>
+<div data-tag="floating-engagement-sheet"><button data-tag="like-button">Floating like</button></div>
+</body></html>`;
+
+async function setup(page, { stored = {}, namespace = "chrome", content = fixture } = {}) {
+  await page.route("https://www.patreon.com/**", (route) => route.fulfill({ contentType: "text/html", body: content }));
+  await page.goto("https://www.patreon.com/example/posts/test-123");
+  await page.evaluate(({ stored, namespace }) => {
+    localStorage.setItem("test-storage", JSON.stringify(stored));
+    const listeners = [];
+    const messages = [];
+    const changes = (old, next) => {
+      const result = {};
+      for (const key of Object.keys(next)) if (JSON.stringify(old[key]) !== JSON.stringify(next[key])) result[key] = { oldValue: old[key], newValue: next[key] };
+      for (const listener of listeners) listener(result, "local");
+    };
+    const api = {
+      runtime: { id: "fixture-extension", onMessage: { addListener: (fn) => messages.push(fn) } },
+      storage: {
+        local: {
+          get: async () => JSON.parse(localStorage.getItem("test-storage")),
+          set: async (next) => {
+            if (globalThis.failStorage) throw new Error("Storage unavailable");
+            const old = JSON.parse(localStorage.getItem("test-storage"));
+            localStorage.setItem("test-storage", JSON.stringify({ ...old, ...next }));
+            changes(old, next);
+          }
+        },
+        onChanged: { addListener: (fn) => listeners.push(fn) }
+      },
+      tabs: { query: async () => [{ id: 1 }], sendMessage: async () => ({ isPostPage: true }) }
+    };
+    globalThis.setStored = api.storage.local.set;
+    globalThis.readStored = api.storage.local.get;
+    window.addEventListener("storage", (event) => {
+      if (event.key === "test-storage") changes(JSON.parse(event.oldValue || "{}"), JSON.parse(event.newValue || "{}"));
+    });
+    if (namespace === "browser") globalThis.browser = api;
+    else {
+      const wrap = (target, name) => {
+        const original = target[name];
+        target[name] = (...args) => {
+          const callback = args.pop();
+          original(...args).then(callback, (error) => {
+            api.runtime.lastError = { message: error.message };
+            callback();
+            delete api.runtime.lastError;
+          });
+        };
+      };
+      wrap(api.storage.local, "get"); wrap(api.storage.local, "set");
+      wrap(api.tabs, "query"); wrap(api.tabs, "sendMessage");
+      globalThis.chrome = api;
+    }
+  }, { stored, namespace });
+  await page.addStyleTag({ path: path.join(root, "content.css") });
+  for (const name of ["extension.js", "reader.js", "content.js"]) await page.addScriptTag({ path: path.join(root, name) });
+}
+
+const button = (page) => page.getByRole("button", { name: "Customize reading appearance", exact: true });
+const dialog = (page) => page.getByRole("dialog", { name: "Reading appearance" });
+async function enable(page, value = true) {
+  await page.evaluate((readerEnabled) => setStored({ readerEnabled }), value);
+}
+async function change(page, id, value) {
+  await page.locator(`[data-patreon-reader-panel]`).evaluate((host, { id, value }) => {
+    const input = host.shadowRoot.getElementById(id);
+    input.value = value;
+    input.dispatchEvent(new Event(input.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
+  }, { id, value });
+}
+
+for (const namespace of ["chrome", "browser"]) {
+  test(`${namespace}: disabled by default; inserts Reader first only when enabled`, async ({ page }) => {
+    await setup(page, { namespace });
+    await expect(button(page)).toHaveCount(0);
+    await expect(page.locator('[data-tag="floating-engagement-sheet"]')).toBeHidden();
+    await enable(page);
+    await expect(button(page)).toHaveCount(1);
+    await expect(page.locator("#post .actions > :first-child")).toHaveAttribute("data-patreon-reader-button", "");
+    await expect(page.locator('[data-tag="post-card"] [data-patreon-reader-button]')).toHaveCount(0);
+    await expect(page.locator('[data-tag="floating-engagement-sheet"] [data-patreon-reader-button]')).toHaveCount(0);
+  });
+}
+
+test("all controls preview and persist; reset removes only reader overrides", async ({ page }) => {
+  await setup(page, { stored: { readerEnabled: true, isHidden: false } });
+  await button(page).click();
+  await change(page, "font", "georgia");
+  await change(page, "textSize", "24");
+  await change(page, "textColor", "#124567");
+  await change(page, "backgroundColor", "#efdfcf");
+  await change(page, "paragraphSpacing", "30");
+  await change(page, "lineSpacing", "2");
+  const paragraph = page.locator('[data-patreon-reader-body] > p').first();
+  await expect(paragraph).toHaveCSS("font-size", "24px");
+  await expect(paragraph).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');
+  await expect(paragraph).toHaveCSS("line-height", "48px");
+  await expect(paragraph).toHaveCSS("margin-bottom", "30px");
+  await expect(paragraph).toHaveCSS("color", "rgb(18, 69, 103)");
+  await expect(page.locator('[data-patreon-reader-title]')).toHaveCSS("font-size", "36px");
+  await expect(page.locator('[data-patreon-reader-body]')).toHaveCSS("background-color", "rgb(239, 223, 207)");
+  await expect(paragraph.locator("a")).toHaveCSS("text-decoration-line", "underline");
+  await expect(paragraph.locator("strong")).toHaveCSS("font-weight", "700");
+  await expect(page.locator("#comment")).toHaveCSS("font-size", "16px");
+  await expect(page.locator("img")).toHaveCSS("width", "80px");
+  await expect.poll(() => page.evaluate(async () => (await readStored()).readerPreferences?.lineSpacing)).toBe(2);
+  await dialog(page).getByRole("button", { name: "Reset to Patreon defaults", exact: true }).click();
+  await expect(paragraph).toHaveCSS("font-size", "16px");
+  await expect(page.locator('[data-tag="post-title"]').first()).toHaveCSS("font-size", "30px");
+  await expect.poll(() => page.evaluate(async () => (await readStored()).readerPreferences?.font)).toBe("default");
+  expect(await page.evaluate(async () => (await readStored()).readerEnabled)).toBe(true);
+  await expect(page.locator('[data-tag="floating-engagement-sheet"]')).toBeVisible();
+});
+
+test("disable removes UI and restores CSS; re-enable restores saved choices", async ({ page }) => {
+  await setup(page, { stored: { readerEnabled: true, readerPreferences: { textSize: 26, font: "verdana" } } });
+  await button(page).click();
+  await enable(page, false);
+  await expect(button(page)).toHaveCount(0);
+  await expect(dialog(page)).toHaveCount(0);
+  await expect(page.locator("[data-patreon-reader-body]")).toHaveCount(0);
+  await expect(page.locator("#post p").first()).toHaveCSS("font-size", "16px");
+  await enable(page);
+  await expect(page.locator("#post p").first()).toHaveCSS("font-size", "26px");
+});
+
+test("rerenders, post navigation, and leaving posts clean up correctly", async ({ page }) => {
+  await setup(page, { stored: { readerEnabled: true, readerPreferences: { textSize: 22 } } });
+  await expect(button(page)).toHaveCount(1);
+  const markup = await page.locator("#post").innerHTML();
+  await page.locator("#post").evaluate((node, html) => {
+    const template = document.createElement("template"); template.innerHTML = html;
+    template.content.querySelector("[data-patreon-reader-button]")?.remove();
+    node.replaceChildren(template.content);
+  }, markup);
+  await expect(button(page)).toHaveCount(1);
+  await expect(page.locator("#post p").first()).toHaveCSS("font-size", "22px");
+  await button(page).click();
+  await page.evaluate(() => { history.pushState({}, "", "/example/posts/next-124"); document.body.append(document.createElement("div")); });
+  await expect(dialog(page)).toHaveCount(0);
+  await expect(button(page)).toHaveCount(1);
+  await page.evaluate(() => { history.pushState({}, "", "/example"); document.body.append(document.createElement("div")); });
+  await expect(button(page)).toHaveCount(0);
+  await expect(page.locator("[data-patreon-reader-body]")).toHaveCount(0);
+  await page.goBack();
+  await expect(button(page)).toHaveCount(1);
+});
+
+test("keyboard, outside click, individual reset and narrow layout", async ({ page }) => {
+  await setup(page, { stored: { readerEnabled: true } });
+  await button(page).focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page).getByRole("button", { name: "Close reading appearance", exact: true })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog(page).getByRole("button", { name: "Reset to Patreon defaults", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog(page).getByRole("button", { name: "Close reading appearance", exact: true })).toBeFocused();
+  await change(page, "textSize", "28");
+  await dialog(page).getByRole("button", { name: "Reset text size to site default", exact: true }).click();
+  await expect(page.locator("#post p").first()).toHaveCSS("font-size", "16px");
+  await page.keyboard.press("Escape");
+  await expect(dialog(page)).toBeHidden();
+  await expect(button(page)).toBeFocused();
+  await button(page).click();
+  await page.locator("#comment").click();
+  await expect(dialog(page)).toBeHidden();
+  await page.setViewportSize({ width: 375, height: 667 });
+  await button(page).click();
+  const bounds = await dialog(page).boundingBox();
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(375);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(667);
+});
+
+test("malformed preferences cannot inject CSS or exceed control bounds", async ({ page }) => {
+  await setup(page, { stored: { readerEnabled: true, readerPreferences: {
+    font: "__proto__", textSize: 9999, paragraphSpacing: -9, lineSpacing: "url(bad)",
+    textColor: "red; } body { display:none", backgroundColor: "url(https://example.com)"
+  } } });
+  await expect(button(page)).toHaveCount(1);
+  await expect(page.locator("#post p").first()).toHaveCSS("font-size", "32px");
+  await expect(page.locator("#post p").first()).toHaveCSS("margin-bottom", "0px");
+  await expect(page.locator("body")).toBeVisible();
+  expect(await page.locator("html").getAttribute("style")).not.toContain("url(");
+});
+
+test("storage failure is visible; preview survives and retry saves", async ({ page }) => {
+  await setup(page, { stored: { readerEnabled: true } });
+  await button(page).click();
+  await page.evaluate(() => { globalThis.failStorage = true; });
+  await change(page, "textSize", "25");
+  await expect(dialog(page).locator("#save-status")).toContainText("Could not save");
+  await expect(page.locator("#post p").first()).toHaveCSS("font-size", "25px");
+  await page.evaluate(() => { globalThis.failStorage = false; });
+  await change(page, "font", "georgia");
+  await expect(dialog(page).locator("#save-status")).toHaveText("Saved on this device");
+  expect(await page.evaluate(async () => (await readStored()).readerPreferences.textSize)).toBe(25);
+});
+
+test("missing post hooks fail safely without adding controls elsewhere", async ({ page }) => {
+  await setup(page, { content: fixture.replace('data-tag="post-title"', 'data-tag="unknown-title"'), stored: { readerEnabled: true } });
+  await expect(button(page)).toHaveCount(0);
+  await expect(page.locator("[data-patreon-reader-body]")).toHaveCount(0);
+});
+
+test("popup toggles persist independently and report save failures", async ({ page }) => {
+  const fs = require("node:fs");
+  const html = fs.readFileSync(path.join(root, "popup.html"), "utf8").replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
+  await setup(page, { content: html });
+  await page.addScriptTag({ path: path.join(root, "popup.js") });
+  const reader = page.getByRole("switch", { name: "Enable Reader Customization", exact: true });
+  const engagement = page.getByRole("switch", { name: "Hide engagement bar", exact: true });
+  await expect(reader).not.toBeChecked();
+  await reader.check();
+  await expect(reader).toBeChecked();
+  expect(await page.evaluate(async () => (await readStored()).readerEnabled)).toBe(true);
+  await expect(engagement).toBeChecked();
+  await engagement.uncheck();
+  await expect(engagement).not.toBeChecked();
+  await page.evaluate(() => { globalThis.failStorage = true; });
+  await reader.click();
+  await expect(page.locator("#status")).toHaveText("Unable to save. Please try again.");
+  await expect(reader).toBeChecked();
+});
+
+test("rapid input keeps the latest selection and new sessions restore it", async ({ page }) => {
+  await setup(page, { stored: { readerEnabled: true } });
+  await button(page).click();
+  await page.locator("[data-patreon-reader-panel]").evaluate((host) => {
+    const input = host.shadowRoot.getElementById("textSize");
+    for (const size of [15, 20, 30, 22, 27]) {
+      input.value = size; input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  });
+  await expect.poll(() => page.evaluate(async () => (await readStored()).readerPreferences?.textSize)).toBe(27);
+  await expect(dialog(page).locator("#textSize-value")).toHaveText("27px");
+  const stored = await page.evaluate(() => readStored());
+  await setup(page, { stored });
+  await expect(page.locator("#post p").first()).toHaveCSS("font-size", "27px");
+});
+
+test("changes and enablement propagate to another open post tab", async ({ page, context }) => {
+  const stored = { readerEnabled: true };
+  await setup(page, { stored });
+  const other = await context.newPage();
+  await setup(other, { stored });
+  await expect(button(other)).toHaveCount(1);
+  await button(page).click();
+  await change(page, "textSize", "23");
+  await expect(other.locator("#post p").first()).toHaveCSS("font-size", "23px");
+  await enable(page, false);
+  await expect(button(other)).toHaveCount(0);
+  await expect(other.locator("#post p").first()).toHaveCSS("font-size", "16px");
+});

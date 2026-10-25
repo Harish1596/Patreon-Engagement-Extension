@@ -2,3 +2,88 @@ html[data-hide-patreon-floating-engagement]
   div[data-tag="floating-engagement-sheet"] {
   display: none !important;
 }
+
+button[data-patreon-reader-button] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  width: 44px !important;
+  height: 44px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  cursor: pointer !important;
+}
+
+button[data-patreon-reader-button] svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+button[data-patreon-reader-button][aria-expanded="true"] {
+  box-shadow: inset 0 0 0 2px currentColor !important;
+}
+
+button[data-patreon-reader-button]::after {
+  width: 4px;
+  height: 4px;
+  margin-left: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+button[data-patreon-reader-button]:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 3px !important;
+}
+
+/* Override only text properties, preserving weight, emphasis, and media styles. */
+html[data-patreon-reader-font] :is(
+  [data-patreon-reader-title], [data-patreon-reader-title] *,
+  [data-patreon-reader-body],
+  [data-patreon-reader-body] :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, span, strong, em, b, i, a)
+) {
+  font-family: var(--patreon-reader-font) !important;
+}
+
+html[data-patreon-reader-text-size] :is(
+  [data-patreon-reader-body],
+  [data-patreon-reader-body] :is(p, li, blockquote, span, strong, em, b, i, a)
+) {
+  font-size: var(--patreon-reader-text-size) !important;
+}
+
+html[data-patreon-reader-title-size] :is([data-patreon-reader-title], [data-patreon-reader-title] *) {
+  font-size: var(--patreon-reader-title-size) !important;
+}
+
+html[data-patreon-reader-text-color] :is(
+  [data-patreon-reader-title], [data-patreon-reader-title] *,
+  [data-patreon-reader-body],
+  [data-patreon-reader-body] :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, span, strong, em, b, i, a)
+) {
+  color: var(--patreon-reader-text-color) !important;
+}
+
+html[data-patreon-reader-text-color] :is([data-patreon-reader-body] a, [data-patreon-reader-body] a *) {
+  text-decoration: underline !important;
+  text-decoration-thickness: 0.1em !important;
+  text-underline-offset: 0.15em !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-body] {
+  background-color: var(--patreon-reader-background-color) !important;
+}
+
+html[data-patreon-reader-line-spacing] :is(
+  [data-patreon-reader-body],
+  [data-patreon-reader-body] :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, span, strong, em, b, i, a)
+) {
+  line-height: var(--patreon-reader-line-spacing) !important;
+}
+
+html[data-patreon-reader-paragraph-spacing] [data-patreon-reader-body] p {
+  margin-block-start: 0 !important;
+  margin-block-end: var(--patreon-reader-paragraph-spacing) !important;
+}

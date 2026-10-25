@@ -1,7 +1,8 @@
 # Patreon Engagement Toggle
 
 A small browser extension that hides Patreon's floating engagement bar by
-default. The toolbar switch can show or hide it at any time.
+default and optionally customizes post reading appearance. Both features are
+controlled from the extension's toolbar popup.
 
 ## Browser support
 
@@ -13,6 +14,11 @@ The extension has been manually tested and confirmed to work in:
 - Safari for macOS
 
 Other browsers may be compatible, but have not been verified.
+
+The list above describes manual testing of the original engagement-bar feature.
+Reader customization needs release validation in each browser; automated fixture
+tests do not establish compatibility with the current live Patreon site. See
+[TESTING.md](TESTING.md) for the release checklist and browser packaging notes.
 
 ## Why I Built This
 
@@ -33,13 +39,41 @@ On Patreon post pages, the floating like, comment, repost, and share bar is
 hidden automatically. Click the extension icon and turn off the switch to show
 it again.
 
+### Reader customization
+
+1. Open the extension's toolbar popup and turn on **Enable Reader Customization**.
+2. On a supported post page, select the **Aa** button at the start of the action
+   row: Reader → Like → Comment → Repost → Share → More.
+3. Adjust font family, text size (12–32px), text color, background color,
+   paragraph spacing (0–48px), and line spacing (1–2.5×). Changes preview immediately.
+
+The title uses 1.5× the chosen body text size. Font and text color affect the title
+and body; the background and spacing controls affect the body. Links remain
+underlined when overriding text color. Comments, navigation, images, and embeds
+are not reader styling targets.
+
+Each setting starts at **Site default**. Individual default buttons remove an
+override; **Reset to Patreon defaults** removes all appearance overrides without
+disabling Reader. Font choices are Patreon default, System Sans, Arial, Verdana,
+Trebuchet, Georgia, Times, and Monospace. These reference installed system fonts
+with fallbacks; no fonts are downloaded, bundled, or enumerated.
+
+Reader is off by default. Disabling it removes the Aa button and panel and
+restores the site's appearance, retaining preferences for next time. Settings
+apply across supported posts and open tabs within the same browser profile.
+They do not sync between browsers or edit the creator's actual post.
+
+The Reader panel supports keyboard controls, Escape, outside-click dismissal,
+and a bottom-sheet layout in narrow windows. If Patreon changes its post markup,
+the button may be unavailable until the selectors are updated.
+
 Post pages are recognized locally using this pathname structure:
 
 ```text
 /<creator>/posts/<post-slug>-<numeric-post-id>
 ```
 
-The extension targets only:
+The engagement-bar toggle targets:
 
 ```css
 div[data-tag="floating-engagement-sheet"]
@@ -54,8 +88,22 @@ div[data-tag="floating-engagement-sheet"]
 - All styles and scripts are packaged locally. The extension makes no network
   requests and accepts no remotely supplied selectors or code.
 - The extension does not collect or transmit personal or sensitive user data.
-  Its only retained value is the hide/show preference stored locally in the
-  browser.
+  It stores the hide/show preference, Reader enablement, and appearance
+  preferences locally in the browser.
+
+## Development
+
+Runtime code has no third-party dependencies or build step. `extension.js` shares
+validated preferences and a small browser API adapter between the popup and
+content scripts. `reader.js` owns post detection, scoped styles, and an isolated
+Shadow DOM panel. `content.js` coordinates storage and page navigation.
+
+For development checks, run `npm ci`, `npm run check`, and `npm test`. Playwright
+is a development-only dependency; see [TESTING.md](TESTING.md) for browser setup.
+Package only `manifest.json`, `extension.js`, `reader.js`, `content.js`,
+`content.css`, `popup.html`, `popup.js`, `popup.css`, `icons/`, `LICENSE`, and
+`PRIVACY.md`, with the manifest at the ZIP root. Do not include `node_modules`,
+tests, reports, or `.git`.
 
 ## Reporting Issues
 

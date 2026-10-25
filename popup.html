@@ -17,7 +17,7 @@
           alt=""
         />
         <div class="header-copy">
-          <h1>Engagement bar</h1>
+          <h1>Post preferences</h1>
           <p id="status" data-tone="loading" aria-live="polite">
             Checking Patreon…
           </p>
@@ -41,11 +41,24 @@
         </span>
       </label>
 
+      <label class="setting" for="reader-toggle">
+        <span class="setting-copy">
+          <span class="setting-title">Enable Reader Customization</span>
+          <span class="setting-description">Adds Aa controls to post actions</span>
+        </span>
+        <span class="switch">
+          <input id="reader-toggle" type="checkbox" role="switch"
+            aria-label="Enable Reader Customization" disabled />
+          <span class="slider" aria-hidden="true"></span>
+        </span>
+      </label>
+
       <p class="scope-note">
         <span class="lock" aria-hidden="true"></span>
         Runs locally on Patreon post pages
       </p>
     </main>
+    <script src="extension.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

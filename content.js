@@ -1,4 +1,5 @@
 (() => {
+  const { api, call, normalize } = globalThis.PatreonExtension;
   const ROOT_ATTRIBUTE = "data-hide-patreon-floating-engagement";
   const POST_PATH = /^\/([^/]+)\/posts\/(?:[^/]+-)?\d+\/?$/;
   const RESERVED_ROOT_PATHS = new Set([
@@ -19,7 +20,16 @@
   ]);
 
   let isHidden = true;
+  let readerEnabled = false;
+  let readerPreferences = normalize(null);
   let lastPathname = window.location.pathname;
+  let scheduled = false;
+
+  const saveReader = (value) => call(api.storage.local, "set", { readerPreferences: value });
+  function refreshReader() {
+    globalThis.PatreonReader.configure(readerEnabled, readerPreferences, saveReader);
+    globalThis.PatreonReader.reconcile(isPostPage());
+  }
 
   function isPostPage() {
     const match = POST_PATH.exec(window.location.pathname);
@@ -36,21 +46,29 @@
   function state() {
     return {
       isHidden,
+      readerEnabled,
       isPostPage: isPostPage()
     };
   }
 
   function checkForRouteChange() {
-    if (window.location.pathname === lastPathname) return;
-    lastPathname = window.location.pathname;
-    applyVisibility();
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      if (window.location.pathname !== lastPathname) {
+        lastPathname = window.location.pathname;
+        applyVisibility();
+      }
+      globalThis.PatreonReader.reconcile(isPostPage());
+    });
   }
 
   // Apply the secure default before waiting for the saved preference.
   applyVisibility();
 
-  chrome.runtime.onMessage.addListener((message, sender, respond) => {
-    if (sender.id !== chrome.runtime.id || !message || typeof message !== "object") {
+  api.runtime.onMessage.addListener((message, sender, respond) => {
+    if (sender.id !== api.runtime.id || !message || typeof message !== "object") {
       return;
     }
 
@@ -60,10 +78,10 @@
     }
 
     if (message.type === "SET_HIDDEN" && typeof message.value === "boolean") {
-      isHidden = message.value;
-      chrome.storage.local
-        .set({ isHidden })
+      const requestedValue = message.value;
+      call(api.storage.local, "set", { isHidden: requestedValue })
         .then(() => {
+          isHidden = requestedValue;
           applyVisibility();
           respond(state());
         })
@@ -72,22 +90,35 @@
     }
   });
 
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local" || !changes.isHidden) return;
-    isHidden = changes.isHidden.newValue !== false;
-    applyVisibility();
+  api.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local") return;
+    if (changes.isHidden) {
+      isHidden = changes.isHidden.newValue !== false;
+      applyVisibility();
+    }
+    if (changes.readerEnabled || changes.readerPreferences) {
+      if (changes.readerEnabled) readerEnabled = changes.readerEnabled.newValue === true;
+      if (changes.readerPreferences) readerPreferences = normalize(changes.readerPreferences.newValue);
+      refreshReader();
+    }
   });
 
-  chrome.storage.local.get("isHidden").then((stored) => {
+  call(api.storage.local, "get", ["isHidden", "readerEnabled", "readerPreferences"]).then((stored) => {
     isHidden = stored.isHidden !== false;
+    readerEnabled = stored.readerEnabled === true;
+    readerPreferences = normalize(stored.readerPreferences);
+    applyVisibility();
+    refreshReader();
+  }).catch(() => {
+    // Keep the existing safe visibility default and leave Reader disabled.
     applyVisibility();
   });
 
   window.addEventListener("popstate", checkForRouteChange);
   globalThis.navigation?.addEventListener("navigatesuccess", checkForRouteChange);
 
-  // Patreon can update its URL without a page load. This observer only compares
-  // the pathname; it does not inspect, store, or transmit page content.
+  // Batch DOM changes to restore Reader after Patreon rerenders. No post text
+  // is read, stored, or transmitted. Shadow DOM control changes are isolated.
   const routeObserver = new MutationObserver(checkForRouteChange);
   routeObserver.observe(document.documentElement, {
     childList: true,
