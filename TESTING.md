@@ -48,6 +48,11 @@ including exact visual-order semantics via DOM order, keyboard navigation, and
 legacy color migration assertions. The 1.3.9 ZIP was rebuilt and validated.
 This change has not received a separate user live-Patreon confirmation.
 
+Latest popup-layout verification: **29 Chrome cases and 30 Brave cases passed**,
+including a new 320px popup layout check in light/dark modes with long status
+messages and usable switches. Syntax and ZIP packaging validation also passed.
+No new live Patreon verification is claimed for this popup-only change.
+
 ## Browser configuration
 
 Shared discovery in `scripts/browser-config.js` checks common macOS, Linux, and

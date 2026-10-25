@@ -20,6 +20,18 @@ limitations are not resolved by assuming coverage that was not specified.
 
 ## Historical release and checkpoint records
 
+### Compact extension popup — October 25, 2026
+
+Reduced the toolbar popup width from 360px to 320px without changing text sizes,
+switch sizes, preferences, or the on-page Reader panel. Version remains 1.3.9.
+
+- Chrome: 29 cases passed; the Brave-only installed test was skipped.
+- Brave: all 30 cases passed, including the installed-extension case.
+- New regression coverage checks light/dark modes, long status messages,
+  overflow, text/switch separation, and Reader toggle operation at 320px.
+- Syntax, whitespace, and rebuilt ZIP packaging validation passed.
+- This is automated popup verification, not new live Patreon evidence.
+
 ### Swatch display order — October 25, 2026 (after live-testing confirmation)
 
 Reversed only the non-default swatches: Default, Charcoal, Light Green, Sepia,

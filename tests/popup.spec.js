@@ -2,6 +2,37 @@ const { test, expect } = require("@playwright/test");
 const path = require("node:path");
 const { fixture, extensionRoot, setup, button, dialog, enable, change } = require("./helpers/reader");
 
+test("compact popup keeps text and switches within its 320px layout", async ({ page }) => {
+  const fs = require("node:fs");
+  const html = fs.readFileSync(path.join(extensionRoot, "popup/popup.html"), "utf8")
+    .replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
+  await setup(page, { content: html });
+  await page.addStyleTag({ path: path.join(extensionRoot, "popup/popup.css") });
+  await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
+  for (const colorScheme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme });
+    await expect(page.locator("body")).toHaveCSS("width", "320px");
+    for (const status of ["Preferences apply to all posts", "Open or refresh a Patreon post to connect",
+      "Reader controls not found on this post", "Unable to save. Please try again."]) {
+      await page.locator("#status").evaluate((node, text) => { node.textContent = text; }, status);
+      const fits = await page.evaluate(() => {
+        const body = document.body.getBoundingClientRect();
+        return [...document.querySelectorAll(".app-header, .setting, .setting-copy, .switch, #status, .scope-note")]
+          .every(node => {
+            const rect = node.getBoundingClientRect();
+            return rect.left >= body.left && rect.right <= body.right && node.scrollWidth <= node.clientWidth;
+          }) && [...document.querySelectorAll(".setting")].every(node =>
+            node.querySelector(".setting-copy").getBoundingClientRect().right <=
+            node.querySelector(".switch").getBoundingClientRect().left);
+      });
+      expect(fits).toBe(true);
+    }
+    await expect(page.getByRole("switch", { name: "Enable Reader Customization", exact: true })).toBeVisible();
+    await page.getByRole("switch", { name: "Enable Reader Customization", exact: true }).check();
+    await expect(page.getByRole("switch", { name: "Enable Reader Customization", exact: true })).toBeChecked();
+  }
+});
+
 test("popup toggles persist independently and report save failures", async ({ page }) => {
   const fs = require("node:fs");
   const html = fs.readFileSync(path.join(extensionRoot, "popup/popup.html"), "utf8").replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
