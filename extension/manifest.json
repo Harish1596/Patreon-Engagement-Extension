@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Patreon Engagement Toggle",
-  "version": "1.0.0",
-  "description": "Hide or show Patreon's floating engagement bar. Hidden by default.",
+  "name": "Patreon Reader",
+  "version": "1.1.0",
+  "description": "Hide Patreon's floating engagement bar and customize post fonts, colors, text size, and spacing locally.",
   "permissions": ["storage"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
@@ -14,18 +14,18 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "Patreon Engagement Toggle",
+    "default_title": "Patreon Reader",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
     },
-    "default_popup": "popup.html"
+    "default_popup": "popup/popup.html"
   },
   "content_scripts": [
     {
       "matches": ["https://www.patreon.com/*"],
-      "css": ["content.css"],
-      "js": ["content.js"],
+      "css": ["content/content.css"],
+      "js": ["shared/extension.js", "content/patreon-dom.js", "content/reader.js", "content/content.js"],
       "run_at": "document_start"
     }
   ]

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Patreon Engagement Toggle</title>
+    <title>Patreon Reader</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
@@ -11,13 +11,13 @@
       <header class="app-header">
         <img
           class="app-mark"
-          src="icons/engagement-bar.svg"
+          src="../icons/reader.svg"
           width="38"
           height="38"
           alt=""
         />
         <div class="header-copy">
-          <h1>Engagement bar</h1>
+          <h1>Post preferences</h1>
           <p id="status" data-tone="loading" aria-live="polite">
             Checking Patreon…
           </p>
@@ -41,11 +41,19 @@
         </span>
       </label>
 
-      <p class="scope-note">
-        <span class="lock" aria-hidden="true"></span>
-        Runs locally on Patreon post pages
-      </p>
+      <label class="setting" for="reader-toggle">
+        <span class="setting-copy">
+          <span class="setting-title">Enable Reader Customization</span>
+          <span class="setting-description">Adds Aa controls to post actions</span>
+        </span>
+        <span class="switch">
+          <input id="reader-toggle" type="checkbox" role="switch"
+            aria-label="Enable Reader Customization" disabled />
+          <span class="slider" aria-hidden="true"></span>
+        </span>
+      </label>
     </main>
+    <script src="../shared/extension.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

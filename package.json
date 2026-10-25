@@ -1,0 +1,16 @@
+{
+  "name": "patreon-reader",
+  "private": true,
+  "version": "1.1.0",
+  "scripts": {
+    "assets": "node scripts/generate-assets.js",
+    "test": "playwright test",
+    "test:tooling": "node scripts/test-tooling.js",
+    "package": "node scripts/package-extension.js",
+    "test:brave": "node scripts/test-browser.js brave",
+    "check": "node scripts/check.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

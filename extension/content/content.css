@@ -1,0 +1,281 @@
+html[data-hide-patreon-floating-engagement]
+  div[data-tag="floating-engagement-sheet"] {
+  display: none !important;
+}
+
+button[data-patreon-reader-button] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  width: 44px !important;
+  height: 44px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  cursor: pointer !important;
+}
+
+button[data-patreon-reader-button] svg {
+  display: block;
+  flex: 0 0 auto;
+}
+
+button[data-patreon-reader-button][aria-expanded="true"] {
+  box-shadow: inset 0 0 0 2px currentColor !important;
+}
+
+button[data-patreon-reader-button]::after {
+  width: 4px;
+  height: 4px;
+  margin-left: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+button[data-patreon-reader-button]:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 3px !important;
+}
+
+/* The action row follows the reading background independently of post text.
+   Leave other controls (join, login, comment forms, etc.) in their native theme. */
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+) {
+  color: var(--patreon-reader-surface-color) !important;
+  background: transparent !important;
+  border: 1px solid currentColor !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+) * {
+  color: inherit !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+) svg {
+  fill: currentColor;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+):hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--patreon-reader-action-hover) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+):is([aria-pressed="true"], [aria-expanded="true"]) {
+  color: var(--patreon-reader-action-accent) !important;
+  background: var(--patreon-reader-action-selected) !important;
+  box-shadow: inset 0 0 0 1px currentColor !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+):focus-visible {
+  outline: 2px solid var(--patreon-reader-surface-color) !important;
+  outline-offset: 3px !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
+  [data-patreon-reader-button], [data-tag="like-button"],
+  [data-tag="comment-post-icon"], [data-tag="reshare-button"],
+  [data-tag="share-post-icon"], [data-tag="more-actions-button"]
+):is(:disabled, [aria-disabled="true"]) {
+  opacity: .55 !important;
+  cursor: not-allowed !important;
+}
+
+/* Comment actions share the reading palette, but retain their compact native
+   layout rather than acquiring the main action row's pill borders. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]) {
+  color: var(--patreon-reader-surface-color) !important;
+  background: transparent !important;
+  opacity: 1 !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]) * {
+  color: inherit !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]) svg {
+  /* Patreon forces TextLink SVG fill with !important for Reply and More. */
+  fill: currentColor !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]):hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--patreon-reader-action-hover) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]):is([aria-pressed="true"], [aria-expanded="true"]) {
+  color: var(--patreon-reader-action-accent) !important;
+  background: var(--patreon-reader-action-selected) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]):focus-visible {
+  outline: 2px solid var(--patreon-reader-surface-color) !important;
+  outline-offset: 3px !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-actions"] :is(button, [role="button"]):is(:disabled, [aria-disabled="true"]) {
+  opacity: .55 !important;
+  cursor: not-allowed !important;
+}
+
+/* Override only text properties, preserving weight, emphasis, and media styles. */
+html[data-patreon-reader-font] :is(
+  [data-patreon-reader-title], [data-patreon-reader-title] *,
+  [data-patreon-reader-body],
+  [data-patreon-reader-body] :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, span, strong, em, b, i, a)
+) {
+  font-family: var(--patreon-reader-font) !important;
+}
+
+html[data-patreon-reader-text-size] :is(
+  [data-patreon-reader-body],
+  [data-patreon-reader-body] :is(p, li, blockquote, span, strong, em, b, i, a)
+) {
+  font-size: var(--patreon-reader-text-size) !important;
+}
+
+html[data-patreon-reader-title-size] :is([data-patreon-reader-title], [data-patreon-reader-title] *) {
+  font-size: var(--patreon-reader-title-size) !important;
+}
+
+html[data-patreon-reader-text-color] :is(
+  [data-patreon-reader-title], [data-patreon-reader-title] *,
+  [data-patreon-reader-body],
+  [data-patreon-reader-body] :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, span, strong, em, b, i, a)
+) {
+  color: var(--patreon-reader-text-color) !important;
+}
+
+html[data-patreon-reader-text-color] :is([data-patreon-reader-body] a, [data-patreon-reader-body] a *) {
+  text-decoration: underline !important;
+  text-decoration-thickness: 0.1em !important;
+  text-underline-offset: 0.15em !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface],
+html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
+  [class*="PostBodies-module__"][class*="__singleColumnContent"],
+  [data-testid="single-column-post-wrapper"],
+  [class*="PostBodies-module__"][class*="__singleColumnPost"],
+  [data-testid="cta-banner-wrapper"] [class*="CTABanner-module__"][class*="__root"],
+  [data-patreon-reader-body]
+) {
+  background-color: var(--patreon-reader-background-color) !important;
+}
+
+/* Separate the post creator avatar from custom surfaces without resizing it.
+   Preserve native avatar shape, image rendering, and any follow-button overlay. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[class*="CreatorByLine-module__"][class*="__avatarContainer"]
+[class*="Avatar-module__"][class*="__container"] {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 45%, transparent),
+    0 2px 6px rgba(0, 0, 0, .2) !important;
+}
+
+/* Keep the same-color banner distinct without changing its box dimensions.
+   Surface ink makes the outline light on Charcoal and dark on light presets. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-testid="cta-banner-wrapper"] [class*="CTABanner-module__"][class*="__root"] {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 28%, transparent),
+    0 6px 18px rgba(0, 0, 0, .18) !important;
+}
+
+/* Theme the comment composer, not the surrounding login link or other forms.
+   Keep native disabled opacity, permissions, input sizing, and error borders. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+:is([data-tag="comment-field-box"], [data-tag="comment-field-with-affixes"]) {
+  /* A slight inset tint distinguishes the input from surrounding page text. */
+  background-color: color-mix(in srgb, var(--patreon-reader-background-color) 92%, black) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-field-with-affixes"]:not(:has([data-tag="comment-field"][aria-invalid="true"])) {
+  border-color: var(--patreon-reader-surface-color) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-field-with-affixes"]:focus-within:not(:has([data-tag="comment-field"][aria-invalid="true"])) {
+  outline: 2px solid var(--patreon-reader-surface-color) !important;
+  outline-offset: 2px !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-field"] {
+  background-color: transparent !important;
+  color: var(--patreon-reader-surface-color) !important;
+  /* Disabled textareas use a separate native text-fill color in Chrome/Safari. */
+  -webkit-text-fill-color: var(--patreon-reader-surface-color) !important;
+  caret-color: var(--patreon-reader-surface-color) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-field"]::placeholder {
+  color: var(--patreon-reader-surface-color) !important;
+  -webkit-text-fill-color: var(--patreon-reader-surface-color) !important;
+}
+
+/* Keep metadata and comments legible on the expanded reading surface. Native
+   controls, media, and the separately customized post text keep their styles. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface] {
+  color: var(--patreon-reader-surface-color) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+:is(p, h1, h2, h3, h4, h5, h6, span, a, label, time, [data-tag="comment-body"], [data-tag="commenter-name"], [data-tag="comment-field-label"]):not(:where(
+  [data-patreon-reader-title], [data-patreon-reader-title] *,
+  [data-patreon-reader-body], [data-patreon-reader-body] *,
+  button, button *,
+  [role="button"]:not([data-tag="comment-row"]), [role="button"]:not([data-tag="comment-row"]) *,
+  svg *, figure *, [data-image-container] *
+)) {
+  color: var(--patreon-reader-surface-color) !important;
+}
+
+/* Parent comment rows are keyboard-clickable containers, not opaque controls.
+   Author names are actual buttons but sit directly on the reading surface. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
+  [data-tag="commenter-name"], [data-tag="commenter-name"] *
+) {
+  color: var(--patreon-reader-surface-color) !important;
+}
+
+html[data-patreon-reader-line-spacing] :is(
+  [data-patreon-reader-body],
+  [data-patreon-reader-body] :is(p, li, blockquote, h1, h2, h3, h4, h5, h6, span, strong, em, b, i, a)
+) {
+  line-height: var(--patreon-reader-line-spacing) !important;
+}
+
+html[data-patreon-reader-paragraph-spacing] [data-patreon-reader-body] p {
+  margin-block-start: 0 !important;
+  margin-block-end: var(--patreon-reader-paragraph-spacing) !important;
+}

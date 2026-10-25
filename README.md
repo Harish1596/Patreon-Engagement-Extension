@@ -1,7 +1,11 @@
-# Patreon Engagement Toggle
+# Patreon Reader
 
 A small browser extension that hides Patreon's floating engagement bar by
-default. The toolbar switch can show or hide it at any time.
+default and optionally customizes post reading appearance. Both features are
+controlled from the extension's toolbar popup.
+
+See the [changelog](changelog.md) for features and changes in each release.
+Store artwork and regeneration instructions are in [store-assets](store-assets/README.md).
 
 ## Browser support
 
@@ -14,6 +18,11 @@ The extension has been manually tested and confirmed to work in:
 
 Other browsers may be compatible, but have not been verified.
 
+The list above describes manual testing of the original engagement-bar feature.
+Reader customization needs release validation in each browser; automated fixture
+tests do not establish compatibility with the current live Patreon site. See
+[TESTING.md](TESTING.md) for the release checklist and browser packaging notes.
+
 ## Why I Built This
 
 Patreon's floating engagement toolbar was covering part of the text whenever I
@@ -24,8 +33,13 @@ extension to keep the toolbar hidden by default. I am sharing this in case anyon
 
 1. Open `chrome://extensions` (or `edge://extensions`).
 2. Turn on **Developer mode**.
-3. Click **Load unpacked** and select this folder.
+3. Click **Load unpacked** and select this repository's `extension/` folder.
 4. Open or refresh a Patreon page.
+
+If upgrading an existing unpacked installation from the old repository-root
+layout, load `extension/` as the new source directory. A changed unpacked path
+may create a different local extension identity, so local preferences may need
+to be set again. Published store installations are not changed by this move.
 
 ## Use it
 
@@ -33,13 +47,71 @@ On Patreon post pages, the floating like, comment, repost, and share bar is
 hidden automatically. Click the extension icon and turn off the switch to show
 it again.
 
+### Reader customization
+
+1. Open the extension's toolbar popup and turn on **Enable Reader Customization**.
+2. On a supported post page, select the **Aa** button at the start of the action
+   row: Reader → Like → Comment → Repost → Share → More.
+3. Adjust font family, text size (12–32px), Post Color,
+   paragraph spacing (0–48px), and line spacing (1–2.5×). Changes preview immediately.
+
+The title uses 1.5× the chosen body text size. Font, size, and spacing
+customize the title/body reading text. Post Color covers the full post
+column and its outer wrapper/padding, including the title, creator information,
+action-row area, and comments.
+Metadata and comments receive a matching readable foreground when a background
+is selected. Reader, Like, Comment, Repost, Share, and More action icons, counts,
+and borders use the same matched palette as the reading text.
+Hover, keyboard focus, selected/liked, and disabled states remain distinguishable.
+Comment Like, Reply, and More icons and counts also follow Post Color, including
+parent comments and replies, while retaining their compact native layout.
+The membership banner's inner card also uses the selected background, keeping
+its text readable while preserving artwork, layout, and native Join buttons.
+A subtle foreground-tinted outline and drop shadow distinguish the banner from
+the page for non-default Post Colors. Default restores its native shadow.
+The comment-entry field's surface, text, placeholder, border, and focus indicator
+also follow Post Color. Native disabled opacity, login behavior, and error borders
+are preserved; Reader does not enable commenting or change access permissions.
+For non-default Post Colors, the comment field uses a slightly darker shade of
+the page background to distinguish it as an input. Default restores native styling.
+Navigation outside the column, other native controls, images, and embeds keep
+their own styling. Links remain underlined when overriding post text color.
+
+Post Color pairs the background with readable text instead of separate color controls:
+
+- Default: restore Patreon's original colors.
+- White: white background and charcoal text.
+- Sepia: warm cream background and brown text.
+- Light Green: pale green background and charcoal text.
+- Charcoal: dark background and soft white text.
+
+Every preset updates background, text, metadata, and action colors together.
+Previously saved backgrounds map to the nearest preset; old independent text
+overrides are dropped. Text-only legacy preferences become Default. The next
+settings change saves the migrated `postColor` value without legacy color fields.
+
+Each setting starts at **Site default**. Individual default buttons remove an
+override; **Reset to Patreon defaults** removes all appearance overrides without
+disabling Reader. Font choices are Patreon default, System Sans, Arial, Verdana,
+Trebuchet, Georgia, Times, and Monospace. These reference installed system fonts
+with fallbacks; no fonts are downloaded, bundled, or enumerated.
+
+Reader is off by default. Disabling it removes the Aa button and panel and
+restores the site's appearance, retaining preferences for next time. Settings
+apply across supported posts and open tabs within the same browser profile.
+They do not sync between browsers or edit the creator's actual post.
+
+The Reader panel supports keyboard controls, Escape, outside-click dismissal,
+and a bottom-sheet layout in narrow windows. If Patreon changes its post markup,
+the button may be unavailable until the selectors are updated.
+
 Post pages are recognized locally using this pathname structure:
 
 ```text
 /<creator>/posts/<post-slug>-<numeric-post-id>
 ```
 
-The extension targets only:
+The engagement-bar toggle targets:
 
 ```css
 div[data-tag="floating-engagement-sheet"]
@@ -54,8 +126,58 @@ div[data-tag="floating-engagement-sheet"]
 - All styles and scripts are packaged locally. The extension makes no network
   requests and accepts no remotely supplied selectors or code.
 - The extension does not collect or transmit personal or sensitive user data.
-  Its only retained value is the hide/show preference stored locally in the
-  browser.
+  It stores the hide/show preference, Reader enablement, and appearance
+  preferences locally in the browser.
+
+## Development
+
+Runtime code has no third-party dependencies or build step. `extension.js` shares
+validated preferences and a small browser API adapter between the popup and
+content scripts. `patreon-dom.js` owns Patreon hooks, post discovery, and surface
+selection; `reader.js` owns appearance state, markers, and the isolated Shadow
+DOM panel. `content.js` coordinates storage and page navigation.
+
+### Repository layout
+
+```text
+extension/                   Installable source; manifest at this directory's root
+  manifest.json
+  shared/extension.js        Browser API adapter and validated preferences
+  content/                   Page scripts and page-side CSS
+  popup/                     Toolbar popup HTML, JavaScript, and CSS
+  icons/                     Runtime icon assets
+tests/
+  fixtures/                  Sanitized synthetic post HTML
+  helpers/                   Fixture setup, API mocks, and test controls
+  tooling/                   Node tests for packaging and browser discovery
+  *.spec.js                  Browser regression and installed-extension tests
+scripts/                     Local packaging and development tooling
+docs/                        Maintained Patreon page reference
+store-assets/                Store-listing promotional assets, not runtime assets
+dist/                        Ignored release output
+```
+
+Run npm commands from the repository root. The runtime still uses the same
+ordered content scripts, plain JavaScript, and packaged styles; no bundler,
+framework, or new extension permissions were introduced by this reorganization.
+
+See the [maintained Patreon post-page reference](docs/patreon-text-image-post-baseline.md)
+for the observed page hierarchy, complete captured hook inventory, current Reader
+contract, CSS pitfalls, evidence limits, and future UI-change comparison procedure.
+[AGENTS.md](AGENTS.md) directs future coding sessions to read and maintain it.
+Start there when planning changes to the common text-and-image post layout.
+
+For development checks, run `npm ci`, `npm run check`, and `npm test`. Playwright
+is a development-only dependency; see [TESTING.md](TESTING.md) for browser setup.
+`npm run test:tooling` checks packaging/browser discovery independently, and
+`npm run test:brave` verifies the Brave suites and actual unpacked extension.
+Browser executable overrides and current checks are in the testing guide;
+dated results are retained in [testing history](docs/testing-history.md).
+Run `npm run package` to create an allowlisted, version-checked, validated ZIP in
+`dist/`. It requires `zip` and `unzip` on PATH and refuses to overwrite an existing
+release unless you supply `--force`. See [release packaging](docs/release-packaging.md)
+for validation details. Tests, dependencies, docs, store assets, and Git data are
+excluded; packaging does not publish anything.
 
 ## Reporting Issues
 

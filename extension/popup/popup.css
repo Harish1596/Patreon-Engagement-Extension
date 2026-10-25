@@ -113,6 +113,10 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+.setting + .setting {
+  margin-top: 10px;
+}
+
 .setting-copy {
   display: grid;
   gap: 3px;
@@ -188,38 +192,6 @@ input:disabled {
 
 input:disabled + .slider {
   opacity: 0.5;
-}
-
-.scope-note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 10.5px;
-  line-height: 1.4;
-}
-
-.lock {
-  position: relative;
-  width: 8px;
-  height: 7px;
-  border-radius: 2px;
-  background: currentColor;
-  opacity: 0.75;
-}
-
-.lock::before {
-  position: absolute;
-  width: 5px;
-  height: 5px;
-  left: 1.5px;
-  top: -4px;
-  border: 1.5px solid currentColor;
-  border-bottom: 0;
-  border-radius: 5px 5px 0 0;
-  content: "";
 }
 
 @media (prefers-reduced-motion: reduce) {
