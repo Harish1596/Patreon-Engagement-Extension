@@ -2,7 +2,8 @@
   const { fonts, defaults, normalize } = globalThis.PatreonExtension;
   const TITLE = '[data-tag="post-title"]';
   const BODY = '[class*="PostBodies-module__"][class*="__postContent"] [class*="RichText-module__"][class*="additionalStylesPostContentWrapper"]';
-  const EXCLUDE = '[data-tag="floating-engagement-sheet"], [data-tag="post-card"], [data-tag="comment"], [data-tag="comments"]';
+  const CARD = '[data-tag="post-card"]';
+  const EXCLUDE = '[data-tag="floating-engagement-sheet"], [data-tag="comment"], [data-tag="comments"], [data-tag="comment-row"], [data-tag="comment-actions"], [data-tag="content-card-comment-thread-container"]';
   const PROPERTIES = ["font", "text-size", "title-size", "text-color", "background-color", "paragraph-spacing", "line-spacing"];
   let enabled = false;
   let preferences = { ...defaults };
@@ -284,6 +285,37 @@
     trigger = anchor = host = shadow = panel = undefined;
   }
 
+  function visible(node) {
+    return node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden";
+  }
+
+  function findPost() {
+    const titles = [...document.querySelectorAll(TITLE)].filter((node) => !node.closest(EXCLUDE));
+    // Patreon uses post-card for the actual post as well as previews. Prefer
+    // the page's h1, then keep all searches inside that title's own card.
+    const headings = titles.filter((node) => node.matches("h1") || node.querySelector("h1"));
+    const candidates = headings.length ? headings : titles.filter((node) => !node.closest(CARD));
+    for (const title of candidates.filter(visible)) {
+      const card = title.closest(CARD);
+      const belongs = (node) => !node.closest(EXCLUDE) && node.closest(CARD) === card;
+      const boundary = card ?? title.closest("main");
+      for (let parent = title.parentElement; parent && parent !== document.body && parent !== document.documentElement; parent = parent.parentElement) {
+        const likes = [...parent.querySelectorAll('[data-tag="like-button"]')].filter((node) => belongs(node) && visible(node));
+        const like = likes.find((node) => node.closest('[data-tag="top-engagement"]')) ?? likes[0];
+        if (like) {
+          let scope = parent;
+          // Responsive title copies may share the body at a higher ancestor.
+          // Their count must not prevent reaching that body.
+          while (scope !== boundary && ![...scope.querySelectorAll(BODY)].some(belongs)
+            && scope.parentElement && scope.parentElement !== document.body) scope = scope.parentElement;
+          return { scope, like, belongs };
+        }
+        if (parent === boundary) break;
+      }
+    }
+    return null;
+  }
+
   function reconcile(isPostPage) {
     if (route !== location.pathname) {
       route = location.pathname; removeUI(); clearTargets();
@@ -291,23 +323,10 @@
     if (!enabled || !isPostPage) {
       removeUI(); clearTargets(); return;
     }
-    const titles = [...document.querySelectorAll(TITLE)].filter((node) => !node.closest(EXCLUDE));
-    // Restrict to the main post surrounding its title. Never choose an arbitrary
-    // like button elsewhere in the document if that post cannot be identified.
-    let scope;
-    let like;
-    for (const title of titles) {
-      for (let parent = title.parentElement; parent && parent !== document.body && parent !== document.documentElement; parent = parent.parentElement) {
-        if (parent.querySelectorAll(TITLE).length > 1) break;
-        const candidate = [...parent.querySelectorAll('[data-tag="like-button"]')].find((node) => !node.closest(EXCLUDE));
-        if (candidate) { scope = parent; like = candidate; break; }
-      }
-      if (scope) break;
-    }
-    if (!scope) { removeUI(); clearTargets(); return; }
-    // The action row can precede the body; expand only within a single-title scope.
-    while (!scope.querySelector(BODY) && scope.parentElement && scope.parentElement !== document.body && scope.parentElement.querySelectorAll(TITLE).length === 1) scope = scope.parentElement;
-    const next = [scope.querySelector(TITLE), ...scope.querySelectorAll(BODY)].filter((node) => node && !node.closest(EXCLUDE));
+    const post = findPost();
+    if (!post) { removeUI(); clearTargets(); return; }
+    const { scope, like, belongs } = post;
+    const next = [...scope.querySelectorAll(TITLE), ...scope.querySelectorAll(BODY)].filter(belongs);
     for (const target of targets) if (!next.includes(target)) {
       target.removeAttribute("data-patreon-reader-title"); target.removeAttribute("data-patreon-reader-body");
     }

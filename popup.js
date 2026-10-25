@@ -16,11 +16,19 @@ async function showPageStatus() {
     const [tab] = await call(api.tabs, "query", { active: true, currentWindow: true });
     const state = tab?.id === undefined ? null
       : await call(api.tabs, "sendMessage", tab.id, { type: "GET_STATE" });
-    status.textContent = state?.isPostPage
-      ? "Preferences apply to all posts" : "Available on Patreon post pages";
-    status.dataset.tone = state?.isPostPage ? "success" : "inactive";
+    if (typeof state?.isPostPage !== "boolean") throw new Error("No page response");
+    if (!state.isPostPage) {
+      status.textContent = "Available on Patreon post pages";
+      status.dataset.tone = "inactive";
+    } else if (state.readerEnabled && state.readerMounted === false) {
+      status.textContent = "Reader controls not found on this post";
+      status.dataset.tone = "inactive";
+    } else {
+      status.textContent = "Preferences apply to all posts";
+      status.dataset.tone = "success";
+    }
   } catch (_) {
-    status.textContent = "Available on Patreon post pages";
+    status.textContent = "Open or refresh a Patreon post to connect";
     status.dataset.tone = "inactive";
   }
 }

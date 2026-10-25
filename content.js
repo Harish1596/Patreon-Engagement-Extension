@@ -47,6 +47,7 @@
     return {
       isHidden,
       readerEnabled,
+      readerMounted: Boolean(document.querySelector("[data-patreon-reader-button]")),
       isPostPage: isPostPage()
     };
   }
@@ -115,6 +116,7 @@
   });
 
   window.addEventListener("popstate", checkForRouteChange);
+  window.addEventListener("resize", checkForRouteChange);
   globalThis.navigation?.addEventListener("navigatesuccess", checkForRouteChange);
 
   // Batch DOM changes to restore Reader after Patreon rerenders. No post text

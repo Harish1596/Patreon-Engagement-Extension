@@ -48,7 +48,13 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
         },
         onChanged: { addListener: (fn) => listeners.push(fn) }
       },
-      tabs: { query: async () => [{ id: 1 }], sendMessage: async () => ({ isPostPage: true }) }
+      tabs: {
+        query: async () => [{ id: 1 }],
+        sendMessage: async () => {
+          if (globalThis.failMessage) throw new Error("Receiving end does not exist");
+          return globalThis.pageReply ?? { isPostPage: true };
+        }
+      }
     };
     globalThis.setStored = api.storage.local.set;
     globalThis.readStored = api.storage.local.get;
@@ -273,4 +279,53 @@ test("changes and enablement propagate to another open post tab", async ({ page,
   await enable(page, false);
   await expect(button(other)).toHaveCount(0);
   await expect(other.locator("#post p").first()).toHaveCSS("font-size", "16px");
+});
+
+test("main post-card is supported while comment actions and recommended cards are excluded", async ({ page }) => {
+  const content = fixture.replace('<main id="post">', '<main id="post" data-tag="post-card">')
+    .replace('<div class="actions">', '<div data-tag="post-details"><div data-tag="top-engagement" class="actions">')
+    .replace('</div>\n  <div class="PostBodies', '</div></div>\n  <div class="PostBodies')
+    .replace('</main>', '<div data-tag="content-card-comment-thread-container"><div data-tag="comment-row"><p id="nested-comment">Nested comment</p><div data-tag="comment-actions"><button data-tag="like-button">Comment like</button></div></div></div></main>');
+  await setup(page, { content, stored: { readerEnabled: true, readerPreferences: { textSize: 24 } } });
+  await expect(button(page)).toHaveCount(1);
+  await expect(page.locator('[data-tag="top-engagement"] > :first-child')).toHaveAttribute("data-patreon-reader-button", "");
+  await expect(page.locator("#post p").first()).toHaveCSS("font-size", "24px");
+  await expect(page.locator("#nested-comment")).toHaveCSS("font-size", "16px");
+  await expect(page.locator('[data-tag="comment-actions"] [data-patreon-reader-button]')).toHaveCount(0);
+  await expect(page.locator('[data-tag="post-card"] aside [data-patreon-reader-button]')).toHaveCount(0);
+});
+
+test("responsive duplicate titles do not prevent detection or style the wrong post", async ({ page }) => {
+  const content = fixture.replace('<main id="post">', '<main id="post" data-tag="post-card">')
+    .replace('<div><h1 data-tag="post-title">', '<div class="desktop"><h1 data-tag="post-title">')
+    .replace('</h1></div>', '</h1>')
+    .replace('<div class="actions">', '<div data-tag="top-engagement" class="actions">')
+    .replace('</div>\n  <div class="PostBodies', '</div></div><div class="mobile"><h1 data-tag="post-title">Mobile title</h1><div data-tag="top-engagement"><button data-tag="like-button">Mobile like</button></div></div>\n  <div class="PostBodies')
+    .replace('</style>', '.mobile { display:none; } @media(max-width:480px) { .desktop { display:none; } .mobile { display:block; } }</style>');
+  await setup(page, { content, stored: { readerEnabled: true, readerPreferences: { textSize: 23 } } });
+  await expect(button(page)).toHaveCount(1);
+  await expect(page.locator(".desktop [data-patreon-reader-button]")).toBeVisible();
+  await expect(page.locator("#post p").first()).toHaveCSS("font-size", "23px");
+  await page.setViewportSize({ width: 390, height: 720 });
+  await expect(button(page)).toHaveCount(1);
+  await expect(page.locator(".mobile [data-patreon-reader-button]")).toBeVisible();
+  await expect(page.locator('[data-tag="post-card"] > [data-patreon-reader-title]')).toHaveCount(0);
+  await expect(page.locator('[data-tag="post-card"] h2[data-tag="post-title"]')).toHaveCSS("font-size", "24px");
+});
+
+test("popup distinguishes page connection failures from unsupported or undetected posts", async ({ page }) => {
+  const fs = require("node:fs");
+  const html = fs.readFileSync(path.join(root, "popup.html"), "utf8").replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
+  await setup(page, { content: html });
+  await page.addScriptTag({ path: path.join(root, "popup.js") });
+  await expect(page.locator("#status")).toHaveText("Preferences apply to all posts");
+  await page.evaluate(async () => {
+    globalThis.pageReply = { isPostPage: true, readerEnabled: true, readerMounted: false };
+    await showPageStatus();
+  });
+  await expect(page.locator("#status")).toHaveText("Reader controls not found on this post");
+  await page.evaluate(async () => { globalThis.pageReply = { isPostPage: false }; await showPageStatus(); });
+  await expect(page.locator("#status")).toHaveText("Available on Patreon post pages");
+  await page.evaluate(async () => { globalThis.failMessage = true; await showPageStatus(); });
+  await expect(page.locator("#status")).toHaveText("Open or refresh a Patreon post to connect");
 });

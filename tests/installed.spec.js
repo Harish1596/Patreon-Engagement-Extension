@@ -26,8 +26,8 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await context.route("https://www.patreon.com/**", (route) => route.fulfill({
       contentType: "text/html",
       body: `<!doctype html><html><head><style>body { font: 16px Arial; } .actions { display:flex; gap:8px; }</style></head><body>
-      <main><h1 data-tag="post-title">Installed extension test</h1>
-      <div class="actions"><button data-tag="like-button">Like</button><button data-tag="more-actions-button">More</button></div>
+      <main data-tag="post-card"><div hidden><h1 data-tag="post-title">Responsive title copy</h1><div data-tag="top-engagement"><button data-tag="like-button">Hidden like</button></div></div><h1 data-tag="post-title">Installed extension test</h1>
+      <div class="actions" data-tag="top-engagement"><button data-tag="like-button">Like</button><button data-tag="more-actions-button">More</button></div>
       <div class="PostBodies-module__hash__postContent"><div class="RichText-module__hash__additionalStylesPostContentWrapper"><p id="body">Post content.</p></div></div></main>
       <div data-tag="floating-engagement-sheet">Floating engagement</div></body></html>`
     }));
@@ -43,6 +43,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     const reader = first.getByRole("button", { name: "Customize reading appearance", exact: true });
     await expect(reader).toBeVisible();
     await expect(second.getByRole("button", { name: "Customize reading appearance", exact: true })).toBeVisible();
+    await first.bringToFront();
+    await popup.evaluate(() => showPageStatus());
+    await expect(popup.locator("#status")).toHaveText("Preferences apply to all posts");
     await reader.click();
     await first.getByLabel("Font family", { exact: true }).selectOption("georgia");
     await expect(first.locator("#body")).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');

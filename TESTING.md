@@ -42,6 +42,26 @@ On macOS 15.7.3 (Apple Silicon):
 Live Patreon, Firefox, Safari, and assistive-technology verification remain
 pending before release.
 
+### Main-post detection regression — 1.1.1
+
+User-supplied structural diagnostics showed that Patreon wraps the main post
+inside `data-tag="post-card"`, has two title elements, and uses `like-button`
+for comment actions too. The initial implementation incorrectly excluded the
+whole main card. New tests reproduced the missing button before the fix.
+
+Reader now allows the main post card, scopes searches to the selected title's
+own card, prefers the visible top-engagement row, excludes comment rows and
+threads, and reevaluates the selected row on resize. Duplicate responsive titles
+no longer prevent finding the shared post body. Popup status distinguishes a
+missing page connection from unsupported pages and missing Reader controls.
+
+Verification on the same Chrome/Brave versions listed above:
+
+- Chrome: all 15 fixture tests passed; the Brave-only installation test skipped.
+- Brave: all 16 tests passed, including an installed extension with the main
+  post-card wrapper, duplicate titles, real storage, and popup-to-page messaging.
+- Syntax and whitespace checks passed. Retesting on the live post is pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari
