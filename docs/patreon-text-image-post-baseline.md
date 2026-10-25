@@ -3,6 +3,9 @@
 Last maintained: October 25, 2026. Current release: **1.1.0**, renumbered from
 the local **1.3.9** development series without changing behavior or preferences.
 Historical 1.3.x references below retain their original checkpoint numbers.
+The user confirms all completed testing, including live Patreon and the latest
+changes, applies to release **1.1.0**. Earlier labels describe development
+checkpoints for that release, not separate published versions.
 The user reports Chrome Web Store version **1.0.0**; **1.1.0** is the intended
 next feature release. The temporary local 1.2.0 release number is superseded.
 DOM ownership commit `c9a2c84`; later 1.3.9 refinements include swatch ordering
@@ -358,7 +361,8 @@ The outline is dark on light presets and light on Charcoal. Default or disabling
 Reader restores native shadows. No border width, radius, image filter, padding,
 or event behavior changes; follow overlays, article images, navigation, and
 comment avatars remain outside this rule. Synthetic checks cover square/round
-avatars; live confirmation on the new creator's markup is still needed.
+avatars; the user's final 1.1.0 testing completion confirmation includes this
+change, although no additional HTML or computed-style capture was supplied.
 
 ### Comments and author names
 
@@ -658,9 +662,10 @@ installed test intentionally. Historical browser/OS versions in that log belong
 to their recorded runs, not a guarantee about every later test environment.
 Browser discovery now checks common install paths and supports explicit executable
 overrides through the shared development browser configuration.
-Live Patreon testing across the history recorded at the time of confirmation
-is completed, as confirmed by the user on October 25, 2026; this is separate
-evidence from automated runs and does not cover subsequent changes automatically.
+All completed testing across the recorded history is attributed to release
+1.1.0, including live Patreon and the latest changes, as confirmed by the user
+on October 25, 2026. This is separate evidence from the automated run records;
+it does not automatically cover future changes.
 The confirmation does not itemize Firefox, Safari, assistive technology, real
 authenticated comment submission, or every live UI variant, so specific coverage
 of those areas remains unestablished. CSS uses

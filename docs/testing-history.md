@@ -4,19 +4,25 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
-## Live Patreon completion — confirmed October 25, 2026
+## Release 1.1.0 testing complete — confirmed October 25, 2026
 
-The user confirmed that **live Patreon testing was completed for the entire
-testing history**. This applies to release/checkpoint records available at the
-time of that confirmation, not subsequent changes, and
-supersedes their earlier statements that live Patreon testing or retesting was
-pending. The original notes and automated results are preserved to show the
-status and evidence recorded at each checkpoint.
+The user confirmed that **all completed testing in this history applies to
+Patreon Reader 1.1.0**, including live Patreon testing and the latest changes.
+Release testing is complete. This supersedes earlier live-testing-pending or
+unrecorded-confirmation notes in the checkpoint records below.
+
+Earlier 1.1.x, 1.2.x, and 1.3.x labels identify intermediate development builds
+and temporary release numbers within the work delivered as **1.1.0**; they are
+not separate published releases. Those labels, commands, archive names,
+automated results, failures, and retries are retained as contemporaneous evidence,
+not rewritten as though every automated run used final 1.1.0 metadata.
 
 This is a user-reported manual confirmation, not a new assistant-run browser
 session. Individual execution dates, browser/OS versions, and scenarios were
-not itemized. Separate historical Firefox, Safari, and assistive-technology
-limitations are not resolved by assuming coverage that was not specified.
+not itemized. The completion confirmation does not add an unreported browser,
+OS, or accessibility matrix, change the scope of synthetic tests, or claim store
+approval. Chrome Web Store 1.0.0 remains the user-reported published baseline;
+no upload or publication is recorded here.
 
 ## Historical release and checkpoint records
 

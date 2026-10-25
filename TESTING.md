@@ -8,10 +8,15 @@ below; documenting the captures does not establish live behavioral coverage.
 
 ## Live Patreon verification
 
-**Completed — user-confirmed October 25, 2026, for the entire recorded testing
-history.** This manual confirmation supersedes earlier live-Patreon-pending
+**Release 1.1.0 testing completed — user-confirmed October 25, 2026.** All
+completed testing in this project history, including live Patreon testing and
+the latest changes, is attributed to the 1.1.0 release. This supersedes earlier live-Patreon-pending
 notes in [testing history](docs/testing-history.md). Those notes are retained
 as historical records of the status at the time.
+
+Earlier version labels are intermediate development checkpoints for this release,
+not separate published versions. Automated execution records retain their actual
+counts and build metadata; this confirmation does not imply a new automated run.
 
 This is user-reported verification, separate from the automated results below.
 Individual testing dates, browser/OS versions, and scenario coverage were not
@@ -33,8 +38,8 @@ passed. Full browser suites were not rerun for this metadata-only change.
 Latest avatar-separation verification: **30 Chrome cases and 31 Brave cases
 passed**, including custom-color shadows, native shape/dimensions, Default and
 disable/re-enable, and out-of-scope image/control checks. Syntax, whitespace,
-and rebuilt 1.3.9 ZIP validation passed. Live confirmation of the new byline
-avatar rule is not yet recorded.
+and rebuilt development ZIP validation passed. The user's final 1.1.0 testing
+completion confirmation includes these changes.
 
 Run these commands from the repository root with Node.js 22 or later:
 
@@ -65,12 +70,12 @@ describe their original checkpoints, not the current release metadata.
 The subsequent swatch-order change also passed 28 Chrome and 29 Brave cases,
 including exact visual-order semantics via DOM order, keyboard navigation, and
 legacy color migration assertions. The 1.3.9 ZIP was rebuilt and validated.
-This change has not received a separate user live-Patreon confirmation.
+This checkpoint is included in the user's final 1.1.0 testing completion confirmation.
 
 Latest popup-layout verification: **29 Chrome cases and 30 Brave cases passed**,
 including a new 320px popup layout check in light/dark modes with long status
 messages and usable switches. Syntax and ZIP packaging validation also passed.
-No new live Patreon verification is claimed for this popup-only change.
+This checkpoint is included in the user's final 1.1.0 testing completion confirmation.
 
 After removing the popup footer, targeted checks passed: 3 Chrome popup tests
 and 4 Brave popup/installed-extension tests. The full suites were not rerun for
