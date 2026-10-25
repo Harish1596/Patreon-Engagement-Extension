@@ -1,13 +1,14 @@
 const { test, expect, chromium } = require("@playwright/test");
 const path = require("node:path");
 const fs = require("node:fs");
+const { browserExecutable } = require("../scripts/browser-config");
 
 test("installed Brave extension: actual storage, content scripts, and popup", async () => {
   test.skip(process.env.TEST_BROWSER !== "brave", "Uses Brave's unpacked-extension support.");
   const root = path.resolve(__dirname, "../extension");
   const context = await chromium.launchPersistentContext("", {
     headless: true,
-    executablePath: "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    executablePath: browserExecutable("brave"),
     ignoreDefaultArgs: ["--disable-extensions"],
     args: [`--disable-extensions-except=${root}`, `--load-extension=${root}`]
   });

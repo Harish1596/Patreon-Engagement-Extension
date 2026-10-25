@@ -23,6 +23,7 @@ Runtime lives under `extension/`, with its manifest at `extension/manifest.json`
 Ownership: `shared/extension.js` validates preferences; `content/reader.js` detects
 and mounts Reader; `content/content.js` handles routing/storage;
 `content/content.css` styles the page; `popup/popup.js` controls the two master
-toggles. Tests use `tests/fixtures/` and `tests/helpers/`; `scripts/` is reserved
-for development tooling. This documentation does not authorize
+toggles. Browser specs are split by responsibility and use `tests/fixtures/` and
+`tests/helpers/`; Node tooling tests are in `tests/tooling/`. `scripts/` contains
+packaging, syntax checks, and shared browser configuration. This documentation does not authorize
 changes outside the user's requested scope.

@@ -613,7 +613,8 @@ readback tolerance used in Brave, a prior intermittent popup-toggle failure,
 and manual validation requirements. Chrome's command skips the Brave-only
 installed test intentionally. Historical browser/OS versions in that log belong
 to their recorded runs, not a guarantee about every later test environment.
-The Playwright configuration currently assumes standard macOS app paths.
+Browser discovery now checks common install paths and supports explicit executable
+overrides through the shared development browser configuration.
 Reader validation on Firefox, Safari, assistive technology, real authenticated
 comment submission, and current live UI variants remains pending. CSS uses
 `color-mix()`, `:has()`, and `-webkit-text-fill-color`; assess browser support when
@@ -651,7 +652,7 @@ changing targets instead of assuming API compatibility establishes rendering.
 6. Record new observations separately from assumptions, and update this document
    when a supported Patreon layout actually changes.
 
-Existing [fixture tests](../tests/reader.spec.js) and the
+Existing [fixture test suites](../tests/) and the
 [installed-extension test](../tests/installed.spec.js) cover synthetic text/media,
 card/outer-wrapper boundaries, responsive variants, action contrast, settings,
 and lifecycle behavior. They do not replay this complete captured website.

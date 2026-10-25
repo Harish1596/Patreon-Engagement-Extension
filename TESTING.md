@@ -19,6 +19,8 @@ the installed test opens `popup/popup.html`. Synthetic HTML is in `tests/fixture
 shared setup/API mocks and control helpers are in `tests/helpers/reader.js`.
 Runtime script order and test behavior are unchanged. Packaging automation and
 browser-path portability changes are deliberately deferred to the next task.
+That sentence records the earlier layout-only checkpoint; those tooling changes
+are now implemented by the commands and configuration described below.
 The runtime version remains 1.3.9 and existing release ZIPs are not rebuilt here.
 Validation passed: 27 Chrome fixture tests and all 28 Brave tests, including
 loading the unpacked extension from `extension/` and opening its relocated popup.
@@ -45,9 +47,21 @@ npm test
 npm run test:brave
 ```
 
-The Playwright configuration uses Chrome and Brave at their standard macOS
-application paths. Adjust `executablePath` in `playwright.config.js` on other
-systems. No Playwright browser download is required for these two commands.
+Browser discovery is shared by Playwright and the installed-extension test in
+`scripts/browser-config.js`. It checks common macOS/Linux/Windows install paths.
+Set `CHROME_EXECUTABLE` or `BRAVE_EXECUTABLE` for a custom installation;
+`BROWSER_EXECUTABLE` is a shared fallback override. Invalid overrides stop with
+an actionable error. `npm run test:brave` uses a Node launcher, not POSIX-only
+inline environment assignment. No Playwright browser download is required.
+
+Browser suites are separated into appearance, comments, detection, lifecycle,
+popup, settings, and installed-extension specifications. The same 28 cases are
+retained. `npm run check` recursively syntax-checks runtime, scripts, and test
+JavaScript, including helpers and Node tooling tests.
+Verification after this split: all 23 original top-level test blocks were compared
+verbatim, 27 Chrome cases and all 28 Brave cases passed, and all 11 Node tooling
+tests passed. Three Node cases test discovery/overrides including simulated Windows
+and Linux paths; actual browser runs were on macOS, not Windows/Linux.
 
 Tests render a synthetic Patreon-shaped fixture with changing CSS-module hashes
 and mock extension storage/messaging. They exercise both Chrome's callback API

@@ -1,4 +1,5 @@
 const { defineConfig } = require("@playwright/test");
+const { browserExecutable } = require("./scripts/browser-config");
 
 module.exports = defineConfig({
   testDir: "./tests",
@@ -8,9 +9,7 @@ module.exports = defineConfig({
   use: {
     headless: true,
     launchOptions: {
-      executablePath: process.env.TEST_BROWSER === "brave"
-        ? "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
-        : "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+      executablePath: browserExecutable(process.env.TEST_BROWSER || "chrome")
     }
   }
 });
