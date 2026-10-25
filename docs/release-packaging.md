@@ -9,6 +9,9 @@ The output is `dist/patreon-engagement-toggle-VERSION.zip`. If it already exists
 the command stops without changing it. To deliberately replace a generated ZIP,
 use `npm run package -- --force`. An existing release is replaced only after the
 new archive passes validation; failure leaves the old release intact.
+Publication uses a same-directory temporary file; non-forced publication uses a
+hard link to prevent overwriting a concurrently created release. Use a local
+filesystem that supports regular-file hard links (as verified on this Mac).
 
 ## Validation
 

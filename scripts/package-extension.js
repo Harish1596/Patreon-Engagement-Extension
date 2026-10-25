@@ -27,6 +27,11 @@ function json(buffer, name) {
 function regularFile(root, relative) {
   const file = path.join(root, relative);
   if (!fs.existsSync(file) || !fs.lstatSync(file).isFile()) throw new Error(`Missing or non-regular file: ${relative}`);
+  let current = root;
+  for (const part of ["", ...relative.split("/")]) {
+    current = path.join(current, part);
+    if (fs.lstatSync(current).isSymbolicLink()) throw new Error(`Symlinks are not allowed in package sources: ${relative}`);
+  }
   const real = fs.realpathSync(file);
   if (!real.startsWith(fs.realpathSync(root) + path.sep)) throw new Error(`File escapes its source directory: ${relative}`);
   return fs.readFileSync(file);
@@ -139,8 +144,10 @@ function packageExtension(root, { force = false } = {}) {
     command("zip", ["-X", "-q", "-9", archive, ...FILES], stage);
     validateArchive(archive, files);
     fs.copyFileSync(archive, pending, fs.constants.COPYFILE_EXCL);
-    if (!force && fs.existsSync(output)) throw new Error("Release appeared during packaging; refusing to overwrite it.");
-    fs.renameSync(pending, output);
+    if (force) fs.renameSync(pending, output);
+    // Same-directory hard link publishes without an overwrite race. The private
+    // pending link is removed in finally, leaving the validated release intact.
+    else fs.linkSync(pending, output);
     return output;
   } finally {
     if (fs.existsSync(pending)) fs.unlinkSync(pending);
