@@ -128,10 +128,11 @@ validated preferences and a small browser API adapter between the popup and
 content scripts. `reader.js` owns post detection, scoped styles, and an isolated
 Shadow DOM panel. `content.js` coordinates storage and page navigation.
 
-See the [text-and-image post baseline](docs/patreon-text-image-post-baseline.md)
-for the observed page hierarchy, screenshot map, selector boundaries, responsive
-variants, and how the extension integrates with each region. Start there when
-planning changes to the common text-post layout.
+See the [maintained Patreon post-page reference](docs/patreon-text-image-post-baseline.md)
+for the observed page hierarchy, complete captured hook inventory, current Reader
+contract, CSS pitfalls, evidence limits, and future UI-change comparison procedure.
+[AGENTS.md](AGENTS.md) directs future coding sessions to read and maintain it.
+Start there when planning changes to the common text-and-image post layout.
 
 For development checks, run `npm ci`, `npm run check`, and `npm test`. Playwright
 is a development-only dependency; see [TESTING.md](TESTING.md) for browser setup.

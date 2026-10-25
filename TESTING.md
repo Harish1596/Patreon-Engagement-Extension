@@ -1,11 +1,20 @@
 # Reader validation
 
-The [text-and-image post baseline](docs/patreon-text-image-post-baseline.md)
-records the supplied HTML and seven screenshots as architectural evidence.
+The [maintained post-page reference](docs/patreon-text-image-post-baseline.md)
+records the supplied HTML, screenshots, current integration contract, hook
+inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
 ## Automated checks
+
+Documentation maintenance, October 25, 2026: the maintained reference was reviewed
+against runtime 1.3.9 (`d59a994`) and the supplied full HTML. Checks passed for 35
+local Markdown links/anchors, code-fence balance, all 70 captured data-tag/testid
+values and counts, original source SHA-256, current color presets, override names,
+version, and whitespace. Added AGENTS.md for future-session discovery/maintenance.
+This was a documentation-only task: no runtime changes, version bump, package
+rebuild, or new browser-test run. Runtime results below remain their dated evidence.
 
 Install Node.js 22 or later and a local Chrome installation, then run:
 
