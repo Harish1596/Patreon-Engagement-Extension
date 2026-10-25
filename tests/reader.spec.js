@@ -1,104 +1,6 @@
 const { test, expect } = require("@playwright/test");
 const path = require("node:path");
-const root = path.resolve(__dirname, "..");
-
-const fixture = `<!doctype html><html><head><style>
-  body { margin: 24px; font: 16px Arial; }
-  .actions { display: flex; gap: 8px; }
-  button { min-width: 44px; min-height: 44px; }
-  h1 { font-size: 30px; } p { margin: 0 0 16px; line-height: 1.4; }
-</style></head><body>
-<main id="post">
-  <div><h1 data-tag="post-title"><div>A sample post</div></h1></div>
-  <div class="actions"><button data-tag="like-button">Like</button><button data-tag="comment-post-icon">Comment</button><button data-tag="reshare-button">Repost</button><button data-tag="share-post-icon">Share</button><button data-tag="more-actions-button">More</button></div>
-  <div class="PostBodies-module__newHash__postContent"><div class="RichText-module__newHash__root RichText-module__newHash__additionalStylesPostContentWrapper">
-    <p>First <strong>bold</strong> paragraph with <a href="#link">a link</a>.</p><p>Another paragraph.</p>
-    <h2>A heading</h2><ul><li>A list item</li></ul><blockquote><p>A quotation.</p></blockquote>
-    <img width="80" height="40" alt="Sample image" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40'%3E%3C/svg%3E">
-  </div></div>
-</main>
-<aside data-tag="comments"><p id="comment">A comment.</p></aside>
-<aside data-tag="post-card"><h2 data-tag="post-title">Recommended post</h2><button data-tag="like-button">Other like</button></aside>
-<div data-tag="floating-engagement-sheet"><button data-tag="like-button">Floating like</button></div>
-</body></html>`;
-
-async function setup(page, { stored = {}, namespace = "chrome", content = fixture } = {}) {
-  await page.route("https://www.patreon.com/**", (route) => route.fulfill({ contentType: "text/html", body: content }));
-  await page.goto("https://www.patreon.com/example/posts/test-123");
-  await page.evaluate(({ stored, namespace }) => {
-    localStorage.setItem("test-storage", JSON.stringify(stored));
-    const listeners = [];
-    const messages = [];
-    const changes = (old, next) => {
-      const result = {};
-      for (const key of Object.keys(next)) if (JSON.stringify(old[key]) !== JSON.stringify(next[key])) result[key] = { oldValue: old[key], newValue: next[key] };
-      for (const listener of listeners) listener(result, "local");
-    };
-    const api = {
-      runtime: { id: "fixture-extension", onMessage: { addListener: (fn) => messages.push(fn) } },
-      storage: {
-        local: {
-          get: async () => JSON.parse(localStorage.getItem("test-storage")),
-          set: async (next) => {
-            if (globalThis.failStorage) throw new Error("Storage unavailable");
-            const old = JSON.parse(localStorage.getItem("test-storage"));
-            localStorage.setItem("test-storage", JSON.stringify({ ...old, ...next }));
-            changes(old, next);
-          }
-        },
-        onChanged: { addListener: (fn) => listeners.push(fn) }
-      },
-      tabs: {
-        query: async () => [{ id: 1 }],
-        sendMessage: async () => {
-          if (globalThis.failMessage) throw new Error("Receiving end does not exist");
-          return globalThis.pageReply ?? { isPostPage: true };
-        }
-      }
-    };
-    globalThis.setStored = api.storage.local.set;
-    globalThis.readStored = api.storage.local.get;
-    window.addEventListener("storage", (event) => {
-      if (event.key === "test-storage") changes(JSON.parse(event.oldValue || "{}"), JSON.parse(event.newValue || "{}"));
-    });
-    if (namespace === "browser") globalThis.browser = api;
-    else {
-      const wrap = (target, name) => {
-        const original = target[name];
-        target[name] = (...args) => {
-          const callback = args.pop();
-          original(...args).then(callback, (error) => {
-            api.runtime.lastError = { message: error.message };
-            callback();
-            delete api.runtime.lastError;
-          });
-        };
-      };
-      wrap(api.storage.local, "get"); wrap(api.storage.local, "set");
-      wrap(api.tabs, "query"); wrap(api.tabs, "sendMessage");
-      globalThis.chrome = api;
-    }
-  }, { stored, namespace });
-  await page.addStyleTag({ path: path.join(root, "content.css") });
-  for (const name of ["extension.js", "reader.js", "content.js"]) await page.addScriptTag({ path: path.join(root, name) });
-}
-
-const button = (page) => page.getByRole("button", { name: "Customize reading appearance", exact: true });
-const dialog = (page) => page.getByRole("dialog", { name: "Reading appearance" });
-async function enable(page, value = true) {
-  await page.evaluate((readerEnabled) => setStored({ readerEnabled }), value);
-}
-async function change(page, id, value) {
-  await page.locator(`[data-patreon-reader-panel]`).evaluate((host, { id, value }) => {
-    const input = host.shadowRoot.getElementById(id);
-    if (input.getAttribute("role") === "radiogroup") {
-      input.querySelector(`[data-color="${value}"]`).click();
-      return;
-    }
-    input.value = value;
-    input.dispatchEvent(new Event(input.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
-  }, { id, value });
-}
+const { fixture, extensionRoot, setup, button, dialog, enable, change } = require("./helpers/reader");
 
 for (const namespace of ["chrome", "browser"]) {
   test(`${namespace}: disabled by default; inserts Reader first only when enabled`, async ({ page }) => {
@@ -236,9 +138,9 @@ test("missing post hooks fail safely without adding controls elsewhere", async (
 
 test("popup toggles persist independently and report save failures", async ({ page }) => {
   const fs = require("node:fs");
-  const html = fs.readFileSync(path.join(root, "popup.html"), "utf8").replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
+  const html = fs.readFileSync(path.join(extensionRoot, "popup/popup.html"), "utf8").replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
   await setup(page, { content: html });
-  await page.addScriptTag({ path: path.join(root, "popup.js") });
+  await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
   const reader = page.getByRole("switch", { name: "Enable Reader Customization", exact: true });
   const engagement = page.getByRole("switch", { name: "Hide engagement bar", exact: true });
   await expect(reader).not.toBeChecked();
@@ -318,9 +220,9 @@ test("responsive duplicate titles do not prevent detection or style the wrong po
 
 test("popup distinguishes page connection failures from unsupported or undetected posts", async ({ page }) => {
   const fs = require("node:fs");
-  const html = fs.readFileSync(path.join(root, "popup.html"), "utf8").replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
+  const html = fs.readFileSync(path.join(extensionRoot, "popup/popup.html"), "utf8").replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
   await setup(page, { content: html });
-  await page.addScriptTag({ path: path.join(root, "popup.js") });
+  await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
   await expect(page.locator("#status")).toHaveText("Preferences apply to all posts");
   await page.evaluate(async () => {
     globalThis.pageReply = { isPostPage: true, readerEnabled: true, readerMounted: false };

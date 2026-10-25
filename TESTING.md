@@ -8,6 +8,20 @@ below; documenting the captures does not establish live behavioral coverage.
 
 ## Automated checks
 
+Repository-layout update: unpacked extensions now load from `extension/`, and
+the installed test opens `popup/popup.html`. Synthetic HTML is in `tests/fixtures/`;
+shared setup/API mocks and control helpers are in `tests/helpers/reader.js`.
+Runtime script order and test behavior are unchanged. Packaging automation and
+browser-path portability changes are deliberately deferred to the next task.
+The runtime version remains 1.3.9 and existing release ZIPs are not rebuilt here.
+Validation passed: 27 Chrome fixture tests and all 28 Brave tests, including
+loading the unpacked extension from `extension/` and opening its relocated popup.
+Runtime JavaScript/CSS and icon contents were compared byte-for-byte with their
+previous paths; base fixture contents match their former inline strings. All
+manifest/popup assets resolve, script order is preserved, and 26 local doc file
+links, code fences, syntax, and whitespace checks passed. These checks do not
+establish new live Patreon behavior.
+
 Documentation maintenance, October 25, 2026: the maintained reference was reviewed
 against runtime 1.3.9 (`d59a994`) and the supplied full HTML. Checks passed for 35
 local Markdown links/anchors, code-fence balance, all 70 captured data-tag/testid

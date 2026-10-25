@@ -4,6 +4,12 @@ Last maintained: October 25, 2026. Current implementation reviewed: **1.3.9**,
 commit `d59a994`. Original HTML baseline: **1.2.2**, commit `89eff4b`.
 The filename is retained so existing links continue to work.
 
+Repository-layout update: runtime files now live under `extension/`, grouped into
+`shared/`, `content/`, `popup/`, and `icons/`. Runtime links below reflect these new
+locations; the 1.3.9 behavior and historical evidence are unchanged. Test HTML and
+API/control setup were extracted to `tests/fixtures/` and `tests/helpers/`.
+Load `extension/` as the unpacked source directory, not the repository root.
+
 This is the canonical repository reference for the common text-and-image post
 page. It consolidates the supplied HTML/screenshots, current extension behavior,
 known CSS interactions, and a procedure for detecting future Patreon UI changes.
@@ -216,7 +222,7 @@ attributes are preferable to build hashes, but Patreon can change either.
 | Related posts | `creator-home-horizontal-section`, `creator-home-horizontal-card` | Separate carousel, outside Reader's current surface. |
 | Navigation | `main-app-navigation`, `creator-sticky-nav` | Separate page chrome, outside Reader's current surface. |
 
-Current article-body selector in [reader.js](../reader.js):
+Current article-body selector in [reader.js](../extension/content/reader.js):
 
 ```css
 [class*="PostBodies-module__"][class*="__postContent"]
@@ -287,7 +293,7 @@ In that historical 1.2.2 capture, effective brown does not distinguish Auto from
 an explicit Brown selection. Current 1.3.9 has neither independent text colors
 nor an Auto text control: Post Color supplies a fixed background/foreground pair.
 
-In 1.2.2, [content.css](../content.css) themes main-row icons, descendant wrappers,
+In 1.2.2, [content.css](../extension/content/content.css) themes main-row icons, descendant wrappers,
 counts, borders, hover, focus, selected/pressed, and disabled states using a
 background-dependent palette. This palette is independent of reading-text color.
 SVG `currentColor` follows the corrected foreground. Native handlers and aria
@@ -450,8 +456,8 @@ their own scoped analysis. Avoid claiming every pixel in the surface is themed.
 
 ## Current settings and color contract
 
-Source of truth: [extension.js](../extension.js), [reader.js](../reader.js), and
-[content.css](../content.css). Colors are paired presets, not independent text
+Source of truth: [extension.js](../extension/shared/extension.js), [reader.js](../extension/content/reader.js), and
+[content.css](../extension/content/content.css). Colors are paired presets, not independent text
 and background choices. Selecting Default removes color overrides rather than
 guessing Patreon's native theme.
 
@@ -512,14 +518,15 @@ Input tints and banner shadows are derived CSS, not extra saved preferences.
 
 | File | Responsibility |
 | --- | --- |
-| [manifest.json](../manifest.json) | Patreon match scope, packaged CSS, ordered scripts, storage permission. |
-| [extension.js](../extension.js) | Browser API adapter, validated preference schema, fixed fonts/presets, contrast and legacy-color normalization. |
-| [content.js](../content.js) | Supported-route detection, storage events, popup state messages, floating-bar visibility, batched reconciliation. |
-| [reader.js](../reader.js) | Post detection, markers, surface selection, Aa/panel lifecycle, controls, serialized saves. |
-| [content.css](../content.css) | Page-side typography, surfaces, action contrast, floating-bar hiding. |
-| [popup.js](../popup.js) | Load/save master preferences and show page-connection status. |
+| [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS, ordered scripts, storage permission. |
+| [extension.js](../extension/shared/extension.js) | Browser API adapter, validated preference schema, fixed fonts/presets, contrast and legacy-color normalization. |
+| [content.js](../extension/content/content.js) | Supported-route detection, storage events, popup state messages, floating-bar visibility, batched reconciliation. |
+| [reader.js](../extension/content/reader.js) | Post detection, markers, surface selection, Aa/panel lifecycle, controls, serialized saves. |
+| [content.css](../extension/content/content.css) | Page-side typography, surfaces, action contrast, floating-bar hiding. |
+| [popup.js](../extension/popup/popup.js) | Load/save master preferences and show page-connection status. |
 
-The manifest loads `extension.js`, `reader.js`, and `content.js` at document
+The manifest loads `shared/extension.js`, `content/reader.js`, and
+`content/content.js` at document
 start. Post recognition currently accepts creator-prefixed routes shaped like
 `/<creator>/posts/<slug>-<numeric-id>` (or a numeric ID without a slug), excluding
 reserved first-path segments. Recognition is not evidence of DOM readiness.

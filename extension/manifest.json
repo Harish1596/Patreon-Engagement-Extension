@@ -19,13 +19,13 @@
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
     },
-    "default_popup": "popup.html"
+    "default_popup": "popup/popup.html"
   },
   "content_scripts": [
     {
       "matches": ["https://www.patreon.com/*"],
-      "css": ["content.css"],
-      "js": ["extension.js", "reader.js", "content.js"],
+      "css": ["content/content.css"],
+      "js": ["shared/extension.js", "content/reader.js", "content/content.js"],
       "run_at": "document_start"
     }
   ]

@@ -1,9 +1,10 @@
 const { test, expect, chromium } = require("@playwright/test");
 const path = require("node:path");
+const fs = require("node:fs");
 
 test("installed Brave extension: actual storage, content scripts, and popup", async () => {
   test.skip(process.env.TEST_BROWSER !== "brave", "Uses Brave's unpacked-extension support.");
-  const root = path.resolve(__dirname, "..");
+  const root = path.resolve(__dirname, "../extension");
   const context = await chromium.launchPersistentContext("", {
     headless: true,
     executablePath: "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
@@ -25,18 +26,14 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     });
     await context.route("https://www.patreon.com/**", (route) => route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html><head><style>body { font: 16px Arial; } .actions { display:flex; gap:8px; } .actions button { color:white; background:transparent; border:1px solid white; } .actions button span { color:white; }</style></head><body>
-      <main data-tag="post-card"><div class="PostBodies-module__hash__singleColumnContentWrapper"><div class="PostBodies-module__hash__singleColumnContent"><div data-testid="single-column-post-wrapper"><div hidden><h1 data-tag="post-title">Responsive title copy</h1><div data-tag="top-engagement"><button data-tag="like-button">Hidden like</button></div></div><h1 data-tag="post-title">Installed extension test</h1>
-      <div class="actions" data-tag="top-engagement"><button data-tag="like-button"><span>Like</span></button><button data-tag="more-actions-button">More</button></div>
-      <div class="PostBodies-module__hash__postContent"><div class="RichText-module__hash__additionalStylesPostContentWrapper"><p id="body">Post content.</p></div></div></div></div></div></main>
-      <div data-tag="floating-engagement-sheet">Floating engagement</div></body></html>`
+      body: fs.readFileSync(path.join(__dirname, "fixtures/installed-post.html"), "utf8")
     }));
     const first = await context.newPage();
     await first.goto("https://www.patreon.com/example/posts/test-123");
     const second = await context.newPage();
     await second.goto("https://www.patreon.com/example/posts/test-124");
     const popup = await context.newPage();
-    await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
     const toggle = popup.getByRole("switch", { name: "Enable Reader Customization", exact: true });
     await expect(toggle).not.toBeChecked();
     await toggle.check();

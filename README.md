@@ -30,8 +30,13 @@ extension to keep the toolbar hidden by default. I am sharing this in case anyon
 
 1. Open `chrome://extensions` (or `edge://extensions`).
 2. Turn on **Developer mode**.
-3. Click **Load unpacked** and select this folder.
+3. Click **Load unpacked** and select this repository's `extension/` folder.
 4. Open or refresh a Patreon page.
+
+If upgrading an existing unpacked installation from the old repository-root
+layout, load `extension/` as the new source directory. A changed unpacked path
+may create a different local extension identity, so local preferences may need
+to be set again. Published store installations are not changed by this move.
 
 ## Use it
 
@@ -128,6 +133,29 @@ validated preferences and a small browser API adapter between the popup and
 content scripts. `reader.js` owns post detection, scoped styles, and an isolated
 Shadow DOM panel. `content.js` coordinates storage and page navigation.
 
+### Repository layout
+
+```text
+extension/                   Installable source; manifest at this directory's root
+  manifest.json
+  shared/extension.js        Browser API adapter and validated preferences
+  content/                   Page scripts and page-side CSS
+  popup/                     Toolbar popup HTML, JavaScript, and CSS
+  icons/                     Runtime icon assets
+tests/
+  fixtures/                  Sanitized synthetic post HTML
+  helpers/                   Fixture setup, API mocks, and test controls
+  *.spec.js                  Browser regression and installed-extension tests
+scripts/                     Reserved for development tooling; packaging is next
+docs/                        Maintained Patreon page reference
+store-assets/                Store-listing promotional assets, not runtime assets
+dist/                        Ignored release output
+```
+
+Run npm commands from the repository root. The runtime still uses the same
+ordered content scripts, plain JavaScript, and packaged styles; no bundler,
+framework, or new extension permissions were introduced by this reorganization.
+
 See the [maintained Patreon post-page reference](docs/patreon-text-image-post-baseline.md)
 for the observed page hierarchy, complete captured hook inventory, current Reader
 contract, CSS pitfalls, evidence limits, and future UI-change comparison procedure.
@@ -136,10 +164,12 @@ Start there when planning changes to the common text-and-image post layout.
 
 For development checks, run `npm ci`, `npm run check`, and `npm test`. Playwright
 is a development-only dependency; see [TESTING.md](TESTING.md) for browser setup.
-Package only `manifest.json`, `extension.js`, `reader.js`, `content.js`,
-`content.css`, `popup.html`, `popup.js`, `popup.css`, `icons/`, `LICENSE`, and
-`PRIVACY.md`, with the manifest at the ZIP root. Do not include `node_modules`,
-tests, reports, or `.git`.
+Packaging automation is a separate follow-up. For now, a release must contain
+the contents of `extension/` (not an enclosing `extension/` directory), plus
+the repository-root `LICENSE` and `PRIVACY.md`, with `manifest.json` at the ZIP
+root and the `shared/`, `content/`, `popup/`, and `icons/` paths preserved.
+Do not include `node_modules`, tests, reports, docs, store assets, or `.git`.
+Existing ZIPs in `dist/` are historical outputs and were not rebuilt by this move.
 
 ## Reporting Issues
 

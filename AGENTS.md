@@ -19,7 +19,10 @@ Do not commit raw account/page payloads, signed media URLs, cookies, access
 tokens, private post text, or comment drafts. Use sanitized structural examples.
 Record verification results and limitations in [TESTING.md](TESTING.md).
 
-Runtime ownership: `extension.js` validates preferences; `reader.js` detects and
-mounts Reader; `content.js` handles routing/storage; `content.css` styles the page;
-`popup.js` controls the two master toggles. This documentation does not authorize
+Runtime lives under `extension/`, with its manifest at `extension/manifest.json`.
+Ownership: `shared/extension.js` validates preferences; `content/reader.js` detects
+and mounts Reader; `content/content.js` handles routing/storage;
+`content/content.css` styles the page; `popup/popup.js` controls the two master
+toggles. Tests use `tests/fixtures/` and `tests/helpers/`; `scripts/` is reserved
+for development tooling. This documentation does not authorize
 changes outside the user's requested scope.
