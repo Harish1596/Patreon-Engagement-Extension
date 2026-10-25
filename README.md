@@ -4,6 +4,8 @@ A small browser extension that hides Patreon's floating engagement bar by
 default and optionally customizes post reading appearance. Both features are
 controlled from the extension's toolbar popup.
 
+See the [changelog](changelog.md) for features and changes in each release.
+
 ## Browser support
 
 The extension has been manually tested and confirmed to work in:
