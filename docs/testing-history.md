@@ -4,6 +4,21 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## Live Patreon completion — confirmed October 25, 2026
+
+The user confirmed that **live Patreon testing was completed for the entire
+testing history**. This applies to all release/checkpoint records below and
+supersedes their earlier statements that live Patreon testing or retesting was
+pending. The original notes and automated results are preserved to show the
+status and evidence recorded at each checkpoint.
+
+This is a user-reported manual confirmation, not a new assistant-run browser
+session. Individual execution dates, browser/OS versions, and scenarios were
+not itemized. Separate historical Firefox, Safari, and assistive-technology
+limitations are not resolved by assuming coverage that was not specified.
+
+## Historical release and checkpoint records
+
 ### Implementation verification — October 25, 2026
 
 On macOS 15.7.3 (Apple Silicon):

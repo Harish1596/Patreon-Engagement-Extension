@@ -6,6 +6,18 @@ inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
+## Live Patreon verification
+
+**Completed — user-confirmed October 25, 2026, for the entire recorded testing
+history.** This manual confirmation supersedes earlier live-Patreon-pending
+notes in [testing history](docs/testing-history.md). Those notes are retained
+as historical records of the status at the time.
+
+This is user-reported verification, separate from the automated results below.
+Individual testing dates, browser/OS versions, and scenario coverage were not
+itemized in this confirmation; it does not establish an exhaustive browser or
+accessibility matrix or guarantee compatibility with future Patreon UI changes.
+
 ## Automated checks
 
 Run these commands from the repository root with Node.js 22 or later:
@@ -49,7 +61,7 @@ BRAVE_EXECUTABLE="/custom/path/to/brave" npm run test:brave
 
 In PowerShell, set `$env:CHROME_EXECUTABLE` or `$env:BRAVE_EXECUTABLE` before
 running the same npm command. No Playwright browser download is required for
-these local-installation commands. Actual browser verification here ran on macOS;
+these local-installation commands. Automated browser verification here ran on macOS;
 Windows/Linux path discovery has unit coverage, not native browser-run coverage.
 
 ## Test organization and limits

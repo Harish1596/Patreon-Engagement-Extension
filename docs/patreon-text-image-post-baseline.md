@@ -55,6 +55,10 @@ The reference combines the following evidence:
   background, weak card separation, and the native comment-entry surface.
   Later user messages confirm banner background/shadow changes worked and ask
   for a darker input surface. These are scoped confirmations, not full-site QA.
+- **User-confirmed live testing:** On October 25, 2026, the user confirmed live
+  Patreon testing was completed for the entire recorded testing history. This
+  broader manual confirmation supersedes earlier live-testing-pending notes;
+  individual execution dates, browser/OS versions, and scenarios were not itemized.
 - **Isolated snapshot checks:** The supplied full HTML and its linked public CSS
   were used with website scripts removed and browser network requests blocked
   to verify the comment SVG-fill and comment-field fixes. A native disabled-field
@@ -623,8 +627,11 @@ installed test intentionally. Historical browser/OS versions in that log belong
 to their recorded runs, not a guarantee about every later test environment.
 Browser discovery now checks common install paths and supports explicit executable
 overrides through the shared development browser configuration.
-Reader validation on Firefox, Safari, assistive technology, real authenticated
-comment submission, and current live UI variants remains pending. CSS uses
+Live Patreon testing across the recorded history is completed, as confirmed by
+the user on October 25, 2026; this is separate evidence from the automated runs.
+The confirmation does not itemize Firefox, Safari, assistive technology, real
+authenticated comment submission, or every live UI variant, so specific coverage
+of those areas remains unestablished. CSS uses
 `color-mix()`, `:has()`, and `-webkit-text-fill-color`; assess browser support when
 changing targets instead of assuming API compatibility establishes rendering.
 
