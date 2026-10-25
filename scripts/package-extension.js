@@ -123,7 +123,7 @@ function packageExtension(root, { force = false } = {}) {
     throw new Error("dist must be a real directory, not a file or symlink.");
   }
   fs.mkdirSync(directory, { recursive: true });
-  const output = path.join(directory, `patreon-engagement-toggle-${version}.zip`);
+  const output = path.join(directory, `patreon-reader-${version}.zip`);
   if (fs.existsSync(output)) {
     if (!fs.lstatSync(output).isFile()) throw new Error("Release output must be a regular file.");
     if (!force) throw new Error(`Release already exists: ${output}. Use --force to replace it after validation.`);

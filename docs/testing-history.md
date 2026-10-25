@@ -20,6 +20,20 @@ limitations are not resolved by assuming coverage that was not specified.
 
 ## Historical release and checkpoint records
 
+### Rename to Patreon Reader — October 25, 2026
+
+Renamed the manifest display name, action tooltip, popup document title, README,
+and privacy-policy identity to Patreon Reader. Local package metadata now uses
+`patreon-reader`; release output is `dist/patreon-reader-1.3.9.zip`. Version,
+permissions, storage keys, and repository URLs are unchanged. Earlier records
+retain their historical names. No store listing was edited or published.
+
+- All 13 tooling tests passed, including archive filename and manifest-name assertions.
+- All 4 targeted Brave popup/installed-extension tests passed, including discovery
+  by the new name and the popup title assertion.
+- Syntax, whitespace, and new ZIP packaging validation passed.
+- Full browser suites and new live Patreon verification were not performed for this rename.
+
 ### Creator byline avatar separation — October 25, 2026
 
 The 17:54:09 screenshot shows a creator avatar blending into a White post

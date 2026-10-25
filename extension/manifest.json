@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Patreon Engagement Toggle",
+  "name": "Patreon Reader",
   "version": "1.3.9",
   "description": "Hide Patreon's floating engagement bar and customize post fonts, colors, text size, and spacing locally.",
   "permissions": ["storage"],
@@ -14,7 +14,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "Patreon Engagement Toggle",
+    "default_title": "Patreon Reader",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"

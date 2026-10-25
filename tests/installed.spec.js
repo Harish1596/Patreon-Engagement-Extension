@@ -19,7 +19,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       for (let attempt = 0; attempt < 50; attempt++) {
         const list = document.querySelector("extensions-manager")?.shadowRoot?.querySelector("extensions-item-list");
         const item = [...(list?.shadowRoot?.querySelectorAll("extensions-item") ?? [])]
-          .find((node) => node.data?.name === "Patreon Engagement Toggle");
+          .find((node) => node.data?.name === "Patreon Reader");
         if (item) return item.data.id;
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
@@ -35,6 +35,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await second.goto("https://www.patreon.com/example/posts/test-124");
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+    await expect(popup).toHaveTitle("Patreon Reader");
     const toggle = popup.getByRole("switch", { name: "Enable Reader Customization", exact: true });
     await expect(toggle).not.toBeChecked();
     await toggle.check();

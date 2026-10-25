@@ -20,6 +20,11 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Rename verification (Patreon Reader): all 13 tooling tests and 4 targeted Brave
+popup/installed-extension tests passed, including the installed name, popup
+title, and renamed release filename. Syntax, whitespace, and packaging validation
+passed. Full browser suites were not rerun for this metadata-only change.
+
 Latest avatar-separation verification: **30 Chrome cases and 31 Brave cases
 passed**, including custom-color shadows, native shape/dimensions, Default and
 disable/re-enable, and out-of-scope image/control checks. Syntax, whitespace,

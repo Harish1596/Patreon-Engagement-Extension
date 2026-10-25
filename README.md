@@ -1,4 +1,4 @@
-# Patreon Engagement Toggle
+# Patreon Reader
 
 A small browser extension that hides Patreon's floating engagement bar by
 default and optionally customizes post reading appearance. Both features are

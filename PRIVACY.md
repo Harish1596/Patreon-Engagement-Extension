@@ -2,7 +2,7 @@
 
 Last updated: October 25, 2026
 
-Patreon Engagement Toggle (the "extension") is designed to provide its single
+Patreon Reader (the "extension") is designed to provide its single
 purpose without collecting or transmitting personal information. All processing
 performed by the extension takes place locally in the user's browser.
 

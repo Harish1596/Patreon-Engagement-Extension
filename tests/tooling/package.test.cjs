@@ -26,6 +26,10 @@ test("package has exact files and root manifest; rejects overwrites and preserve
   const root = fixture(t);
   fs.writeFileSync(path.join(root, "extension", "unlisted-secret.txt"), "synthetic excluded file");
   const output = packageExtension(root), original = fs.readFileSync(output);
+  assert.equal(path.basename(output), `patreon-reader-${JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8")).version}.zip`);
+  const manifest = JSON.parse(readPackage(root).files.get("manifest.json").toString("utf8"));
+  assert.equal(manifest.name, "Patreon Reader");
+  assert.equal(manifest.action.default_title, "Patreon Reader");
   validateArchive(output, readPackage(root).files);
   assert.throws(() => packageExtension(root), /already exists/);
   fs.writeFileSync(path.join(root, "extension/manifest.json"), "{");

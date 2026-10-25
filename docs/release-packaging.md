@@ -5,7 +5,7 @@ From the repository root, run `npm run package`. This uses Node.js plus the
 network requests, and does not publish to a store. On systems without those
 commands, install compatible ZIP command-line tools before packaging.
 
-The output is `dist/patreon-engagement-toggle-VERSION.zip`. If it already exists,
+The output is `dist/patreon-reader-VERSION.zip`. If it already exists,
 the command stops without changing it. To deliberately replace a generated ZIP,
 use `npm run package -- --force`. An existing release is replaced only after the
 new archive passes validation; failure leaves the old release intact.
