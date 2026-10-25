@@ -146,6 +146,7 @@ extension/                   Installable source; manifest at this directory's ro
 tests/
   fixtures/                  Sanitized synthetic post HTML
   helpers/                   Fixture setup, API mocks, and test controls
+  tooling/                   Node tests for packaging and browser discovery
   *.spec.js                  Browser regression and installed-extension tests
 scripts/                     Local packaging and development tooling
 docs/                        Maintained Patreon page reference
@@ -165,6 +166,10 @@ Start there when planning changes to the common text-and-image post layout.
 
 For development checks, run `npm ci`, `npm run check`, and `npm test`. Playwright
 is a development-only dependency; see [TESTING.md](TESTING.md) for browser setup.
+`npm run test:tooling` checks packaging/browser discovery independently, and
+`npm run test:brave` verifies the Brave suites and actual unpacked extension.
+Browser executable overrides and current checks are in the testing guide;
+dated results are retained in [testing history](docs/testing-history.md).
 Run `npm run package` to create an allowlisted, version-checked, validated ZIP in
 `dist/`. It requires `zip` and `unzip` on PATH and refuses to overwrite an existing
 release unless you supply `--force`. See [release packaging](docs/release-packaging.md)

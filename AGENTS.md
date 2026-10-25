@@ -17,7 +17,8 @@ silently replacing its historical facts.
 
 Do not commit raw account/page payloads, signed media URLs, cookies, access
 tokens, private post text, or comment drafts. Use sanitized structural examples.
-Record verification results and limitations in [TESTING.md](TESTING.md).
+Keep current commands/results and limits in [TESTING.md](TESTING.md), and dated
+release/checkpoint evidence in [testing history](docs/testing-history.md).
 
 Runtime lives under `extension/`, with its manifest at `extension/manifest.json`.
 Ownership: `shared/extension.js` validates preferences; `content/patreon-dom.js`

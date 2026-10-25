@@ -1,7 +1,8 @@
 # Patreon post-page reference: text posts with inline images
 
 Last maintained: October 25, 2026. Current implementation reviewed: **1.3.9**,
-commit `d59a994`. Original HTML baseline: **1.2.2**, commit `89eff4b`.
+DOM ownership commit `c9a2c84` (feature behavior unchanged from `d59a994`).
+Original HTML baseline: **1.2.2**, commit `89eff4b`.
 The filename is retained so existing links continue to work.
 
 Repository-layout update: runtime files now live under `extension/`, grouped into
@@ -614,9 +615,10 @@ with one new direct adapter case. The existing visibility/discovery functions
 were preserved verbatim, and the version remains 1.3.9. This refactor adds no new
 Patreon feature behavior or claim of live compatibility.
 
-See [TESTING.md](../TESTING.md) for exact release records, the one-level canvas
+See [testing history](testing-history.md) for exact release records, the one-level canvas
 readback tolerance used in Brave, a prior intermittent popup-toggle failure,
-and manual validation requirements. Chrome's command skips the Brave-only
+and [TESTING.md](../TESTING.md) for current commands and manual validation requirements.
+Chrome's command skips the Brave-only
 installed test intentionally. Historical browser/OS versions in that log belong
 to their recorded runs, not a guarantee about every later test environment.
 Browser discovery now checks common install paths and supports explicit executable
