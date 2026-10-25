@@ -43,6 +43,11 @@ failures/retries, and original browser/OS versions are retained in
 [testing history](docs/testing-history.md); historical counts are not current totals.
 The source feature version remains 1.3.9.
 
+The subsequent swatch-order change also passed 28 Chrome and 29 Brave cases,
+including exact visual-order semantics via DOM order, keyboard navigation, and
+legacy color migration assertions. The 1.3.9 ZIP was rebuilt and validated.
+This change has not received a separate user live-Patreon confirmation.
+
 ## Browser configuration
 
 Shared discovery in `scripts/browser-config.js` checks common macOS, Linux, and

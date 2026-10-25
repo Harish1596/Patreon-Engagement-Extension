@@ -479,6 +479,11 @@ Aa text inside them. The Default swatch retains a reset symbol. The Aa icon in
 the actual post action row remains the Reader trigger. Charcoal was previously
 called Black, then Dark; only labels changed, not stored hex values.
 
+Display order (updated October 25, 2026): Default, Charcoal, Light Green, Sepia,
+White. Only the non-default swatches were reversed; stored values, palette
+definitions, and legacy nearest-color migration order are unchanged. Keyboard
+arrow/Home/End navigation follows the displayed order.
+
 | Interaction palette | White / Sepia / Light Green | Charcoal |
 | --- | --- | --- |
 | Hover surface | `#d5d5ce` | `#35373c` |

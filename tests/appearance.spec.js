@@ -136,12 +136,18 @@ test("swatch groups support arrow keys and migrate older free-picker colors", as
   await setup(page, { stored: { readerEnabled: true, readerPreferences: { textColor: "#124567", backgroundColor: "#efdfcf" } } });
   await button(page).click();
   const colors = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
+  expect(await colors.getByRole("radio").evaluateAll(nodes => nodes.map(node => node.getAttribute("aria-label"))))
+    .toEqual(["Default", "Charcoal", "Light Green", "Sepia", "White"]);
   await expect(colors.getByRole("radio", { name: "Sepia", exact: true })).toHaveAttribute("aria-checked", "true");
   await colors.getByRole("radio", { name: "Sepia", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
-  await expect(colors.getByRole("radio", { name: "Light Green", exact: true })).toBeFocused();
-  await expect(colors.getByRole("radio", { name: "Light Green", exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect(colors.getByRole("radio", { name: "White", exact: true })).toBeFocused();
+  await expect(colors.getByRole("radio", { name: "White", exact: true })).toHaveAttribute("aria-checked", "true");
   await page.keyboard.press("End");
+  await expect(colors.getByRole("radio", { name: "White", exact: true })).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(colors.getByRole("radio", { name: "Default", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowRight");
   await expect(colors.getByRole("radio", { name: "Charcoal", exact: true })).toBeFocused();
   await expect.poll(() => page.evaluate(async () => (await readStored()).readerPreferences?.postColor)).toBe("#202124");
   const normalized = await page.evaluate(() => PatreonExtension.normalize({ textColor: "#124567", backgroundColor: "#efdfcf" }));

@@ -252,7 +252,7 @@
         controls.id = key;
         controls.setAttribute("role", "radiogroup");
         controls.setAttribute("aria-labelledby", `${key}-label`);
-        for (const option of [{ label: "Default", value: null }, ...colors[key]]) {
+        for (const option of [{ label: "Default", value: null }, ...colors[key].slice().reverse()]) {
           const swatch = element("button", { type: "button", role: "radio", class: "swatch",
             "aria-label": option.label, "data-color": option.value ?? "" });
           const face = element("span", { class: "swatch-face", "aria-hidden": "true" }, option.value ? "" : "↺");

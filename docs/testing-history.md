@@ -7,7 +7,8 @@ Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 ## Live Patreon completion — confirmed October 25, 2026
 
 The user confirmed that **live Patreon testing was completed for the entire
-testing history**. This applies to all release/checkpoint records below and
+testing history**. This applies to release/checkpoint records available at the
+time of that confirmation, not subsequent changes, and
 supersedes their earlier statements that live Patreon testing or retesting was
 pending. The original notes and automated results are preserved to show the
 status and evidence recorded at each checkpoint.
@@ -18,6 +19,22 @@ not itemized. Separate historical Firefox, Safari, and assistive-technology
 limitations are not resolved by assuming coverage that was not specified.
 
 ## Historical release and checkpoint records
+
+### Swatch display order — October 25, 2026 (after live-testing confirmation)
+
+Reversed only the non-default swatches: Default, Charcoal, Light Green, Sepia,
+White. Shared palette definitions and legacy nearest-color migration retain
+their original order. Saved values are unchanged; version remains 1.3.9.
+
+- Chrome: 28 cases passed; the Brave-only installed test was skipped.
+- Brave: all 29 cases passed, including the installed-extension case.
+- Regression assertions cover exact swatch DOM order, arrow/Home/End navigation,
+  persistence, and legacy color migration.
+- Syntax and whitespace checks passed; the local 1.3.9 ZIP was rebuilt and
+  passed packaging validation.
+- Initial sandboxed attempts failed at browser launch before assertions;
+  rerunning with browser-launch permission produced the passing results above.
+- No new live Patreon verification is claimed for this subsequent change.
 
 ### Implementation verification — October 25, 2026
 
