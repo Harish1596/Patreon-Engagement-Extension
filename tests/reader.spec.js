@@ -562,8 +562,26 @@ for (const disabled of [false, true]) {
       ["Charcoal", "rgb(32, 33, 36)", "rgb(245, 245, 240)"]
     ]) {
       await palette.getByRole("radio", { name, exact: true }).click();
-      await expect(box).toHaveCSS("background-color", background);
-      await expect(affixes).toHaveCSS("background-color", background);
+      const inputBackground = await box.evaluate(node => getComputedStyle(node).backgroundColor);
+      await expect(affixes).toHaveCSS("background-color", inputBackground);
+      const appearance = await box.evaluate((node, { background, ink }) => {
+        const context = document.createElement("canvas").getContext("2d");
+        context.fillStyle = getComputedStyle(node).backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        const rgb = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+        const pageRgb = background.match(/\d+/g).map(Number);
+        const hex = channels => "#" + channels.map(value => value.toString(16).padStart(2, "0")).join("");
+        return {
+          rgb, pageRgb,
+          contrast: PatreonExtension.contrast(hex(rgb), hex(ink.match(/\d+/g).map(Number)))
+        };
+      }, { background, ink });
+      for (let channel = 0; channel < 3; channel++) {
+        // Allow a one-level canvas readback variation across browser privacy settings.
+        expect(Math.abs(appearance.rgb[channel] - Math.round(appearance.pageRgb[channel] * .92))).toBeLessThanOrEqual(1);
+        expect(appearance.rgb[channel]).toBeLessThan(appearance.pageRgb[channel]);
+      }
+      expect(appearance.contrast).toBeGreaterThanOrEqual(4.5);
       await expect(affixes).toHaveCSS("border-top-color", ink);
       await expect(input).toHaveCSS("color", ink);
       await expect(input).toHaveCSS("-webkit-text-fill-color", ink);

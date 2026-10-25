@@ -265,6 +265,25 @@ attribute, native 0.6 opacity, and enclosing login link. Website scripts were
 removed and browser network requests blocked for that snapshot check.
 Live Patreon confirmation remains pending.
 
+### Inset comment-entry surface — 1.3.9
+
+For non-default Post Colors, the two comment-field wrappers now blend the selected
+page background with 8% black in sRGB. This creates a slightly darker input surface
+on White, Sepia, Light Green, and Charcoal without changing text, borders, focus,
+native disabled opacity, permissions, or editing behavior. Default and disabling
+Reader restore the native background.
+
+Enabled and disabled field tests sample the computed background through canvas,
+verify its darker channels and matching wrappers for every preset, and check the
+text/field pair retains at least 4.5:1 contrast before native disabled dimming.
+Existing focus, login, draft, error-border, scope, and cleanup assertions remain.
+All 27 Chrome fixture tests and all 28 Brave tests passed. The initial Brave
+color assertions differed by one channel level during canvas readback; assertions
+now allow that tolerance while still requiring darker channels and 4.5:1 contrast.
+A focused Chrome rerun also passed after this adjustment. Syntax and whitespace
+checks passed.
+Live Patreon confirmation remains pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari

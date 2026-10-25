@@ -204,7 +204,8 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface]
    Keep native disabled opacity, permissions, input sizing, and error borders. */
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]
 :is([data-tag="comment-field-box"], [data-tag="comment-field-with-affixes"]) {
-  background-color: var(--patreon-reader-background-color) !important;
+  /* A slight inset tint distinguishes the input from surrounding page text. */
+  background-color: color-mix(in srgb, var(--patreon-reader-background-color) 92%, black) !important;
 }
 
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]

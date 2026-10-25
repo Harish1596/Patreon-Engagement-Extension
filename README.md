@@ -64,6 +64,8 @@ the page for non-default Post Colors. Default restores its native shadow.
 The comment-entry field's surface, text, placeholder, border, and focus indicator
 also follow Post Color. Native disabled opacity, login behavior, and error borders
 are preserved; Reader does not enable commenting or change access permissions.
+For non-default Post Colors, the comment field uses a slightly darker shade of
+the page background to distinguish it as an input. Default restores native styling.
 Navigation outside the column, other native controls, images, and embeds keep
 their own styling. Links remain underlined when overriding post text color.
 
