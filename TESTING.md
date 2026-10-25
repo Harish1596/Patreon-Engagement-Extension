@@ -140,6 +140,23 @@ All 22 Brave tests passed, including the actual unpacked extension. Syntax and
 whitespace checks passed; the rendered panel screenshot was inspected.
 Live Patreon confirmation remains pending.
 
+### Comment foreground and plain swatches — 1.3.1
+
+The supplied HTML identifies parent `comment-row` containers as `role="button"`,
+unlike their replies. The generic button-descendant exclusion incorrectly kept
+all parent text in the site's original foreground. Comment rows are now exempt
+from that exclusion; actual nested controls remain excluded. Author-name buttons
+and their text receive surface ink explicitly. Default and disable remove these
+overrides. Color swatches now show plain colors without Aa, retaining labels and
+accessible radio names; Default retains its reset symbol.
+
+Regression coverage models the clickable parent, non-clickable reply, author-name
+buttons, explicit white descendants, unrelated controls, all presets, and cleanup.
+All 22 Chrome fixture tests and all 23 Brave tests passed, including the unpacked
+extension test in Brave. Syntax and whitespace checks passed. The updated panel
+screenshot was inspected to confirm plain color swatches.
+Live Patreon confirmation remains pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari

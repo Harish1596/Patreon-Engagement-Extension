@@ -366,6 +366,41 @@ test("reading swatches cover the full supplied post column and preserve native c
   await expect(page.locator("#shell")).toHaveCSS("background-color", "rgb(255, 255, 255)");
 });
 
+test("clickable parent comments and replies receive post ink without recoloring other controls", async ({ page }) => {
+  const comments = `<section data-tag="content-card-comment-thread-container">
+    <div data-tag="comment-row" role="button" tabindex="0">
+      <button data-tag="commenter-name" style="color:white"><span style="color:white">Parent author</span></button>
+      <time style="color:white">3w</time>
+      <div data-tag="comment-body" style="color:white"><div><p style="color:white"><span style="color:white">Parent comment</span></p></div></div>
+      <div data-tag="comment-actions"><button style="color:white"><span style="color:white">Like comment</span></button></div>
+    </div>
+    <div data-tag="comment-row">
+      <button data-tag="commenter-name" style="color:white"><span style="color:white">Reply author</span></button>
+      <div data-tag="comment-body"><p style="color:white"><span style="color:white">Reply</span></p></div>
+    </div>
+    <div role="button" style="color:white"><span id="unrelated-control" style="color:white">Other control</span></div>
+  </section>`;
+  await setup(page, { content: fixture.replace('</main>', `${comments}</main>`), stored: { readerEnabled: true } });
+  await button(page).click();
+  const swatches = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
+  await expect(swatches.locator('.swatch-face')).toHaveText(["↺", "", "", "", ""]);
+  for (const [name, ink] of [["White", "rgb(34, 34, 34)"], ["Sepia", "rgb(91, 70, 54)"], ["Light Green", "rgb(34, 34, 34)"], ["Black", "rgb(245, 245, 240)"]]) {
+    await swatches.getByRole("radio", { name, exact: true }).click();
+    for (const text of await page.locator('[data-tag="comment-body"], [data-tag="comment-body"] p, [data-tag="comment-body"] span, [data-tag="commenter-name"], [data-tag="commenter-name"] span, [data-tag="comment-row"] time').all()) {
+      await expect(text).toHaveCSS("color", ink);
+    }
+    await expect(page.locator('#unrelated-control')).toHaveCSS("color", "rgb(255, 255, 255)");
+    await expect(page.locator('[data-tag="comment-actions"] span')).toHaveCSS("color", "rgb(255, 255, 255)");
+  }
+  await swatches.getByRole("radio", { name: "Default", exact: true }).click();
+  await expect(page.locator('[data-tag="comment-body"] span').first()).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(page.locator('[data-tag="commenter-name"] span').first()).toHaveCSS("color", "rgb(255, 255, 255)");
+  await swatches.getByRole("radio", { name: "Light Green", exact: true }).click();
+  await enable(page, false);
+  await expect(page.locator('[data-tag="comment-body"] span').first()).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(page.locator('[data-tag="commenter-name"] span').first()).toHaveCSS("color", "rgb(255, 255, 255)");
+});
+
 test("swatch groups support arrow keys and migrate older free-picker colors", async ({ page }) => {
   await setup(page, { stored: { readerEnabled: true, readerPreferences: { textColor: "#124567", backgroundColor: "#efdfcf" } } });
   await button(page).click();

@@ -158,9 +158,18 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface]
 :is(p, h1, h2, h3, h4, h5, h6, span, a, label, time, [data-tag="comment-body"], [data-tag="commenter-name"], [data-tag="comment-field-label"]):not(:where(
   [data-patreon-reader-title], [data-patreon-reader-title] *,
   [data-patreon-reader-body], [data-patreon-reader-body] *,
-  button, button *, [role="button"], [role="button"] *,
+  button, button *,
+  [role="button"]:not([data-tag="comment-row"]), [role="button"]:not([data-tag="comment-row"]) *,
   svg *, figure *, [data-image-container] *
 )) {
+  color: var(--patreon-reader-surface-color) !important;
+}
+
+/* Parent comment rows are keyboard-clickable containers, not opaque controls.
+   Author names are actual buttons but sit directly on the reading surface. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
+  [data-tag="commenter-name"], [data-tag="commenter-name"] *
+) {
   color: var(--patreon-reader-surface-color) !important;
 }
 

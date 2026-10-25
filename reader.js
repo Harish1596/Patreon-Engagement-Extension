@@ -258,7 +258,7 @@
         for (const option of [{ label: "Default", value: null }, ...colors[key]]) {
           const swatch = element("button", { type: "button", role: "radio", class: "swatch",
             "aria-label": option.label, "data-color": option.value ?? "" });
-          const face = element("span", { class: "swatch-face", "aria-hidden": "true" }, option.value ? "Aa" : "↺");
+          const face = element("span", { class: "swatch-face", "aria-hidden": "true" }, option.value ? "" : "↺");
           if (option.value) {
             face.style.setProperty("--swatch-color", option.value);
             face.style.color = option.ink;
