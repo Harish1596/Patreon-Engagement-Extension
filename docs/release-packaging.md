@@ -38,6 +38,10 @@ guaranteed because command-line tool versions/timezones can differ.
 
 ## Before release
 
+If artwork changed, run `npm run assets` to regenerate the icons and promotional
+PNGs from their SVG sources. See [store artwork](../store-assets/README.md) for
+dimensions, browser requirements, and the separate screenshot requirement.
+
 Run `npm run check`, `npm run test:tooling`, `npm test`, and `npm run test:brave`.
 Review the manual browser checklist in [TESTING.md](../TESTING.md), then package.
 Packaging alone does not establish that the extension works on current live

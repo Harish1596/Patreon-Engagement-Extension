@@ -26,6 +26,28 @@ no upload or publication is recorded here.
 
 ## Historical release and checkpoint records
 
+### Reader icons and store artwork — 1.1.0, October 25, 2026
+
+After the user's release-testing confirmation, replaced the eye-slash mark with
+an original blue open-book/gold-bookmark icon. Added `icons/reader.svg`, updated
+the popup/packaging reference, and regenerated runtime icons at 16/32/48/128px.
+The 128px packaged/store icons use 96px artwork and 16px transparent padding.
+Updated the 440×280 promo tile and added a 1400×560 marquee with current branding
+and existing-feature copy only. Store PNGs are opaque RGB; no product screenshots
+were fabricated. Added an offline SVG-to-PNG regeneration command and artwork guide.
+
+- Initial generation caught a browser viewport-resize rendering artifact in the
+  128px icon; the transparent-padding check stopped generation. Tooling then
+  reported the expected missing store PNG. Fresh fixed-size pages and paint
+  synchronization resolved the issue, and all seven PNGs generated successfully.
+- All 15 tooling tests passed, including new dimensions/format/branding checks.
+- All 4 targeted Brave popup/installed-extension tests passed, including the
+  popup icon source and image-loading assertions.
+- Syntax (23 JavaScript files), whitespace, and rebuilt 1.1.0 ZIP validation passed.
+- Visually reviewed all final icons, both promo tiles, and the installed popup.
+- Full browser suites and new live Patreon tests were not rerun for this
+  branding-only change. No store upload or publication was performed.
+
 ### Release version corrected to 1.1.0 — October 25, 2026
 
 The user confirmed the Chrome Web Store extension version is 1.0.0 and selected

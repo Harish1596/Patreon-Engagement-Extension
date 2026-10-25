@@ -2,7 +2,7 @@
 
 ## 1.1.0
 
-- Renamed the extension to **Patreon Reader**.
+- Renamed the extension to **Patreon Reader**, with updated icons and store artwork.
 - Added Reader controls for fonts, text size, paragraph spacing, and line spacing.
 - Added matched Post Color themes for readable text, backgrounds, and icons.
 - Added saved reading preferences and a reset to Patreon defaults.

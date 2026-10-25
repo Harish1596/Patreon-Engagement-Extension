@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.1.0",
   "scripts": {
+    "assets": "node scripts/generate-assets.js",
     "test": "playwright test",
     "test:tooling": "node scripts/test-tooling.js",
     "package": "node scripts/package-extension.js",

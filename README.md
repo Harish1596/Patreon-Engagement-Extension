@@ -5,6 +5,7 @@ default and optionally customizes post reading appearance. Both features are
 controlled from the extension's toolbar popup.
 
 See the [changelog](changelog.md) for features and changes in each release.
+Store artwork and regeneration instructions are in [store-assets](store-assets/README.md).
 
 ## Browser support
 

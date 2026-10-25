@@ -25,6 +25,13 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Artwork refresh (1.1.0, after the release-testing confirmation): 15 tooling
+tests and 4 targeted Brave popup/installed-extension tests passed. SVG sources
+were rasterized with Chrome; PNG dimensions, color type, matching store/runtime
+128px icons, and transparent padding were checked, and the artwork was visually
+reviewed. Syntax, whitespace, and rebuilt ZIP validation passed. Full browser
+suites and new live Patreon tests were not run for this branding-only update.
+
 Release-renumbering verification (1.1.0): syntax checks and all 13 tooling tests
 passed. Packaging validated the consistent version fields and generated
 `dist/patreon-reader-1.1.0.zip`. Browser suites were not rerun for this
