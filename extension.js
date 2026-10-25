@@ -25,6 +25,45 @@
     font: "default", textSize: null, textColor: null,
     backgroundColor: null, paragraphSpacing: null, lineSpacing: null
   });
+  // Independently chosen reading colors; no remote assets or branded palettes.
+  const colors = Object.freeze({
+    textColor: [
+      { label: "Charcoal", value: "#222222" },
+      { label: "Slate", value: "#444444" },
+      { label: "Brown", value: "#5b4636" },
+      { label: "Soft White", value: "#f5f5f0" }
+    ],
+    backgroundColor: [
+      { label: "White", value: "#ffffff", ink: "#222222" },
+      { label: "Sepia", value: "#f4ecd8", ink: "#5b4636" },
+      { label: "Light Green", value: "#e3eddf", ink: "#222222" },
+      { label: "Black", value: "#202124", ink: "#f5f5f0" }
+    ]
+  });
+  function luminance(hex) {
+    const rgb = hex.slice(1).match(/../g).map((part) => {
+      const n = parseInt(part, 16) / 255;
+      return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+    });
+    return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+  }
+  function contrast(a, b) {
+    const first = luminance(a), second = luminance(b);
+    return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+  }
+  function pageInk(background) {
+    return colors.backgroundColor.find((option) => option.value === background)?.ink ?? null;
+  }
+  function presetColor(key, value) {
+    if (typeof value !== "string" || !/^#[0-9a-f]{6}$/i.test(value)) return null;
+    const hex = value.toLowerCase();
+    const exact = colors[key].find((option) => option.value === hex);
+    if (exact) return exact.value;
+    // Migrate older full-picker preferences to the nearest offered swatch.
+    const distance = (candidate) => [1, 3, 5].reduce((sum, offset) =>
+      sum + (parseInt(candidate.slice(offset, offset + 2), 16) - parseInt(hex.slice(offset, offset + 2), 16)) ** 2, 0);
+    return [...colors[key]].sort((a, b) => distance(a.value) - distance(b.value))[0].value;
+  }
   function normalize(value) {
     const input = value && typeof value === "object" ? value : {};
     const number = (key, min, max, step) => {
@@ -32,16 +71,17 @@
       return typeof n === "number" && Number.isFinite(n)
         ? Math.round(Math.min(max, Math.max(min, n)) / step) * step : null;
     };
-    const color = (key) => typeof input[key] === "string" && /^#[0-9a-f]{6}$/i.test(input[key])
-      ? input[key].toLowerCase() : null;
+    const backgroundColor = presetColor("backgroundColor", input.backgroundColor);
+    let textColor = presetColor("textColor", input.textColor);
+    if (textColor && backgroundColor && contrast(textColor, backgroundColor) < 4.5) textColor = null;
     return {
       font: Object.hasOwn(fonts, input.font) ? input.font : "default",
       textSize: number("textSize", 12, 32, 1),
-      textColor: color("textColor"),
-      backgroundColor: color("backgroundColor"),
+      textColor,
+      backgroundColor,
       paragraphSpacing: number("paragraphSpacing", 0, 48, 1),
       lineSpacing: number("lineSpacing", 1, 2.5, 0.1)
     };
   }
-  globalThis.PatreonExtension = { api, call, fonts, defaults, normalize };
+  globalThis.PatreonExtension = { api, call, fonts, colors, contrast, pageInk, defaults, normalize };
 })();

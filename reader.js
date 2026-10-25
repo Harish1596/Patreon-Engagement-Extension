@@ -1,10 +1,10 @@
 (() => {
-  const { fonts, defaults, normalize } = globalThis.PatreonExtension;
+  const { fonts, colors, contrast, pageInk, defaults, normalize } = globalThis.PatreonExtension;
   const TITLE = '[data-tag="post-title"]';
   const BODY = '[class*="PostBodies-module__"][class*="__postContent"] [class*="RichText-module__"][class*="additionalStylesPostContentWrapper"]';
   const CARD = '[data-tag="post-card"]';
   const EXCLUDE = '[data-tag="floating-engagement-sheet"], [data-tag="comment"], [data-tag="comments"], [data-tag="comment-row"], [data-tag="comment-actions"], [data-tag="content-card-comment-thread-container"]';
-  const PROPERTIES = ["font", "text-size", "title-size", "text-color", "background-color", "paragraph-spacing", "line-spacing"];
+  const PROPERTIES = ["font", "text-size", "title-size", "text-color", "background-color", "surface-color", "paragraph-spacing", "line-spacing"];
   let enabled = false;
   let preferences = { ...defaults };
   let savePreference;
@@ -15,6 +15,7 @@
   let panel;
   let open = false;
   let targets = [];
+  let surface;
   let route = "";
   let revision = 0;
   let saveQueue = Promise.resolve();
@@ -33,6 +34,8 @@
       target.removeAttribute("data-patreon-reader-body");
     }
     targets = [];
+    surface?.removeAttribute("data-patreon-reader-surface");
+    surface = undefined;
     for (const property of PROPERTIES) {
       document.documentElement.removeAttribute(`data-patreon-reader-${property}`);
       document.documentElement.style.removeProperty(`--patreon-reader-${property}`);
@@ -45,8 +48,9 @@
       font: fonts[preferences.font].value,
       "text-size": px(preferences.textSize),
       "title-size": preferences.textSize === null ? null : px(preferences.textSize * 1.5),
-      "text-color": preferences.textColor,
+      "text-color": preferences.textColor ?? pageInk(preferences.backgroundColor),
       "background-color": preferences.backgroundColor,
+      "surface-color": pageInk(preferences.backgroundColor),
       "paragraph-spacing": px(preferences.paragraphSpacing),
       "line-spacing": preferences.lineSpacing === null ? null : String(preferences.lineSpacing)
     };
@@ -102,7 +106,7 @@
       closePanel(true);
     }
     if (event.key === "Tab") {
-      const nodes = [...panel.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled)')];
+      const nodes = [...panel.querySelectorAll('button:not(:disabled):not([tabindex="-1"]), input:not(:disabled), select:not(:disabled)')];
       const first = nodes[0];
       const last = nodes.at(-1);
       const focused = shadow.activeElement;
@@ -149,8 +153,19 @@
       input.setAttribute("aria-valuetext", display);
     }
     for (const key of ["textColor", "backgroundColor"]) {
-      shadow.querySelector(`#${key}`).value = preferences[key] ?? (key === "textColor" ? "#222222" : "#ffffff");
-      shadow.querySelector(`#${key}-value`).textContent = preferences[key] ?? "Site default";
+      const selected = preferences[key];
+      shadow.querySelector(`#${key}-value`).textContent = colors[key].find((option) => option.value === selected)?.label
+        ?? (key === "textColor" && preferences.backgroundColor ? "Automatic" : "Site default");
+      for (const swatch of shadow.querySelectorAll(`#${key} [role="radio"]`)) {
+        const value = swatch.dataset.color || null;
+        const checked = value === selected;
+        swatch.setAttribute("aria-checked", String(checked));
+        swatch.tabIndex = checked ? 0 : -1;
+        swatch.disabled = key === "textColor" && value !== null && preferences.backgroundColor !== null
+          && contrast(value, preferences.backgroundColor) < 4.5;
+        swatch.title = swatch.disabled ? `${swatch.getAttribute("aria-label")}: insufficient contrast with this background`
+          : swatch.getAttribute("aria-label");
+      }
     }
     shadow.querySelector("#font").value = preferences.font;
     for (const reset of shadow.querySelectorAll("[data-reset]")) reset.disabled = preferences[reset.dataset.reset] === null;
@@ -178,14 +193,21 @@
       button:hover { background: #e9e9ee; }
       button:disabled { opacity: .45; cursor: default; }
       :focus-visible { outline: 2px solid #b82d47; outline-offset: 3px; }
-      .row { margin-block: 17px; }
+      .row { margin-block: 14px; }
       .caption { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 7px; }
       label { font-weight: 600; }
       output { color: #686872; font-size: 12px; margin-left: auto; }
       input[type=range] { display: block; width: 100%; margin: 10px 0; accent-color: #bd324a; }
       select { width: 100%; padding: 8px; }
-      .colors { display: flex; align-items: center; gap: 10px; }
-      input[type=color] { width: 45px; height: 32px; padding: 2px; border: 1px solid #aaa; border-radius: 6px; background: transparent; cursor: pointer; }
+      .colors { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+      .swatch { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 5px 1px;
+        background: transparent; border: 1px solid transparent; border-radius: 8px; font-size: 10px; }
+      .swatch-face { display: grid; place-items: center; width: 32px; height: 32px;
+        border-radius: 50%; border: 1px solid #888; background: var(--swatch-color, #eee); color: #222; font-size: 15px; }
+      .swatch > span:last-child { white-space: nowrap; font-size: 9px; }
+      .swatch[aria-checked=true] { border-color: currentColor; }
+      .swatch[aria-checked=true] .swatch-face { outline: 2px solid #bd324a; outline-offset: 2px; }
+      .swatch:disabled { opacity: .25; }
       .default { margin-left: auto; font-size: 11px; padding: 4px 7px; }
       .caption .default { margin-left: 0; }
       footer { padding-top: 14px; border-top: 1px solid #dedee3; }
@@ -216,28 +238,49 @@
     panel.append(fontRow);
     for (const [key, label, type, min, max, step] of [
       ["textSize", "Text size", "range", 12, 32, 1],
-      ["textColor", "Text color", "color"],
-      ["backgroundColor", "Background color", "color"],
+      ["textColor", "Text color", "palette"],
+      ["backgroundColor", "Background color", "palette"],
       ["paragraphSpacing", "Paragraph spacing", "range", 0, 48, 1],
       ["lineSpacing", "Line spacing", "range", 1, 2.5, 0.1]
     ]) {
       const row = element("div", { class: "row" });
       const heading = element("div", { class: "caption" });
-      heading.append(element("label", { for: key }, label));
+      heading.append(element(type === "palette" ? "span" : "label", { for: key, id: `${key}-label` }, label));
       const output = element("output", { id: `${key}-value`, for: key });
       heading.append(output);
-      const input = element("input", { id: key, type });
-      if (type === "range") {
-        input.min = min; input.max = max; input.step = step;
-      }
-      input.addEventListener("input", () => update(key, type === "range" ? Number(input.value) : input.value));
       const reset = element("button", { type: "button", class: "default", "data-reset": key, "aria-label": `Reset ${label.toLowerCase()} to site default` }, "Reset");
       reset.addEventListener("click", () => update(key, null));
-      const controls = element("div", { class: type === "color" ? "colors" : "" });
-      controls.append(input);
-      if (type === "range") heading.append(reset);
-      else controls.append(reset);
+      const controls = element("div", { class: type === "palette" ? "colors" : "" });
+      if (type === "palette") {
+        controls.id = key;
+        controls.setAttribute("role", "radiogroup");
+        controls.setAttribute("aria-labelledby", `${key}-label`);
+        for (const option of [{ label: key === "textColor" ? "Auto" : "Default", value: null }, ...colors[key]]) {
+          const swatch = element("button", { type: "button", role: "radio", class: "swatch",
+            "aria-label": option.label, "data-color": option.value ?? "" });
+          const face = element("span", { class: "swatch-face", "aria-hidden": "true" }, option.value ? "" : "↺");
+          if (option.value) face.style.setProperty("--swatch-color", option.value);
+          swatch.append(face, element("span", { "aria-hidden": "true" }, option.label));
+          swatch.addEventListener("click", () => update(key, option.value));
+          controls.append(swatch);
+        }
+        controls.addEventListener("keydown", (event) => {
+          if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          const options = [...controls.querySelectorAll("button:not(:disabled)")];
+          const current = options.indexOf(shadow.activeElement);
+          const next = event.key === "Home" ? 0 : event.key === "End" ? options.length - 1
+            : (current + (["ArrowLeft", "ArrowUp"].includes(event.key) ? -1 : 1) + options.length) % options.length;
+          options[next].click(); options[next].focus();
+        });
+      } else {
+        const input = element("input", { id: key, type, min, max, step });
+        input.addEventListener("input", () => update(key, Number(input.value)));
+        controls.append(input);
+        heading.append(reset);
+      }
       row.append(heading, controls);
+      if (type === "palette" && key === "textColor") row.append(element("p", {}, "Auto chooses a readable text color."));
       panel.append(row);
     }
     const footer = element("footer");
@@ -326,6 +369,11 @@
     const post = findPost();
     if (!post) { removeUI(); clearTargets(); return; }
     const { scope, like, belongs } = post;
+    const nextSurface = like.closest('[class*="PostBodies-module__"][class*="__singleColumnContent"]')
+      ?? like.closest('[data-testid="single-column-post-wrapper"]') ?? like.closest(CARD) ?? scope;
+    if (surface !== nextSurface) surface?.removeAttribute("data-patreon-reader-surface");
+    surface = nextSurface;
+    if (!surface.hasAttribute("data-patreon-reader-surface")) surface.setAttribute("data-patreon-reader-surface", "");
     const next = [...scope.querySelectorAll(TITLE), ...scope.querySelectorAll(BODY)].filter(belongs);
     for (const target of targets) if (!next.includes(target)) {
       target.removeAttribute("data-patreon-reader-title"); target.removeAttribute("data-patreon-reader-body");

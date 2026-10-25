@@ -47,10 +47,24 @@ it again.
 3. Adjust font family, text size (12–32px), text color, background color,
    paragraph spacing (0–48px), and line spacing (1–2.5×). Changes preview immediately.
 
-The title uses 1.5× the chosen body text size. Font and text color affect the title
-and body; the background and spacing controls affect the body. Links remain
-underlined when overriding text color. Comments, navigation, images, and embeds
-are not reader styling targets.
+The title uses 1.5× the chosen body text size. Font, text color, size, and spacing
+customize the title/body reading text. Background color covers the full post
+column, including its title, creator information, action-row area, and comments.
+Metadata and comments receive a matching readable foreground when a background
+is selected. Navigation outside the column, native controls, images, and embeds
+keep their own styling. Links remain underlined when overriding post text color.
+
+Colors use a small preset palette instead of a full color picker:
+
+- Background: site default, White, Sepia, Light Green, or Black.
+- Text: Auto/site default, Charcoal, Slate, Brown, or Soft White.
+
+Auto chooses readable post text for the selected background. Text swatches with
+contrast below 4.5:1 against a selected background are disabled. Changing to an
+incompatible background switches the text choice to Auto. Resetting background
+to site default restores the site's original surface and metadata colors.
+Previously saved full-picker colors map to the nearest preset; the next settings
+change saves the migrated values.
 
 Each setting starts at **Site default**. Individual default buttons remove an
 override; **Reset to Patreon defaults** removes all appearance overrides without

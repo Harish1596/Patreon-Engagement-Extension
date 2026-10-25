@@ -26,9 +26,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await context.route("https://www.patreon.com/**", (route) => route.fulfill({
       contentType: "text/html",
       body: `<!doctype html><html><head><style>body { font: 16px Arial; } .actions { display:flex; gap:8px; }</style></head><body>
-      <main data-tag="post-card"><div hidden><h1 data-tag="post-title">Responsive title copy</h1><div data-tag="top-engagement"><button data-tag="like-button">Hidden like</button></div></div><h1 data-tag="post-title">Installed extension test</h1>
+      <main data-tag="post-card"><div class="PostBodies-module__hash__singleColumnContent"><div data-testid="single-column-post-wrapper"><div hidden><h1 data-tag="post-title">Responsive title copy</h1><div data-tag="top-engagement"><button data-tag="like-button">Hidden like</button></div></div><h1 data-tag="post-title">Installed extension test</h1>
       <div class="actions" data-tag="top-engagement"><button data-tag="like-button">Like</button><button data-tag="more-actions-button">More</button></div>
-      <div class="PostBodies-module__hash__postContent"><div class="RichText-module__hash__additionalStylesPostContentWrapper"><p id="body">Post content.</p></div></div></main>
+      <div class="PostBodies-module__hash__postContent"><div class="RichText-module__hash__additionalStylesPostContentWrapper"><p id="body">Post content.</p></div></div></div></div></main>
       <div data-tag="floating-engagement-sheet">Floating engagement</div></body></html>`
     }));
     const first = await context.newPage();
@@ -50,6 +50,10 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await first.getByLabel("Font family", { exact: true }).selectOption("georgia");
     await expect(first.locator("#body")).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');
     await expect(second.locator("#body")).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');
+    await first.getByRole("radiogroup", { name: "Background color", exact: true }).getByRole("radio", { name: "Black", exact: true }).click();
+    await expect(first.locator("[data-patreon-reader-surface]")).toHaveCSS("background-color", "rgb(32, 33, 36)");
+    await expect(second.locator("[data-patreon-reader-surface]")).toHaveCSS("background-color", "rgb(32, 33, 36)");
+    await expect(second.locator("#body")).toHaveCSS("color", "rgb(245, 245, 240)");
     await first.getByRole("dialog").screenshot({ path: "test-results/reader-panel.png" });
     await popup.locator("body").screenshot({ path: "test-results/popup.png" });
     await toggle.uncheck();

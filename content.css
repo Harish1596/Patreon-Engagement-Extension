@@ -72,8 +72,29 @@ html[data-patreon-reader-text-color] :is([data-patreon-reader-body] a, [data-pat
   text-underline-offset: 0.15em !important;
 }
 
-html[data-patreon-reader-background-color] [data-patreon-reader-body] {
+html[data-patreon-reader-background-color] [data-patreon-reader-surface],
+html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
+  [data-testid="single-column-post-wrapper"],
+  [class*="PostBodies-module__"][class*="__singleColumnPost"],
+  [data-patreon-reader-body]
+) {
   background-color: var(--patreon-reader-background-color) !important;
+}
+
+/* Keep metadata and comments legible on the expanded reading surface. Native
+   controls, media, and the separately customized post text keep their styles. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface] {
+  color: var(--patreon-reader-surface-color) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+:is(p, h1, h2, h3, h4, h5, h6, span, a, label, time, [data-tag="comment-body"], [data-tag="commenter-name"], [data-tag="comment-field-label"]):not(:where(
+  [data-patreon-reader-title], [data-patreon-reader-title] *,
+  [data-patreon-reader-body], [data-patreon-reader-body] *,
+  button, button *, [role="button"], [role="button"] *,
+  svg *, figure *, [data-image-container] *
+)) {
+  color: var(--patreon-reader-surface-color) !important;
 }
 
 html[data-patreon-reader-line-spacing] :is(

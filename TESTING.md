@@ -62,6 +62,29 @@ Verification on the same Chrome/Brave versions listed above:
   post-card wrapper, duplicate titles, real storage, and popup-to-page messaging.
 - Syntax and whitespace checks passed. Retesting on the live post is pending.
 
+### Full-column reading colors — 1.2.0
+
+The supplied markup identifies `PostBodies-module__…__singleColumnContent`
+around the complete column and `data-testid="single-column-post-wrapper"`
+around its inner content. Background overrides target these surfaces as well
+as the post text, with the selected card/scope as a fallback. Removing Reader
+or resetting background removes the override and restores original styles.
+
+Four independently chosen background swatches (White, Sepia, Light Green,
+Black) and four text swatches (Charcoal, Slate, Brown, Soft White) replace the
+free color pickers. Auto text chooses a matching foreground. Low-contrast text
+options are disabled for an explicit background; changing backgrounds switches
+incompatible text to Auto. Older valid hexadecimal colors map to the nearest
+preset. No new settings keys or permissions are introduced.
+
+Regression coverage includes the outer and inner surfaces, metadata/comment
+contrast, preserved native-control and navigation styling, reset and disable
+cleanup, color migration, keyboard radio-group selection, and actual extension
+storage propagation to another post tab. On the browser versions listed above,
+all 17 Chrome fixture tests and all 18 Brave tests passed. The Brave suite
+includes the actual unpacked-extension test. Live-site confirmation and Firefox/
+Safari validation remain pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari
@@ -77,10 +100,12 @@ support claims are not evidence that the Reader feature passes this checklist.
   locked previews, and posts containing headings, lists, quotes, links, images,
   and embeds. Do not use the extension to obtain inaccessible content.
 - Check default fonts, unavailable-font fallbacks, bold/italic text, long
-  unbroken links, and custom foreground/background contrast. Color choices are
-  user-controlled; choose a readable combination.
-- Confirm comments, creator information, navigation, images, attachments, and
-  embeds retain their normal appearance.
+  unbroken links, each background preset, automatic foreground matching, and
+  disabled low-contrast text swatches.
+- Confirm background covers the complete post column and metadata/comments are
+  readable in both Patreon themes. Native controls, navigation outside the
+  column, images, attachments, and embeds should retain their styling. Font
+  size, family, and spacing must remain scoped to the post title/body.
 - Check immediate preview, individual resets, reset all, disable/re-enable, and
   synchronization between two open post tabs. Disabling removes the panel,
   button, and appearance styles while retaining saved choices.
@@ -90,7 +115,7 @@ support claims are not evidence that the Reader feature passes this checklist.
 - Navigate with Tab, Shift+Tab, Enter, arrows, and Escape. Verify labels with a
   screen reader, focus return after dismissal, and outside-click dismissal.
 - Test light/dark themes, narrow windows, 200% browser zoom, OS text scaling,
-  and the native color picker. Ensure the panel stays within the viewport and
+  and keyboard selection of color swatches. Ensure the panel stays within the viewport and
   all controls remain reachable by scrolling.
 - Scroll through a long post and repeatedly navigate. Check for console errors,
   observer loops, noticeable delays, and unexpected network requests.
