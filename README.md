@@ -66,7 +66,7 @@ Post Color pairs the background with readable text instead of separate color con
 - White: white background and charcoal text.
 - Sepia: warm cream background and brown text.
 - Light Green: pale green background and charcoal text.
-- Dark: dark background and soft white text.
+- Charcoal: dark background and soft white text.
 
 Every preset updates background, text, metadata, and action colors together.
 Previously saved backgrounds map to the nearest preset; old independent text

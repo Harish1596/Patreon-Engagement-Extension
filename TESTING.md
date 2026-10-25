@@ -204,6 +204,14 @@ re-enabling the Reader toggle; an unchanged rerun passed. That intermittent
 toggle failure was not diagnosed or fixed as part of this label-only change.
 Syntax and whitespace checks passed.
 
+### Charcoal preset label — 1.3.5
+
+Renamed Dark to Charcoal without changing the background (`#202124`), foreground
+(`#f5f5f0`), interaction colors, or stored preferences. Updated the current README
+and browser-test radio names; historical release notes retain their original labels.
+All 24 Chrome fixture tests and the focused unpacked-extension test in Brave
+passed. Syntax and whitespace checks passed.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari
