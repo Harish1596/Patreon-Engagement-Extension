@@ -200,6 +200,39 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface]
     0 6px 18px rgba(0, 0, 0, .18) !important;
 }
 
+/* Theme the comment composer, not the surrounding login link or other forms.
+   Keep native disabled opacity, permissions, input sizing, and error borders. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+:is([data-tag="comment-field-box"], [data-tag="comment-field-with-affixes"]) {
+  background-color: var(--patreon-reader-background-color) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-field-with-affixes"]:not(:has([data-tag="comment-field"][aria-invalid="true"])) {
+  border-color: var(--patreon-reader-surface-color) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-field-with-affixes"]:focus-within:not(:has([data-tag="comment-field"][aria-invalid="true"])) {
+  outline: 2px solid var(--patreon-reader-surface-color) !important;
+  outline-offset: 2px !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-field"] {
+  background-color: transparent !important;
+  color: var(--patreon-reader-surface-color) !important;
+  /* Disabled textareas use a separate native text-fill color in Chrome/Safari. */
+  -webkit-text-fill-color: var(--patreon-reader-surface-color) !important;
+  caret-color: var(--patreon-reader-surface-color) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="comment-field"]::placeholder {
+  color: var(--patreon-reader-surface-color) !important;
+  -webkit-text-fill-color: var(--patreon-reader-surface-color) !important;
+}
+
 /* Keep metadata and comments legible on the expanded reading surface. Native
    controls, media, and the separately customized post text keep their styles. */
 html[data-patreon-reader-background-color] [data-patreon-reader-surface] {

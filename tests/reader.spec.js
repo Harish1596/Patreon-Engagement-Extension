@@ -526,6 +526,83 @@ test("membership banner follows Post Color without changing Join buttons, images
   await expect(card.locator("p").first()).toHaveCSS("color", "rgb(255, 255, 255)");
 });
 
+for (const disabled of [false, true]) {
+  test(`comment entry follows Post Color with disabled=${disabled} without changing editing or login behavior`, async ({ page }) => {
+    const field = `<a data-tag="login-field" href="/login"><div class="TextInput-module__hash__root ${disabled ? "TextInput-module__hash__disabled" : ""}">
+      <label data-tag="comment-field-label">Comment Field</label>
+      <div data-tag="comment-field-box"><div data-tag="comment-field-with-affixes">
+        <textarea data-tag="comment-field" placeholder="Join the conversation..." aria-invalid="false" ${disabled ? "disabled" : ""}></textarea>
+      </div></div></div></a>`;
+    const content = fixture.replace('</style>', `
+      [data-tag="comment-field-box"], [data-tag="comment-field-with-affixes"] { background:rgb(28,28,32); }
+      [data-tag="comment-field-with-affixes"] { border:1px solid rgb(120,120,120); border-radius:8px; }
+      [data-tag="comment-field"] { color:white; background:transparent; border:none; padding:12px; font:16px Arial; }
+      [data-tag="comment-field"]::placeholder { color:rgb(200,200,200); opacity:1; }
+      [data-tag="comment-field"]:disabled { -webkit-text-fill-color:rgb(200,200,200); }
+      .TextInput-module__hash__root.TextInput-module__hash__disabled { opacity:.5; }
+    </style>`).replace('</main>', `<section data-tag="content-card-comment-thread-container">${field}<button id="other-form-button" style="color:rgb(10,20,30);background:rgb(40,50,60)">Send</button></section></main><aside id="outside-field">${field}</aside>`);
+    await setup(page, { content, stored: { readerEnabled: true } });
+    await page.locator('#post [data-tag="login-field"]').evaluate(node => {
+      globalThis.loginClicks = 0;
+      node.addEventListener("click", event => { event.preventDefault(); globalThis.loginClicks++; });
+    });
+    // Disabled textareas can suppress pointer-event bubbling. Preserve the
+    // browser's original behavior rather than making the disabled input active.
+    await page.locator('#post [data-tag="comment-field-with-affixes"]').click({ position: { x: 1, y: 1 } });
+    const nativeLoginClicks = await page.evaluate(() => loginClicks);
+    await button(page).click();
+    const input = page.locator('#post [data-tag="comment-field"]');
+    const box = page.locator('#post [data-tag="comment-field-box"]');
+    const affixes = page.locator('#post [data-tag="comment-field-with-affixes"]');
+    const palette = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
+    for (const [name, background, ink] of [
+      ["White", "rgb(255, 255, 255)", "rgb(34, 34, 34)"],
+      ["Sepia", "rgb(244, 236, 216)", "rgb(91, 70, 54)"],
+      ["Light Green", "rgb(227, 237, 223)", "rgb(34, 34, 34)"],
+      ["Charcoal", "rgb(32, 33, 36)", "rgb(245, 245, 240)"]
+    ]) {
+      await palette.getByRole("radio", { name, exact: true }).click();
+      await expect(box).toHaveCSS("background-color", background);
+      await expect(affixes).toHaveCSS("background-color", background);
+      await expect(affixes).toHaveCSS("border-top-color", ink);
+      await expect(input).toHaveCSS("color", ink);
+      await expect(input).toHaveCSS("-webkit-text-fill-color", ink);
+      expect(await input.evaluate(node => getComputedStyle(node, "::placeholder").color)).toBe(ink);
+      await expect(input).toHaveCSS("font-size", "16px");
+      await expect(page.locator('#post .TextInput-module__hash__root')).toHaveCSS("opacity", disabled ? "0.5" : "1");
+      expect(await input.isDisabled()).toBe(disabled);
+      await expect(page.locator('#outside-field [data-tag="comment-field-with-affixes"]')).toHaveCSS("background-color", "rgb(28, 28, 32)");
+      await expect(page.locator('#other-form-button')).toHaveCSS("background-color", "rgb(40, 50, 60)");
+    }
+    await page.keyboard.press("Escape");
+    if (!disabled) {
+      await input.fill("A draft comment");
+      await expect(input).toBeFocused();
+      await expect(affixes).toHaveCSS("outline-style", "solid");
+      await expect(affixes).toHaveCSS("outline-color", "rgb(245, 245, 240)");
+    }
+    await affixes.click({ position: { x: 1, y: 1 } });
+    expect(await page.evaluate(() => loginClicks)).toBe(nativeLoginClicks * 2);
+    await page.locator('#post [data-tag="login-field"]').dispatchEvent("click");
+    expect(await page.evaluate(() => loginClicks)).toBe(nativeLoginClicks * 2 + 1);
+    await expect(page.locator('#post [data-tag="login-field"]')).toHaveAttribute("href", "/login");
+    await input.evaluate(node => node.setAttribute("aria-invalid", "true"));
+    await affixes.evaluate(node => { node.style.borderColor = "rgb(255, 0, 0)"; });
+    await expect(affixes).toHaveCSS("border-top-color", "rgb(255, 0, 0)");
+    await button(page).click();
+    await palette.getByRole("radio", { name: "Default", exact: true }).click();
+    await expect(affixes).toHaveCSS("background-color", "rgb(28, 28, 32)");
+    await expect(input).toHaveCSS("color", "rgb(255, 255, 255)");
+    expect(await input.evaluate(node => getComputedStyle(node, "::placeholder").color)).toBe("rgb(200, 200, 200)");
+    await palette.getByRole("radio", { name: "Sepia", exact: true }).click();
+    await enable(page, false);
+    await expect(box).toHaveCSS("background-color", "rgb(28, 28, 32)");
+    await expect(input).toHaveCSS("color", "rgb(255, 255, 255)");
+    expect(await input.isDisabled()).toBe(disabled);
+    if (!disabled) await expect(input).toHaveValue("A draft comment");
+  });
+}
+
 test("swatch groups support arrow keys and migrate older free-picker colors", async ({ page }) => {
   await setup(page, { stored: { readerEnabled: true, readerPreferences: { textColor: "#124567", backgroundColor: "#efdfcf" } } });
   await button(page).click();

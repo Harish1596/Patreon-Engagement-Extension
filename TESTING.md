@@ -241,6 +241,30 @@ also passed after adding an existing native shadow to the fixture to verify its
 restoration. Syntax and whitespace checks passed.
 Live Patreon confirmation remains pending.
 
+### Comment-entry colors — 1.3.8
+
+The comment composer uses separate `comment-field-box`, `comment-field-with-affixes`,
+and `comment-field` elements. Its wrappers kept the native background, while the
+disabled textarea used native `-webkit-text-fill-color` and placeholder colors.
+The supplied logged-out HTML nests this disabled field inside a login link.
+
+Scoped rules now match the selected Post Color for wrapper backgrounds, textarea
+text/fill/caret, placeholder, border, and focus outline. Disabled opacity and
+attributes, login navigation, editor sizing, draft content, and error-border
+styling remain native. An invalid field (`aria-invalid="true"`) is excluded from
+the custom border/focus rules. Default/disable restores native colors.
+
+Tests reproduce the background failure before the fix, then check all presets
+with enabled/disabled fields, placeholder/fill, focus, opacity, login click handler,
+draft retention, invalid borders, unrelated forms, and reset/disable cleanup.
+All 27 Chrome fixture tests and all 28 Brave tests passed, including the unpacked
+extension test in Brave. Syntax and whitespace checks passed. An isolated Chrome
+check using the supplied full HTML and linked public styles confirmed Sepia
+background, text fill, and placeholder colors while preserving the disabled
+attribute, native 0.6 opacity, and enclosing login link. Website scripts were
+removed and browser network requests blocked for that snapshot check.
+Live Patreon confirmation remains pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari

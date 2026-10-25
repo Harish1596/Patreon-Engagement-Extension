@@ -61,6 +61,9 @@ The membership banner's inner card also uses the selected background, keeping
 its text readable while preserving artwork, layout, and native Join buttons.
 A subtle foreground-tinted outline and drop shadow distinguish the banner from
 the page for non-default Post Colors. Default restores its native shadow.
+The comment-entry field's surface, text, placeholder, border, and focus indicator
+also follow Post Color. Native disabled opacity, login behavior, and error borders
+are preserved; Reader does not enable commenting or change access permissions.
 Navigation outside the column, other native controls, images, and embeds keep
 their own styling. Links remain underlined when overriding post text color.
 

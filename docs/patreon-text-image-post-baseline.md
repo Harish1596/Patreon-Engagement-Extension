@@ -22,6 +22,12 @@ inside `cta-banner-wrapper` follows the selected background on the reading
 surface, matching its already-customized text. Artwork, native Join controls,
 and layout remain unchanged. Earlier native-card observations are historical.
 
+Implementation update (1.3.8): the comment-entry field and its tagged wrappers
+follow Post Color for background, text/placeholder, and border/focus colors.
+Native disabled opacity and login-link behavior are preserved. Invalid-field
+borders remain native. Earlier notes about untouched comment-entry colors are
+historical; Reader still does not change commenting permissions or submission.
+
 ## Evidence and limits
 
 The baseline combines three kinds of evidence:
