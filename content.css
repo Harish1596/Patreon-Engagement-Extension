@@ -192,6 +192,14 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
   background-color: var(--patreon-reader-background-color) !important;
 }
 
+/* Keep the same-color banner distinct without changing its box dimensions.
+   Surface ink makes the outline light on Charcoal and dark on light presets. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-testid="cta-banner-wrapper"] [class*="CTABanner-module__"][class*="__root"] {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 28%, transparent),
+    0 6px 18px rgba(0, 0, 0, .18) !important;
+}
+
 /* Keep metadata and comments legible on the expanded reading surface. Native
    controls, media, and the separately customized post text keep their styles. */
 html[data-patreon-reader-background-color] [data-patreon-reader-surface] {

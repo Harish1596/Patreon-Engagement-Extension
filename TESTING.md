@@ -226,6 +226,21 @@ unrelated banners, and Default/disable restoration. All 25 Chrome fixture tests
 and all 26 Brave tests passed, including the unpacked-extension test in Brave.
 Syntax and whitespace checks passed. Live Patreon confirmation remains pending.
 
+### Membership banner separation — 1.3.7
+
+Non-default Post Colors give the membership card a one-pixel shadow outline
+using surface ink at 28% opacity and a soft black drop shadow. The outline is
+light on Charcoal and dark on light presets. Using box-shadow avoids layout
+changes. Default and disabling Reader restore the original shadow. Images,
+Join buttons, and banners outside the reading surface remain untouched.
+
+Coverage verifies the computed outline/shadow for all presets, unchanged card
+dimensions and Join-button shadows, out-of-scope banners, and reset/disable.
+All 25 Chrome fixture tests and all 26 Brave tests passed. A focused Chrome rerun
+also passed after adding an existing native shadow to the fixture to verify its
+restoration. Syntax and whitespace checks passed.
+Live Patreon confirmation remains pending.
+
 ## Manual release checklist
 
 Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari

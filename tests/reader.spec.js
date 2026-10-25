@@ -461,7 +461,7 @@ for (const native of ["white", "black"]) {
 }
 
 test("membership banner follows Post Color without changing Join buttons, images, or layout", async ({ page }) => {
-  const banner = `<div data-testid="cta-banner-wrapper"><div class="PostBodies-module__newHash__singleColumnContent"><div class="CTABanner-module__newHash__root" style="background:rgb(28,28,32);border-radius:12px;padding:24px;display:flex;gap:16px">
+  const banner = `<div data-testid="cta-banner-wrapper"><div class="PostBodies-module__newHash__singleColumnContent"><div class="CTABanner-module__newHash__root" style="background:rgb(28,28,32);border-radius:12px;padding:24px;display:flex;gap:16px;box-shadow:0 2px 4px rgba(0,0,0,.12)">
     <img alt="Creator artwork" width="64" height="64" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3C/svg%3E">
     <div><p style="color:white">Get more from the creator</p><p style="color:white">Join to get free updates.</p></div>
     <button data-tag="join-for-free-button" style="color:white;background:rgb(82,48,255);border-radius:99px"><span style="color:white">Join for free</span></button>
@@ -472,6 +472,8 @@ test("membership banner follows Post Color without changing Join buttons, images
   await button(page).click();
   await change(page, "textSize", "24");
   const card = page.locator('#post [class*="CTABanner-module__"][class*="__root"]');
+  const originalShadow = await card.evaluate(node => getComputedStyle(node).boxShadow);
+  const originalSize = await card.evaluate(node => [node.offsetWidth, node.offsetHeight]);
   const palette = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
   for (const [name, background, ink] of [
     ["White", "rgb(255, 255, 255)", "rgb(34, 34, 34)"],
@@ -481,6 +483,21 @@ test("membership banner follows Post Color without changing Join buttons, images
   ]) {
     await palette.getByRole("radio", { name, exact: true }).click();
     await expect(card).toHaveCSS("background-color", background);
+    const shadow = await card.evaluate(node => getComputedStyle(node).boxShadow);
+    expect(shadow).not.toBe(originalShadow);
+    expect(shadow).toContain("0px 0px 0px 1px");
+    expect(shadow).toContain("0px 6px 18px 0px");
+    // Check the outline derives from the current preset, including light ink on Charcoal.
+    const expectedShadow = await card.evaluate((node, color) => {
+      const probe = document.createElement("div");
+      probe.style.boxShadow = `0 0 0 1px color-mix(in srgb, ${color} 28%, transparent), 0 6px 18px rgba(0,0,0,.18)`;
+      node.append(probe);
+      const result = getComputedStyle(probe).boxShadow;
+      probe.remove();
+      return result;
+    }, ink);
+    expect(shadow).toBe(expectedShadow);
+    expect(await card.evaluate(node => [node.offsetWidth, node.offsetHeight])).toEqual(originalSize);
     for (const paragraph of await card.locator("p").all()) {
       await expect(paragraph).toHaveCSS("color", ink);
       await expect(paragraph).toHaveCSS("font-size", "16px");
@@ -488,6 +505,7 @@ test("membership banner follows Post Color without changing Join buttons, images
     for (const join of await card.locator("button").all()) {
       await expect(join).toHaveCSS("background-color", "rgb(82, 48, 255)");
       await expect(join.locator("span")).toHaveCSS("color", "rgb(255, 255, 255)");
+      await expect(join).toHaveCSS("box-shadow", "none");
     }
     await expect(card).toHaveCSS("padding", "24px");
     await expect(card).toHaveCSS("display", "flex");
@@ -495,13 +513,16 @@ test("membership banner follows Post Color without changing Join buttons, images
     await expect(card.locator("img")).toHaveCSS("width", "64px");
     await expect(page.locator('#outside-banner [class*="CTABanner-module__"]')).toHaveCSS("background-color", "rgb(28, 28, 32)");
     await expect(page.locator('#outside-banner p').first()).toHaveCSS("color", "rgb(255, 255, 255)");
+    await expect(page.locator('#outside-banner [class*="CTABanner-module__"]')).toHaveCSS("box-shadow", originalShadow);
   }
   await palette.getByRole("radio", { name: "Default", exact: true }).click();
   await expect(card).toHaveCSS("background-color", "rgb(28, 28, 32)");
+  await expect(card).toHaveCSS("box-shadow", originalShadow);
   await expect(card.locator("p").first()).toHaveCSS("color", "rgb(255, 255, 255)");
   await palette.getByRole("radio", { name: "Sepia", exact: true }).click();
   await enable(page, false);
   await expect(card).toHaveCSS("background-color", "rgb(28, 28, 32)");
+  await expect(card).toHaveCSS("box-shadow", originalShadow);
   await expect(card.locator("p").first()).toHaveCSS("color", "rgb(255, 255, 255)");
 });
 
