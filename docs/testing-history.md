@@ -580,3 +580,10 @@ navigation, so the chooser's local busy state survived. Each completion now load
 a uniquely addressed chooser instance with the same validated request token. An
 unpacked-Brave regression confirms Markdown followed by EPUB can be downloaded
 from one continuously open panel.
+
+Export filenames were then standardized on the displayed post title. EPUB and
+Markdown already used a filesystem-safe title stem; PDF now applies that same
+stem to the print document and temporarily to the Patreon tab while invoking
+Chrome's print UI, then restores the original tab title. The PDF fixture verifies
+illegal filename characters are removed, the title is present at print time, and
+the existing tab title is restored.

@@ -193,7 +193,8 @@ support claims are not evidence that the Reader feature passes this checklist.
   images. Confirm browser-generated date/title headers and URL/page-number footers
   are absent, while the document metadata appears above the title and lists
   Creator, Download time, and Source in that order. Confirm the same visible
-  details and ordering in EPUB and Markdown. Open EPUB output in at least two readers and validate it with an EPUB 3
+  details and ordering in EPUB and Markdown. Confirm all three formats default to
+  the sanitized post title as their filename. Open EPUB output in at least two readers and validate it with an EPUB 3
   validator. Check Markdown data-image support in the intended viewer.
 - Verify each control on public and legitimately accessible member posts,
   locked previews, and posts containing headings, lists, quotes, links, images,

@@ -116,11 +116,13 @@ recommendation cards, membership prompts, navigation, or other surrounding UI.
 - **PDF** opens a clean print view and the browser print dialog. Choose
   **Save as PDF** for native pagination and selectable text. The document lists
   the creator, local download time, and clean Patreon source URL above the title;
-  the print template suppresses Chrome's automatic page headers and footers.
+  the print template suppresses Chrome's automatic page headers and footers and
+  suggests the sanitized post title as the PDF filename.
 - **EPUB** downloads a self-contained EPUB 3 file with packaged image bytes and
-  visible Creator, Download time, and Source details above the title.
+  visible Creator, Download time, and Source details above the title, named from
+  the sanitized post title.
 - **Markdown** downloads one `.md` file with images embedded as data URLs and
-  the same three details above the title.
+  the same three details above the title, also named from the post title.
 
 Export processing happens locally. For remote inline images, the browser asks
 for access to each exact media origin when the user starts an export. The

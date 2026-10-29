@@ -706,6 +706,10 @@ URLs are used transiently and are not written to the generated document.
 PDF uses a sanitized, self-contained print view and the browser's native print
 dialog; the user selects Save as PDF. The print view uses a temporary same-tab
 iframe so it does not depend on popup permission after the extension-frame gesture.
+During printing, both the iframe and Patreon tab temporarily use the sanitized
+post title so Chrome suggests it as the PDF filename; the original tab title is
+restored immediately afterward. EPUB and Markdown downloads use the same
+sanitized title stem with their respective extensions.
 Its `@page` margin is zero to remove Chrome's automatic date/title and
 URL/page-number regions; an inner document wrapper restores 18 mm content margins.
 At the top of the document, above the post title, it lists Creator, Download time,

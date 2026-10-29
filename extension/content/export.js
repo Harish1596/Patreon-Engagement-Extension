@@ -25,10 +25,11 @@
       return ["http:", "https:"].includes(url.protocol) ? url.href : null;
     } catch { return null; }
   };
-  const filename = (title, extension) => {
+  const fileStem = (title) => {
     const clean = title.normalize("NFKC").replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
-    return `${clean || "Patreon post"}.${extension}`;
+    return clean || "Patreon post";
   };
+  const filename = (title, extension) => `${fileStem(title)}.${extension}`;
 
   function element(tag, attributes = {}, text) {
     const node = document.createElement(tag);
@@ -269,6 +270,7 @@
   }
 
   async function printPdf(post) {
+    const outputTitle = fileStem(post.title);
     const content = renderHtml(post.body, post.assets, asset => asset.dataUrl);
     const metadata = `<dl class="metadata"><div><dt>Creator</dt><dd>${escapeText(post.author)}</dd></div><div><dt>Download time</dt><dd>${escapeText(post.downloadedAt)}</dd></div><div><dt>Source</dt><dd><a href="${escapeAttribute(post.sourceUrl)}">${escapeText(post.sourceUrl)}</a></dd></div></dl>`;
     const frame = element("iframe", { "data-patreon-export-print-frame": "", title: "Printable post" });
@@ -276,13 +278,19 @@
     document.documentElement.append(frame);
     const printWindow = frame.contentWindow;
     printWindow.document.open();
-    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeText(post.title)}</title><style>@page{margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0}body{font:12pt/1.55 Georgia,serif;color:#222}.document{max-width:48em;margin:auto;padding:18mm}h1{margin:0 0 7mm;font-size:24pt;line-height:1.2}.metadata{margin:0 0 7mm;padding:0 0 4mm;border-bottom:1px solid #bbb;font:9.5pt/1.45 system-ui,sans-serif}.metadata div{display:grid;grid-template-columns:27mm minmax(0,1fr);gap:3mm;margin:1.5mm 0}.metadata dt{font-weight:700}.metadata dd{margin:0;overflow-wrap:anywhere}.metadata a{color:inherit}img{display:block;max-width:100%;height:auto;margin:1em auto}a{color:inherit;text-decoration:underline}blockquote{border-left:3px solid #888;padding-left:1em}</style></head><body><main class="document">${metadata}<h1>${escapeText(post.title)}</h1>${content}</main></body></html>`);
+    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeText(outputTitle)}</title><style>@page{margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0}body{font:12pt/1.55 Georgia,serif;color:#222}.document{max-width:48em;margin:auto;padding:18mm}h1{margin:0 0 7mm;font-size:24pt;line-height:1.2}.metadata{margin:0 0 7mm;padding:0 0 4mm;border-bottom:1px solid #bbb;font:9.5pt/1.45 system-ui,sans-serif}.metadata div{display:grid;grid-template-columns:27mm minmax(0,1fr);gap:3mm;margin:1.5mm 0}.metadata dt{font-weight:700}.metadata dd{margin:0;overflow-wrap:anywhere}.metadata a{color:inherit}img{display:block;max-width:100%;height:auto;margin:1em auto}a{color:inherit;text-decoration:underline}blockquote{border-left:3px solid #888;padding-left:1em}</style></head><body><main class="document">${metadata}<h1>${escapeText(post.title)}</h1>${content}</main></body></html>`);
     printWindow.document.close();
     await Promise.all([...printWindow.document.images].map(image => image.complete ? null : new Promise(resolve => { image.onload = image.onerror = resolve; })));
     printWindow.addEventListener("afterprint", () => frame.remove(), { once: true });
     setTimeout(() => frame.remove(), 60_000);
-    printWindow.focus();
-    printWindow.print();
+    const previousTitle = document.title;
+    document.title = outputTitle;
+    try {
+      printWindow.focus();
+      printWindow.print();
+    } finally {
+      document.title = previousTitle;
+    }
   }
 
   function report(message, tone = "") {

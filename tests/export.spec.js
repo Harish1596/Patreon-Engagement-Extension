@@ -36,15 +36,17 @@ test("EPUB is a self-contained stored ZIP with post XHTML and image bytes", asyn
 });
 
 test("PDF prepares a sanitized offline print view and invokes native printing", async ({ page }) => {
-  const content = require("./helpers/reader").fixture.replace('<div class="actions">',
+  const content = require("./helpers/reader").fixture.replace("A sample post", "A / sample: post?").replace('<div class="actions">',
     '<div data-tag="post-details"><a href="/example">Example Creator</a></div><div class="actions">');
   await setup(page, { content });
   await page.evaluate(() => {
+    document.title = "Existing Patreon tab title";
     const observer = new MutationObserver(() => {
       const frame = document.querySelector("[data-patreon-export-print-frame]");
       if (!frame) return;
       frame.contentWindow.print = () => {
         window.printedExportHtml = frame.contentDocument.documentElement.outerHTML;
+        window.printedTabTitle = document.title;
         window.exportPrintCalled = true;
       };
       observer.disconnect();
@@ -54,13 +56,19 @@ test("PDF prepares a sanitized offline print view and invokes native printing", 
   await downloadButton(page).click();
   await formatButton(page, "PDF").click();
   await expect(downloadDialog(page).getByRole("status")).toContainText("Save as PDF");
-  const result = await page.evaluate(() => ({ html: printedExportHtml, printed: exportPrintCalled }));
+  const result = await page.evaluate(() => ({
+    html: printedExportHtml, printed: exportPrintCalled,
+    printedTabTitle, restoredTabTitle: document.title
+  }));
   expect(result.printed).toBe(true);
-  expect(result.html).toContain("A sample post");
+  expect(result.html).toContain("<title>A sample post</title>");
+  expect(result.html).toContain("<h1>A / sample: post?</h1>");
+  expect(result.printedTabTitle).toBe("A sample post");
+  expect(result.restoredTabTitle).toBe("Existing Patreon tab title");
   expect(result.html).toContain("<dt>Creator</dt><dd>Example Creator</dd>");
   expect(result.html).toContain("<dt>Download time</dt>");
   expect(result.html).toContain("<dt>Source</dt>");
-  expect(result.html.indexOf('<dl class="metadata">')).toBeLessThan(result.html.indexOf("<h1>A sample post</h1>"));
+  expect(result.html.indexOf('<dl class="metadata">')).toBeLessThan(result.html.indexOf("<h1>A / sample: post?</h1>"));
   expect(result.html).toContain("https://www.patreon.com/example/posts/test-123");
   expect(result.html).toContain("@page{margin:0}");
   expect(result.html).toContain("data:image/svg+xml");
