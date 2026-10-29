@@ -1,5 +1,13 @@
 # Patreon page reference
 
+## Commit discipline
+
+Commit every repository change made during a task before reporting the task as
+complete. Use focused, atomic local commits, including for documentation, tests,
+configuration, fixes, and follow-up refinements. Do not leave agent-created
+changes uncommitted, and do not include pre-existing unrelated user changes in a
+commit.
+
 Before analyzing or changing Patreon page integration, read
 [the maintained post-page reference](docs/patreon-text-image-post-baseline.md).
 It contains the observed DOM, selector ownership, current Reader behavior,
