@@ -69,6 +69,14 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await hideToggle.check();
     await expect(fresh.locator('[data-tag="floating-engagement-sheet"]')).toBeHidden();
     await fresh.close();
+    const download = first.getByRole("button", { name: "Download post", exact: true });
+    await expect(download).toBeVisible();
+    await expect(first.locator('.actions > :first-child')).toHaveAttribute("data-patreon-download-button", "");
+    await download.click();
+    await expect(first.getByRole("dialog", { name: "Download post", exact: true })).toBeVisible();
+    await expect(first.frameLocator('iframe[title="Post export formats"]')
+      .getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
+    await first.getByRole("button", { name: "Close download options", exact: true }).click();
     const toggle = popup.getByRole("switch", { name: "Enable Reader Customization", exact: true });
     await expect(toggle).not.toBeChecked();
     await toggle.check();
@@ -94,6 +102,26 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect(second.locator('.actions [data-tag="like-button"] span')).toHaveCSS("color", "rgb(34, 34, 34)");
     await first.getByRole("dialog").screenshot({ path: "test-results/reader-panel.png" });
     await popup.locator("body").screenshot({ path: "test-results/popup.png" });
+    await first.getByRole("button", { name: "Download post", exact: true }).click();
+    const [downloaded] = await Promise.all([
+      first.waitForEvent("download"),
+      first.frameLocator('iframe[title="Post export formats"]')
+        .getByRole("button", { name: "Markdown", exact: true }).click()
+    ]);
+    expect(downloaded.suggestedFilename()).toBe("Installed extension test.md");
+    await expect(first.getByRole("dialog", { name: "Download post", exact: true })
+      .getByRole("status")).toHaveText("Markdown download started.");
+    const epubButton = first.frameLocator('iframe[title="Post export formats"]')
+      .getByRole("button", { name: "EPUB", exact: true });
+    await expect(epubButton).toBeEnabled();
+    const [secondDownload] = await Promise.all([
+      first.waitForEvent("download"),
+      epubButton.click()
+    ]);
+    expect(secondDownload.suggestedFilename()).toBe("Installed extension test.epub");
+    await expect(first.getByRole("dialog", { name: "Download post", exact: true })
+      .getByRole("status")).toHaveText("EPUB download started.");
+    await first.getByRole("button", { name: "Close download options", exact: true }).click();
     await toggle.uncheck();
     await expect(reader).toHaveCount(0);
     await expect(first.getByRole("dialog")).toHaveCount(0);

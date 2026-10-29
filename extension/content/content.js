@@ -28,6 +28,7 @@
   function refreshReader() {
     globalThis.PatreonReader.configure(readerEnabled, readerPreferences, saveReader);
     globalThis.PatreonReader.reconcile(isPostPage());
+    globalThis.PatreonExporter.reconcile(isPostPage());
   }
 
   function isPostPage() {
@@ -49,6 +50,7 @@
       isHidden,
       readerEnabled,
       readerMounted: Boolean(document.querySelector("[data-patreon-reader-button]")),
+      downloadMounted: Boolean(document.querySelector("[data-patreon-download-button]")),
       isPostPage: isPostPage()
     };
   }
@@ -61,6 +63,7 @@
       // Same-URL hydration/rerenders can remove extension-owned page state.
       applyVisibility();
       globalThis.PatreonReader.reconcile(isPostPage());
+      globalThis.PatreonExporter.reconcile(isPostPage());
     });
   }
 
@@ -112,6 +115,7 @@
   }).catch(() => {
     // Keep the existing safe visibility default and leave Reader disabled.
     applyVisibility();
+    globalThis.PatreonExporter.reconcile(isPostPage());
   });
 
   window.addEventListener("popstate", checkForRouteChange);

@@ -495,3 +495,88 @@ non-forced CLI invocation refused the existing archive and its SHA-256 remained
 unchanged. The rebuilt ZIP replaces the earlier generated 1.3.9 artifact only;
 no store release was published. Documentation checks passed for 46 local links
 and anchors before the final guide/history links were added.
+
+### Unreleased post export — October 29, 2026
+
+Added an independent main-action Download control and local PDF, EPUB 3, and
+Markdown generation for the currently rendered text/image post. Inline images
+are embedded. Remote image bytes use an optional exact-origin permission request
+and a packaged worker that accepts only HTTPS image requests from Patreon tabs,
+omits credentials, rechecks redirect permission, rejects non-image responses,
+and enforces per-image and combined size limits. Extraction excludes comments,
+recommendations, membership UI, and page chrome; copied markup drops executable,
+form, embed, event, class, ID, and inline-style data.
+
+Five synthetic export cases passed for all three formats, embedded and remote
+media, permission denial, scope, rerendering, and route cleanup. The complete
+run passed 39 Chrome cases (one Brave-only installed case skipped), all 40 Brave
+cases including the unpacked extension, 15 Node tooling cases, and syntax checks
+for 27 JavaScript files. Packaging allowlists and validates the worker, exporter,
+and packaged chooser resources. No package was built or published. Current-live Patreon media
+hosts and permission prompts, manual PDF saving, EPUB-reader interoperability,
+and non-text post types remain unverified.
+
+The user's first live export attempt then exposed generated Patreon classes
+`JRIMpq_postContent`, `_5kju5G_additionalStylesPostContentWrapper`, and
+`JRIMpq_singleColumnPost`; Download mounted but the body lookup failed because it
+still required readable CSS-module prefixes. Discovery and related surface CSS
+now use the retained semantic suffixes under the existing same-card boundary.
+A supplied-structure regression passes export, Reader typography, and outer
+surface selection. The complete 40/41 Chrome/Brave results above include this
+case. Post-fix confirmation on the affected live page remains pending.
+
+The next user retest reached media permission handling and failed with
+`Cannot read properties of undefined (reading 'request')`. Chrome does not expose
+the permissions API in the content-script context used by the exporter. The
+content script then sent the validated exact-origin set to the packaged background
+worker, but the following live retest correctly exposed Chrome's additional rule:
+`permissions.request` must execute in the direct user-gesture context, and a
+message does not transfer that activation to the worker.
+
+The format controls now live in a web-accessible but packaged extension-origin
+frame. The trusted content script registers a random-token/exact-origin request
+with the worker; the frame retrieves it before enabling controls and calls
+`permissions.request` directly from the user's PDF/EPUB/Markdown click. The page
+cannot supply arbitrary origins to the frame. The worker still rechecks granted
+permission before media fetch. PDF now prints from a temporary same-tab iframe so
+it does not need a popup after the cross-frame message. Fixture APIs deliberately
+omit `permissions` from the content-script mock. Targeted chooser, grant/denial,
+format, and live-structure checks pass; affected-page confirmation is pending.
+
+The user's first successful PDF supplied October 29, 2026 confirmed that Chrome
+added its native date/title header and source/page-count footer. A supplied dark
+mode screenshot also showed the extension-origin chooser iframe as a black
+rectangle inside the charcoal panel. The PDF print page now uses zero `@page`
+margins with an inner 18 mm content wrapper and adds ordered creator, download-time,
+and source metadata. A subsequent refinement moves that block above the title and
+labels its fields “Creator,” “Download time,” and “Source.” The chooser document now paints white/charcoal backgrounds
+matching the parent panel. Synthetic PDF checks verify metadata order, clean
+source URL, and the zero-margin print rule; live re-export confirmation is pending.
+
+The visible Creator, Download time, and Source block was subsequently applied to
+EPUB XHTML and Markdown above their titles. EPUB OPF metadata also records creator
+and source. Synthetic EPUB and Markdown checks verify the fields, ordering, clean
+source URL, and exclusion of surrounding Patreon UI.
+
+A later installed-browser report showed format buttons reacting without starting
+an export after Reader customization. The packaged chooser had used DOM
+`postMessage`, which reaches the page's main world but not the extension's isolated
+content-script world; main-world fixture injection had masked that boundary. The
+chooser now sends its validated token and format to the worker with extension
+runtime messaging, and the worker delivers it to the originating tab with
+`tabs.sendMessage`. Reopening Download also clears the old chooser immediately so
+a fast click cannot reuse its expired token. The targeted five Chrome export
+cases passed, and a real unpacked-Brave regression passed after changing Reader
+font and color and downloading Markdown. This is installed-extension evidence
+against synthetic Patreon HTML, not confirmation on the user's live post. Final
+verification after the bridge change passed 39 Chrome cases with the Brave-only
+case skipped, all 40 Brave cases, all 15 tooling tests, and syntax checks for 27
+JavaScript files.
+
+The next live retest showed that a successful download left all three format
+buttons disabled until the panel was closed. The exporter tried to reset the
+chooser by assigning its existing URL, which Chrome did not treat as a new
+navigation, so the chooser's local busy state survived. Each completion now loads
+a uniquely addressed chooser instance with the same validated request token. An
+unpacked-Brave regression confirms Markdown followed by EPUB can be downloaded
+from one continuously open panel.

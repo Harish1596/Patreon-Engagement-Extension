@@ -6,8 +6,9 @@ const { spawnSync } = require("node:child_process");
 
 // Archive paths, never globs or recursively included directories.
 const FILES = Object.freeze([
-  "manifest.json", "shared/extension.js", "content/patreon-dom.js", "content/reader.js", "content/content.js",
+  "manifest.json", "shared/extension.js", "background/media.js", "content/patreon-dom.js", "content/reader.js", "content/export.js", "content/content.js",
   "content/content.css", "popup/popup.html", "popup/popup.js", "popup/popup.css",
+  "export/chooser.html", "export/chooser.js", "export/chooser.css",
   "icons/icon-16.png", "icons/icon-32.png", "icons/icon-48.png", "icons/icon-128.png",
   "icons/reader.svg", "LICENSE", "PRIVACY.md"
 ]);

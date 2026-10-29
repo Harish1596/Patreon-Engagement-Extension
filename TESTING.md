@@ -29,6 +29,21 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Unreleased post-export development, October 29, 2026: **39 Chrome cases, 40
+Brave cases, and 15 tooling tests passed**. Chrome skips the Brave-only installed
+extension case. Five export cases cover Markdown, EPUB, the PDF print path,
+embedded data and remote images, exact-origin permission requests, denial without
+partial output, exclusion of comments/recommendations, rerender recovery, and
+route cleanup. The Brave installed-extension case also verifies that Download is
+mounted independently of Reader and, after changing Reader font and color,
+downloads Markdown and then EPUB from the same open packaged chooser panel through
+the isolated content script.
+Syntax checks cover 27 JavaScript files. These
+are synthetic checks; live Patreon image fetching, browser permission prompts,
+manual Save as PDF, and third-party EPUB readers still require manual validation.
+An additional detection case reproduces the user-supplied live generated class
+prefixes and verifies body export, Reader typography, and surface selection.
+
 Current hotfix (1.1.1): **33 Chrome cases, 34 Brave cases, and 15 tooling tests
 passed**. Chrome intentionally skips the installed-extension case. New coverage
 includes root hide-flag removal with Reader on/off, stable-state mutation counts,
@@ -124,8 +139,8 @@ Windows/Linux path discovery has unit coverage, not native browser-run coverage.
 
 ## Test organization and limits
 
-Browser specs are grouped into appearance, comments, detection, lifecycle, popup,
-settings, and installed-extension suites. Base HTML lives in `tests/fixtures/`;
+Browser specs are grouped into appearance, comments, detection, export, lifecycle,
+popup, settings, and installed-extension suites. Base HTML lives in `tests/fixtures/`;
 shared setup, API mocks, and UI controls are in `tests/helpers/reader.js`. The helper
 loads runtime scripts/styles in the order declared by `extension/manifest.json`,
 including the DOM adapter. Playwright discovers only `*.spec.js`; Node tooling
@@ -135,7 +150,9 @@ Fixture tests intercept Patreon requests with synthetic HTML and mock local
 storage/messaging. The promise-based `browser` mock is not Firefox-engine testing.
 Brave's installed test uses a temporary profile, loads `extension/`, opens
 `popup/popup.html`, and exercises real extension storage/content injection across
-two synthetic post tabs. It saves panel/popup screenshots in ignored
+two synthetic post tabs. Its export regression uses real extension runtime and
+tab messaging and a real browser download, while the Patreon response remains a
+synthetic intercepted page. It saves panel/popup screenshots in ignored
 `test-results/`. It does not log into Patreon or test a store-distributed package.
 
 Packaging tests use temporary copied sources and deliberately malformed archives.
@@ -165,7 +182,19 @@ support claims are not evidence that the Reader feature passes this checklist.
   disabled; the engagement choice survives. Restart the browser and verify
   preferences are restored.
 - Enable Reader in the extension popup. Exactly one Aa button appears before
-  Like on the main post; no button appears in the floating bar or related cards.
+  Like on the main post. Exactly one Download button appears before Aa (or before
+  Like while Reader is disabled); neither appears in the floating bar or related cards.
+- Export a public and legitimately accessible member post to PDF, EPUB, and
+  Markdown. Confirm title, formatted body, links, and every inline image are
+  present offline, while comments, recommendations, navigation, membership UI,
+  and signed source URLs are absent. Deny a media-origin prompt and confirm no
+  partial file is produced. Exercise multiple image origins and redirects.
+- For PDF, choose Save as PDF and check pagination, selectable text, links, and
+  images. Confirm browser-generated date/title headers and URL/page-number footers
+  are absent, while the document metadata appears above the title and lists
+  Creator, Download time, and Source in that order. Confirm the same visible
+  details and ordering in EPUB and Markdown. Open EPUB output in at least two readers and validate it with an EPUB 3
+  validator. Check Markdown data-image support in the intended viewer.
 - Verify each control on public and legitimately accessible member posts,
   locked previews, and posts containing headings, lists, quotes, links, images,
   and embeds. Do not use the extension to obtain inaccessible content.
@@ -210,4 +239,6 @@ support claims are not evidence that the Reader feature passes this checklist.
   Web Store update does not update Safari installations.
 
 Responsive narrow-window behavior does not establish mobile extension support.
-No new extension permissions, remote fonts, or runtime dependencies are added.
+Post export adds optional, on-demand HTTPS media-origin access and a packaged
+background worker. It adds no remote executable code, remote fonts, or third-party
+runtime dependency.

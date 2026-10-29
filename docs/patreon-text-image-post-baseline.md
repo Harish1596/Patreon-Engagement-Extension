@@ -1,6 +1,8 @@
 # Patreon post-page reference: text posts with inline images
 
-Last maintained: October 25, 2026. Current hotfix: **1.1.1** (live confirmation pending).
+Last maintained: October 29, 2026. Current hotfix: **1.1.1** (live confirmation pending).
+Post export is an unreleased development feature with synthetic verification;
+live Patreon export verification is pending.
 Feature baseline: **1.1.0**, renumbered from
 the local **1.3.9** development series without changing behavior or preferences.
 Historical 1.3.x references below retain their original checkpoint numbers.
@@ -42,6 +44,7 @@ access to it; conversation memory alone is not the persistence mechanism.
 - [Component details and CSS pitfalls](#component-details-and-css-pitfalls): native markup and failure modes.
 - [Current settings and color contract](#current-settings-and-color-contract): exact preferences/palettes.
 - [Runtime and settings ownership](#runtime-and-settings-ownership): code and lifecycle.
+- [Post export boundary](#post-export-boundary-unreleased): local formats, media access, and evidence limits.
 - [UI-change comparison procedure](#ui-change-comparison-procedure): how to update this reference.
 - [Captured hook inventory](#captured-hook-inventory): all observed data-tag/testid values and counts.
 - [Not yet established](#not-yet-established): gaps that must not be assumed away.
@@ -219,8 +222,8 @@ attributes are preferable to build hashes, but Patreon can change either.
 | --- | --- | --- |
 | Main card | `[data-tag="post-card"]` | Keep title, body, and actions within the same card. |
 | Title | `[data-tag="post-title"]` | Prefer an eligible h1 when detecting the main post; allow responsive copies. |
-| Outer surface | `[class*="PostBodies-module__"][class*="__singleColumnContentWrapper"]` | Preferred full post-background target, including outer spacing. |
-| Inner column | `[class*="PostBodies-module__"][class*="__singleColumnContent"]` | Fallback/inner surface; its substring also matches the outer wrapper. |
+| Outer surface | `[class*="_singleColumnContentWrapper"]` | Preferred full post-background target, including outer spacing; supports historical readable and current generated prefixes. |
+| Inner column | `[class*="_singleColumnContent"]` | Fallback/inner surface; its substring also matches the outer wrapper. |
 | Inner post | `[data-testid="single-column-post-wrapper"]` | Useful inner anchor; not the outermost background boundary. |
 | Article body | PostContent → RichText pattern shown below | Scope typography and article text here. |
 | Post actions | `[data-tag="top-engagement"]` | Select the visible variant associated with the main title/card. |
@@ -241,9 +244,15 @@ attributes are preferable to build hashes, but Patreon can change either.
 Current article-body selector in [patreon-dom.js](../extension/content/patreon-dom.js):
 
 ```css
-[class*="PostBodies-module__"][class*="__postContent"]
-  [class*="RichText-module__"][class*="additionalStylesPostContentWrapper"]
+[class*="_postContent"] [class*="_additionalStylesPostContentWrapper"]
 ```
+
+The original capture used readable CSS-module prefixes, as retained in the
+historical schematic above. A sanitized live probe on October 29, 2026 found
+generated prefixes (`JRIMpq_postContent` and
+`_5kju5G_additionalStylesPostContentWrapper`) with the same semantic suffixes.
+Same-card discovery remains mandatory; suffix matching is not permission to
+select an unrelated page region globally.
 
 Do not hard-code hashes such as `JRIMpq`, transient IDs such as `_r_…`, action
 counts, post IDs, exact article text, or a fixed number of ancestors. Explicitly
@@ -280,7 +289,7 @@ threshold, scroll direction rule, or animation behavior has been measured.
 | Background | Marked outer wrapper plus known inner surfaces/body. |
 | Metadata and comment foreground | Matching surface ink on selected text elements; not article font/spacing. |
 | Post creator avatar | Byline avatar container receives a theme-aware outline/drop shadow for non-default colors; native shape and sizing retained. |
-| Main post actions | Marked top action row; known Reader/native controls only. |
+| Main post actions | Marked top action row; Download, Reader, and known native controls only. |
 | Comment text and authors | Surface ink, including clickable parent rows and author-name buttons; native comment typography retained. |
 | Comment actions | Buttons within `comment-actions` inside the marked surface; icons/counts and interaction colors follow the palette. |
 | Membership banner | Inner CTA card follows page background with tinted outline/drop shadow; Join buttons and artwork remain native. |
@@ -299,6 +308,8 @@ Extension-owned markers:
 | `data-patreon-reader-actions` | Selected main-post action row. |
 | `data-patreon-reader-button` | Extension-created Aa button; does not have a native `data-tag`. |
 | `data-patreon-reader-panel` | Host for the Shadow DOM appearance panel. |
+| `data-patreon-download-button` | Extension-created post-export trigger; independent of Reader enablement. |
+| `data-patreon-download-panel` | Host for the Shadow DOM PDF/EPUB/Markdown chooser. |
 | Root `data-patreon-reader-*` flags and `--patreon-reader-*` properties | Enable individual overrides and supply validated values. |
 | Root `data-hide-patreon-floating-engagement` | Activates the independent floating-bar hiding rule. |
 
@@ -561,16 +572,18 @@ Input tints and banner shadows are derived CSS, not extra saved preferences.
 
 | File | Responsibility |
 | --- | --- |
-| [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS, ordered scripts, storage permission. |
+| [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS/scripts, background worker, required storage permission, and optional media-origin envelope. |
 | [extension.js](../extension/shared/extension.js) | Browser API adapter, validated preference schema, fixed fonts/presets, contrast and legacy-color normalization. |
 | [patreon-dom.js](../extension/content/patreon-dom.js) | Patreon selectors, post discovery, and surface/action-row selection; no preference or panel state. |
 | [content.js](../extension/content/content.js) | Supported-route detection, storage events, popup state messages, floating-bar visibility, batched reconciliation. |
 | [reader.js](../extension/content/reader.js) | Uses the DOM adapter; owns markers, appearance state, Aa/panel lifecycle, controls, serialized saves. |
+| [export.js](../extension/content/export.js) | Uses the DOM adapter; extracts the current title/body, sanitizes markup, embeds inline media, and creates PDF/EPUB/Markdown output. |
 | [content.css](../extension/content/content.css) | Page-side typography, surfaces, action contrast, floating-bar hiding. |
 | [popup.js](../extension/popup/popup.js) | Load/save master preferences and show page-connection status. |
+| [media.js](../extension/background/media.js) | Permission-checks and fetches HTTPS image bytes for a user-requested export. |
 
-The manifest loads `shared/extension.js`, `content/patreon-dom.js`, `content/reader.js`, and
-`content/content.js` at document
+The manifest loads `shared/extension.js`, `content/patreon-dom.js`, `content/reader.js`,
+`content/export.js`, and `content/content.js` at document
 start. Post recognition currently accepts creator-prefixed routes shaped like
 `/<creator>/posts/<slug>-<numeric-id>` (or a numeric ID without a slug), excluding
 reserved first-path segments. Recognition is not evidence of DOM readiness.
@@ -658,10 +671,74 @@ width <=480px it uses a bottom-sheet-like placement with viewport margins.
 Scrolling/resize/visualViewport updates reposition it. Those dimensions belong
 to the extension, not an inferred Patreon responsive breakpoint.
 
-No background/service-worker file or runtime network dependency is declared.
-Only storage permission is requested; packaged content scripts match
-`https://www.patreon.com/*` at document start. Development tools can fetch public
-styles for investigation; the shipped extension itself does not fetch them.
+A packaged background service worker now supports post export. The manifest
+declares `https://*/*` only as an optional host-permission envelope; it does not
+grant those origins at installation. When an export contains remote inline
+images, the trusted content script registers only the exact HTTPS origins present
+in the selected post body with the worker. The packaged extension-origin format
+frame retrieves that registration before enabling its buttons and calls the
+permissions API directly from the user's format-button gesture. It returns the
+validated format through extension runtime messaging; the worker binds the token
+to the originating Patreon tab and delivers the choice with `tabs.sendMessage`
+to the isolated content-script world. The worker rechecks permission and the Patreon sender before
+fetching those image URLs without credentials. Storage remains the only required
+extension permission. No remote executable code, selectors, analytics, or fonts
+are fetched.
+
+## Post export boundary (unreleased)
+
+**Intended behavior:** A Download control is mounted before Reader/Like on the
+same selected main-post action row and remains available when Reader customization
+is disabled. It offers PDF, EPUB, and Markdown. Extraction is limited to the
+selected post title and RichText body discovered through the existing same-card
+DOM adapter. Comments, membership banners, recommendations, navigation, floating
+engagement, and other page UI are excluded. Scriptable/form/embed elements,
+event attributes, site classes, IDs, and inline styles are removed from the copy.
+
+Inline body images are embedded for offline use. Data URLs are processed locally.
+Remote images require a user-approved exact-origin permission and are fetched by
+the packaged worker only for a request originating from a Patreon tab. Non-HTTPS
+sources, non-image responses, individual images over 25 MiB, and combined image
+payloads over 100 MiB are rejected. A denied or failed image request aborts the
+export rather than silently producing a partial offline document. Signed image
+URLs are used transiently and are not written to the generated document.
+
+PDF uses a sanitized, self-contained print view and the browser's native print
+dialog; the user selects Save as PDF. The print view uses a temporary same-tab
+iframe so it does not depend on popup permission after the extension-frame gesture.
+Its `@page` margin is zero to remove Chrome's automatic date/title and
+URL/page-number regions; an inner document wrapper restores 18 mm content margins.
+At the top of the document, above the post title, it lists Creator, Download time,
+and Source in that order. Creator
+prefers scoped byline/post-detail text and falls back to the Patreon document-title
+pattern. Source removes query and fragment data. Downloaded uses the user's local
+date, time, and timezone.
+EPUB is an uncompressed EPUB 3 ZIP containing
+XHTML, navigation, CSS, package metadata, and image files. Its visible XHTML has
+the same Creator, Download time, and Source block above the title; creator and
+source are also recorded in OPF metadata. Markdown is a single `.md` file whose
+image destinations are embedded data URLs and whose top section shows the same
+three details before the title. Links are resolved to HTTP(S) URLs. The exporter
+does not bypass Patreon authentication or access
+content that was not rendered for the user.
+
+**Evidence:** Synthetic Playwright fixtures verify control placement, exclusion
+of comments/recommendations, embedded data and remote images, exact-origin
+permission requests, permission denial, EPUB container contents, rerender
+recovery, and route cleanup. An installed Brave test changes Reader font and
+color, then performs a real Markdown download through the packaged chooser and
+isolated content script. Reopening Download clears the previous chooser document
+before registering its new token, preventing a stale-button race. After each
+completed export, the content script loads a uniquely addressed fresh chooser
+instance so its controls are enabled for another format without closing the panel.
+The installed test performs consecutive Markdown and EPUB downloads in one open
+panel. These tests do not establish current live Patreon
+media hosts, browser permission-prompt presentation, print-dialog behavior in
+every browser, EPUB-reader interoperability, or export of non-text post types.
+No new Patreon markup observation is claimed by this feature as of October 29,
+2026; the original October 25 capture remains the live structural baseline.
+The chooser frame explicitly matches the surrounding white or `#232326` panel
+background so its rectangular canvas does not appear as a black strip in dark mode.
 
 ## Verification and change history
 
@@ -792,6 +869,53 @@ The HTML includes frontend script references/serialized application state and
 Next-style chunked CSS URLs. These are implementation artifacts, not evidence
 of a stable backend API contract. Do not build runtime dependencies on captured
 chunk filenames, authentication state, signed media links, or serialized payloads.
+
+### Drift record — October 29, 2026 generated class prefixes
+
+Observation date / browser / OS / extension version / commit: October 29, 2026;
+Chrome reported by the user, exact browser version and OS not newly supplied;
+local unreleased post-export checkout based on 1.1.1; commit not established.
+
+Page type / login-access state / theme / viewport / Reader settings: text/image
+post URL; other state was not supplied and is not inferred.
+
+Component and owning surface: main post RichText body within
+`single-column-post-wrapper`; related generated classes were reported for
+`singleColumnPost`, `postContent`, and `additionalStylesPostContentWrapper`.
+
+Evidence source: user-provided sanitized console probe containing only tag names,
+classes, `data-testid`, and `data-image-container`; no text, URLs, or account data.
+
+Previous hook/structure/style -> new hook/structure/style: historical classes
+included readable `PostBodies-module__HASH__postContent` and
+`RichText-module__HASH__additionalStylesPostContentWrapper` components. The live
+probe reported `JRIMpq_postContent` and
+`_5kju5G_additionalStylesPostContentWrapper`, plus
+`JRIMpq_singleColumnPost`. Semantic suffixes and
+`data-testid="single-column-post-wrapper"` remained present. Outer-wrapper
+classes were not included in the probe and are not claimed as a live observation.
+
+Native behavior versus Reader regression: Patreon rendered the post, and the
+extension mounted Download from title/action discovery, but export failed with
+“This post does not expose a supported text body” because body discovery required
+the removed readable prefixes. Reader body targeting was affected by the same
+selector.
+
+Minimal failing reproduction and affected source/tests: a synthetic card now
+uses the supplied generated-prefix structure. It fails the former selector and
+is covered in `tests/detection.spec.js`. `patreon-dom.js` and the corresponding
+surface CSS now use confirmed semantic suffixes while retaining card scoping and
+outer-before-inner selection.
+
+Fix and reset/cleanup/out-of-scope verification: targeted and complete browser
+verification covers body discovery, Download generation, Reader typography,
+surface selection, recommendations/comments exclusion, rerenders, and route
+cleanup. No native handlers or content are changed.
+
+Live confirmation and remaining unknowns: the pre-fix live failure and structural
+difference are confirmed. Post-fix export on the affected page is pending user
+retest. Full current outer-wrapper classes, other post types, responsive variants,
+and computed styling remain unestablished.
 
 ## Captured hook inventory
 

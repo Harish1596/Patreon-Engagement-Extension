@@ -105,6 +105,32 @@ The Reader panel supports keyboard controls, Escape, outside-click dismissal,
 and a bottom-sheet layout in narrow windows. If Patreon changes its post markup,
 the button may be unavailable until the selectors are updated.
 
+### Download a post
+
+On a supported post, select the **Download** button at the start of the main
+action row and choose PDF, EPUB, or Markdown. This feature is independent of
+Reader customization and exports only the currently displayed post title,
+formatted body, links, and inline post images. It does not include comments,
+recommendation cards, membership prompts, navigation, or other surrounding UI.
+
+- **PDF** opens a clean print view and the browser print dialog. Choose
+  **Save as PDF** for native pagination and selectable text. The document lists
+  the creator, local download time, and clean Patreon source URL above the title;
+  the print template suppresses Chrome's automatic page headers and footers.
+- **EPUB** downloads a self-contained EPUB 3 file with packaged image bytes and
+  visible Creator, Download time, and Source details above the title.
+- **Markdown** downloads one `.md` file with images embedded as data URLs and
+  the same three details above the title.
+
+Export processing happens locally. For remote inline images, the browser asks
+for access to each exact media origin when the user starts an export. The
+extension then fetches only image URLs found inside that post body. Denying
+access cancels the export instead of creating a partial offline copy. The
+feature does not bypass Patreon access controls; it can export only content
+already rendered for the user. A granted origin can remain in the browser's
+extension settings until the user revokes it, but it is used only for a later
+user-requested export containing images from that origin.
+
 Post pages are recognized locally using this pathname structure:
 
 ```text
@@ -123,8 +149,9 @@ div[data-tag="floating-engagement-sheet"]
 - The extension only runs on `https://www.patreon.com/*`.
 - Although the content script remains loaded across Patreon to support its
   client-side navigation, it modifies the page only when the URL matches a post.
-- All styles and scripts are packaged locally. The extension makes no network
-  requests and accepts no remotely supplied selectors or code.
+- All executable code and styles are packaged locally. A user-requested offline
+  export may fetch the post's displayed inline images directly from their media
+  origins; no selectors, scripts, analytics, or other remote code are fetched.
 - The extension does not collect or transmit personal or sensitive user data.
   It stores the hide/show preference, Reader enablement, and appearance
   preferences locally in the browser.
@@ -144,6 +171,8 @@ extension/                   Installable source; manifest at this directory's ro
   manifest.json
   shared/extension.js        Browser API adapter and validated preferences
   content/                   Page scripts and page-side CSS
+    export.js                PDF, EPUB, and Markdown post export
+  background/media.js       Permission-checked inline-image retrieval
   popup/                     Toolbar popup HTML, JavaScript, and CSS
   icons/                     Runtime icon assets
 tests/
@@ -157,9 +186,9 @@ store-assets/                Store-listing promotional assets, not runtime asset
 dist/                        Ignored release output
 ```
 
-Run npm commands from the repository root. The runtime still uses the same
-ordered content scripts, plain JavaScript, and packaged styles; no bundler,
-framework, or new extension permissions were introduced by this reorganization.
+Run npm commands from the repository root. The runtime uses ordered plain
+JavaScript content scripts and packaged styles without a bundler. Post export
+adds a packaged background worker and optional, on-demand media-origin access.
 
 See the [maintained Patreon post-page reference](docs/patreon-text-image-post-baseline.md)
 for the observed page hierarchy, complete captured hook inventory, current Reader

@@ -6,18 +6,70 @@ const contentScripts = JSON.parse(fs.readFileSync(path.join(extensionRoot, "mani
 
 async function setup(page, { stored = {}, namespace = "chrome", content = fixture } = {}) {
   await page.route("https://www.patreon.com/**", (route) => route.fulfill({ contentType: "text/html", body: content }));
+  await page.route("https://fixture-extension.invalid/export/chooser.html**", (route) => route.fulfill({
+    contentType: "text/html",
+    body: `<!doctype html><html><body><main aria-label="Post export formats">
+      <button data-format="pdf">PDF</button><button data-format="epub">EPUB</button><button data-format="markdown">Markdown</button>
+      </main><script>
+      const token = location.hash.slice(1);
+      for (const button of document.querySelectorAll("button")) button.onclick = () => parent.postMessage({
+        source: "patreon-reader-export", token,
+        ...(sessionStorage.getItem("deny-export") === "1" ? { error: "Media access was not granted, so an offline export cannot be created." }
+          : { format: button.dataset.format, granted: true })
+      }, "https://www.patreon.com");
+      </script></body></html>`
+  }));
   await page.goto("https://www.patreon.com/example/posts/test-123");
   await page.evaluate(({ stored, namespace }) => {
+    delete globalThis.browser;
+    delete globalThis.chrome;
     localStorage.setItem("test-storage", JSON.stringify(stored));
     const listeners = [];
     const messages = [];
+    const deliver = async (message) => {
+      for (const listener of messages) {
+        const result = await new Promise((resolve) => {
+          let responded = false;
+          const respond = (value) => { responded = true; resolve(value); };
+          const returned = listener(message, { id: "fixture-extension" }, respond);
+          if (returned !== true && !responded) resolve(returned);
+        });
+        if (result !== undefined) return result;
+      }
+      return undefined;
+    };
     const changes = (old, next) => {
       const result = {};
       for (const key of Object.keys(next)) if (JSON.stringify(old[key]) !== JSON.stringify(next[key])) result[key] = { oldValue: old[key], newValue: next[key] };
       for (const listener of listeners) listener(result, "local");
     };
     const api = {
-      runtime: { id: "fixture-extension", onMessage: { addListener: (fn) => messages.push(fn) } },
+      runtime: {
+        id: "fixture-extension",
+        getURL: (name) => `https://fixture-extension.invalid/${name.replace(/^\//, "")}`,
+        onMessage: { addListener: (fn) => messages.push(fn) },
+        sendMessage: async (message) => {
+          if (message.type === "REGISTER_POST_EXPORT") {
+            globalThis.requestedExportOrigins = message.origins;
+            return { registered: true };
+          }
+          if (message.type === "DELIVER_POST_EXPORT") {
+            return deliver({
+              type: "POST_EXPORT_CHOICE",
+              token: message.token,
+              ...(message.error ? { error: message.error } : { format: message.format })
+            });
+          }
+          if (message.type !== "FETCH_POST_EXPORT_IMAGE") return null;
+          if (globalThis.exportImageError) return { error: globalThis.exportImageError };
+          const response = await fetch(message.url);
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          let binary = "";
+          for (const byte of bytes) binary += String.fromCharCode(byte);
+          const type = response.headers.get("content-type")?.split(";")[0] || "image/png";
+          return { dataUrl: `data:${type};base64,${btoa(binary)}`, type };
+        }
+      },
       storage: {
         local: {
           get: async () => JSON.parse(localStorage.getItem("test-storage")),
@@ -40,6 +92,16 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
     };
     globalThis.setStored = api.storage.local.set;
     globalThis.readStored = api.storage.local.get;
+    addEventListener("message", (event) => {
+      if (event.origin === "https://fixture-extension.invalid"
+        && event.data?.source === "patreon-reader-export") {
+        deliver({
+          type: "POST_EXPORT_CHOICE",
+          token: event.data.token,
+          ...(event.data.error ? { error: event.data.error } : { format: event.data.format })
+        });
+      }
+    });
     window.addEventListener("storage", (event) => {
       if (event.key === "test-storage") changes(JSON.parse(event.oldValue || "{}"), JSON.parse(event.newValue || "{}"));
     });
@@ -58,6 +120,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
       };
       wrap(api.storage.local, "get"); wrap(api.storage.local, "set");
       wrap(api.tabs, "query"); wrap(api.tabs, "sendMessage");
+      wrap(api.runtime, "sendMessage");
       globalThis.chrome = api;
     }
   }, { stored, namespace });

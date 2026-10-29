@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add local post export in PDF, EPUB, and Markdown formats.
+- Embed displayed inline post images for offline use with on-demand,
+  exact-origin media permission prompts.
+
 ## 1.1.1
 
 - Fix engagement-bar hiding being lost after page loading or rerendering.
