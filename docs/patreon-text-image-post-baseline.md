@@ -783,8 +783,9 @@ open matching tab to be reused without the broad `tabs` permission. Otherwise th
 worker creates one inactive temporary Patreon tab and navigates that same tab
 through unopened posts in sequence. If Chromium defers the inactive tab, the
 worker briefly activates it and immediately returns to the collection. The tab
-remains session-owned across preflight and packaging, then closes on completion,
-cancellation, failure, expiry detection, or collection-tab closure.
+closes immediately when preflight finishes. File generation creates at most one
+new reusable worker and closes it immediately when generation finishes. Cancellation,
+failure, expiry detection, and collection-tab closure also clean up any active worker.
 The preflight gathers only exact remote-image origins before the packaged chooser
 enables its direct user-gesture permission request. After approval, each post uses
 the same sanitized extraction and embedded-media path as individual export.

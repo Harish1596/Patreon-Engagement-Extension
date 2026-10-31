@@ -29,6 +29,11 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection worker cleanup, October 31, 2026: all 16 tooling tests passed after
+changing the worker lifecycle to close the single reusable tab at the end of
+preflight and again at the end of file generation. The regression verifies three
+unopened posts per phase create one worker, navigate it twice, and close it once.
+
 Collection ZIP compatibility, October 31, 2026: the focused Chrome collection
 download passed Info-ZIP validation and macOS `ditto` extraction after assigning
 the outer archive `application/zip` and valid DOS entry timestamps. The reported

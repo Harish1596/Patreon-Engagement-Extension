@@ -46,7 +46,13 @@
   async function discardCollection(token) {
     const session = collections.get(token);
     collections.delete(token);
-    if (session?.workerTabId) await closeTabs([session.workerTabId]);
+    if (session) await closeWorker(session);
+  }
+
+  async function closeWorker(session) {
+    const tabId = session.workerTabId;
+    session.workerTabId = null;
+    if (tabId) await closeTabs([tabId]);
   }
 
   async function navigateWorker(session, url) {
@@ -148,6 +154,7 @@
       }
       if (!session.posts.length) throw new Error("No accessible text posts in this collection could be prepared.");
       if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
+      await closeWorker(session);
       collections.set(message.token, session);
       cancelledCollections.delete(message.token);
       return {
@@ -157,7 +164,7 @@
         origins: [...new Set(session.posts.flatMap(post => post.origins))]
       };
     } catch (error) {
-      if (session.workerTabId) await closeTabs([session.workerTabId]);
+      await closeWorker(session);
       cancelledCollections.delete(message.token);
       throw error;
     }

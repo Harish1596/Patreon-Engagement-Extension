@@ -70,7 +70,7 @@ function backgroundHarness() {
   return { calls, send };
 }
 
-test("collection export navigates one temporary worker tab across every unopened post", async () => {
+test("collection export closes each phase's reusable temporary worker tab", async () => {
   const { calls, send } = backgroundHarness();
   const token = "11111111-1111-4111-8111-111111111111";
   const urls = [101, 102, 103].map(id => `https://www.patreon.com/posts/${id}`);
@@ -79,11 +79,11 @@ test("collection export navigates one temporary worker tab across every unopened
   assert.equal(prepared.count, 3);
   assert.equal(calls.create.length, 1);
   assert.deepEqual(calls.update.map(call => call.url), urls.slice(1));
-  assert.deepEqual(calls.remove, []);
+  assert.deepEqual(calls.remove, [calls.create[0].id]);
 
   const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
   assert.equal(built.files.length, 3);
-  assert.equal(calls.create.length, 1);
-  assert.deepEqual(calls.update.map(call => call.url), [...urls.slice(1), ...urls]);
-  assert.deepEqual(calls.remove, [calls.create[0].id]);
+  assert.equal(calls.create.length, 2);
+  assert.deepEqual(calls.update.map(call => call.url), [...urls.slice(1), ...urls.slice(1)]);
+  assert.deepEqual(calls.remove, calls.create.map(call => call.id));
 });

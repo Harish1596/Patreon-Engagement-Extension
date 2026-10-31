@@ -152,8 +152,10 @@ it again and continues instead of preparing a partial collection.
 The extension prepares linked posts locally, reusing an already-open matching
 post tab when possible. Otherwise it creates one inactive temporary Patreon tab
 and navigates that same tab through every post in sequence. Focus returns to the
-collection if Chromium requires the worker to be activated, and the worker is
-closed when the request finishes or is cancelled. Image
+collection if Chromium requires the worker to be activated. The preflight worker
+closes as soon as preparation finishes; a fresh single worker used for the chosen
+format closes as soon as file generation finishes. Cancellation and failures also
+close the active worker. Image
 permissions use the same exact-origin prompt as individual post export. PDF is
 not included in this first separate-file implementation because browser-native
 Save as PDF cannot be placed into a ZIP without a dedicated PDF generator.

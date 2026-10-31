@@ -660,3 +660,12 @@ now use `application/zip`, while shared entries receive one valid timestamp and
 EPUB payloads retain their required MIME type. The focused browser regression now
 checks the MIME selection, nonzero date, Info-ZIP validation, and macOS `ditto`
 extraction without committing or reading the supplied post contents.
+
+The user then requested that no completed collection worker remain open. Although
+the build worker already closed, the automatic post-download session refresh had
+prepared and retained a replacement worker for another format choice. Preparation
+now closes its single reusable worker before registering the session; a later build
+creates one fresh worker and closes it during the existing terminal cleanup. The
+tooling regression verifies three unopened posts use one created/navigated/closed
+tab during preflight and one during generation, with no worker retained between
+phases or after completion.

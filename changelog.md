@@ -13,6 +13,7 @@
 - Prefer validated local API cursor pagination with Load more as a fallback.
 - Title-case the Download Collection control and dialog heading.
 - Emit collection ZIPs with the canonical MIME type and valid entry timestamps.
+- Close collection worker tabs immediately after preflight and file generation.
 
 ## 1.1.1
 
