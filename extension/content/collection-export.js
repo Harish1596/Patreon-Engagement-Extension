@@ -2,7 +2,7 @@
 (() => {
   const { api, call } = globalThis.PatreonExtension;
   const { makeZip, saveBlob, fileStem } = globalThis.PatreonExporter;
-  const POST_PATH = /^\/[^/]+\/posts\/(?:[^/]+-)?\d+\/?$/;
+  const POST_PATH = /^(?:\/posts\/\d+|\/[^/]+\/posts\/(?:[^/]+-)?\d+)\/?$/;
   let host;
   let shadow;
   let trigger;
@@ -26,11 +26,17 @@
     return heading?.textContent.trim() || document.title.split("|")[0].trim() || "Patreon collection";
   }
 
+  function collectionScope() {
+    return document.querySelector('main[role="main"], main, [role="main"]') || document;
+  }
+
   function postUrls() {
-    const scope = document.querySelector("main, [role=main]") || document;
+    const scope = collectionScope();
     const result = [];
     const seen = new Set();
-    for (const anchor of scope.querySelectorAll("a[href]")) {
+    const cards = scope.querySelectorAll('a[class*="_gridCard"][href]');
+    const anchors = cards.length ? cards : scope.querySelectorAll("a[href]");
+    for (const anchor of anchors) {
       let url;
       try { url = new URL(anchor.href, location.href); }
       catch { continue; }
@@ -40,6 +46,26 @@
       if (!seen.has(url.href)) { seen.add(url.href); result.push(url.href); }
     }
     return result;
+  }
+
+  const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+  async function loadAllPostLinks() {
+    for (let page = 0; page < 100; page++) {
+      const scope = collectionScope();
+      const button = scope.querySelector('[class*="_loadMoreContainer"] button');
+      if (!button || button.disabled || button.getAttribute("aria-disabled") === "true") return;
+      const before = postUrls().length;
+      report(`Loading all posts from this collection… ${before} found.`);
+      button.click();
+      let changed = false;
+      for (let attempt = 0; attempt < 150; attempt++) {
+        await delay(100);
+        if (postUrls().length > before || !button.isConnected) { changed = true; break; }
+      }
+      if (!changed) throw new Error("Patreon did not load the next group of collection posts.");
+    }
+    throw new Error("This collection has too many pages to prepare safely.");
   }
 
   function report(message, tone = "") {
@@ -61,6 +87,7 @@
     setBusy(true);
     chooser.src = "about:blank";
     report(prefix || "Finding accessible posts in this collection…");
+    await loadAllPostLinks();
     const urls = postUrls();
     if (!urls.length) throw new Error("No post links were found in this collection.");
     requestToken = crypto.randomUUID();

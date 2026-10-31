@@ -2,6 +2,7 @@
   const { api, call, normalize } = globalThis.PatreonExtension;
   const ROOT_ATTRIBUTE = "data-hide-patreon-floating-engagement";
   const POST_PATH = /^\/([^/]+)\/posts\/(?:[^/]+-)?\d+\/?$/;
+  const DIRECT_POST_PATH = /^\/posts\/\d+\/?$/;
   const COLLECTION_PATH = /^\/collection\/[^/]+\/?$/;
   const RESERVED_ROOT_PATHS = new Set([
     "about",
@@ -41,6 +42,7 @@
   }
 
   function isPostPage() {
+    if (DIRECT_POST_PATH.test(window.location.pathname)) return true;
     const match = POST_PATH.exec(window.location.pathname);
     return Boolean(match && !RESERVED_ROOT_PATHS.has(match[1].toLowerCase()));
   }

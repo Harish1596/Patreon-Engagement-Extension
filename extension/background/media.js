@@ -33,7 +33,7 @@
     try {
       const url = new URL(value);
       return url.origin === "https://www.patreon.com"
-        && /^\/[^/]+\/posts\/(?:[^/]+-)?\d+\/?$/.test(url.pathname);
+        && /^(?:\/posts\/\d+|\/[^/]+\/posts\/(?:[^/]+-)?\d+)\/?$/.test(url.pathname);
     } catch { return false; }
   }
 
@@ -51,14 +51,18 @@
 
   async function createPostTab(url, session) {
     const tab = await call(api.tabs, "create", {
-      url, active: true, windowId: session.ownerWindowId
+      url, active: false, windowId: session.ownerWindowId
     });
+    return tab.id;
+  }
+
+  async function askOwnedPost(tabId, ownerTabId, message) {
     try {
-      await call(api.tabs, "update", session.ownerTabId, { active: true });
-      return tab.id;
-    } catch (error) {
-      await closeTabs([tab.id]);
-      throw error;
+      return await askPost(tabId, message, 8);
+    } catch {
+      await call(api.tabs, "update", tabId, { active: true });
+      await call(api.tabs, "update", ownerTabId, { active: true });
+      return askPost(tabId, message);
     }
   }
 
@@ -88,12 +92,14 @@
         }
         let result;
         try {
-          result = await askPost(tabId, { type: "BUILD_POST_EXPORT", format });
+          result = owned
+            ? await askOwnedPost(tabId, session.ownerTabId, { type: "BUILD_POST_EXPORT", format })
+            : await askPost(tabId, { type: "BUILD_POST_EXPORT", format });
         } catch (error) {
           if (owned) throw error;
           tabId = await createPostTab(post.url, session);
           owned = true;
-          result = await askPost(tabId, { type: "BUILD_POST_EXPORT", format });
+          result = await askOwnedPost(tabId, session.ownerTabId, { type: "BUILD_POST_EXPORT", format });
         }
         if (cancelledCollections.has(token)) throw new Error("The collection export was cancelled.");
         files.push(result.file);
@@ -119,14 +125,11 @@
         const existing = [...knownPosts].find(([, postUrl]) => postUrl === url);
         const owned = !existing;
         const tab = existing ? { id: existing[0] }
-          : await call(api.tabs, "create", { url, active: true, windowId: sender.tab.windowId });
+          : { id: await createPostTab(url, { ownerWindowId: sender.tab.windowId }) };
         try {
-          if (owned) {
-            // Some Chromium builds defer never-activated background tabs. Create
-            // the temporary tab active, then immediately return to the collection.
-            await call(api.tabs, "update", sender.tab.id, { active: true });
-          }
-          const result = await askPost(tab.id, { type: "DESCRIBE_POST_EXPORT" });
+          const result = owned
+            ? await askOwnedPost(tab.id, sender.tab.id, { type: "DESCRIBE_POST_EXPORT" })
+            : await askPost(tab.id, { type: "DESCRIBE_POST_EXPORT" });
           if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
           posts.push({
             tabId: owned ? null : tab.id,

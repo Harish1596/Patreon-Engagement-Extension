@@ -29,15 +29,19 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
-Separate-file collection export, October 31, 2026: **41 Chrome cases passed with
-the Brave-only installed case skipped, all 42 Brave cases passed, and all 15
-tooling tests passed**. Two collection cases cover route scoping, same-origin post
-link discovery, duplicate removal, order, numbered Markdown ZIP entries, content,
-and filename. The unpacked-Brave case exercises real tab registration, extension
+Separate-file collection export, October 31, 2026: **42 Chrome cases passed with
+the Brave-only installed case skipped, all 43 Brave cases passed, and all 15
+tooling tests passed**. Collection and detection cases cover route scoping, the
+observed `/posts/<id>` card form, Load more expansion, same-origin filtering,
+duplicate removal, order, numbered Markdown ZIP entries, content, and filename.
+The unpacked-Brave case exercises real tab registration, extension
 messaging, post extraction, ZIP download, and repeat-format preparation against
 intercepted synthetic Patreon pages. Syntax checks cover 30 JavaScript files.
-No live collection page, pagination/lazy loading behavior, locked collection,
-remote collection image, or third-party EPUB reader was verified.
+A user-supplied October 31 screenshot and sanitized structure establish 20
+initial grid cards, a Load more control, 74 displayed total posts, and direct
+numeric post paths. Automated export against that authenticated page, locked
+collection behavior, remote collection images, and third-party EPUB readers remain
+unverified.
 
 Unreleased post-export development, October 29, 2026: **39 Chrome cases, 40
 Brave cases, and 15 tooling tests passed**. Chrome skips the Brave-only installed
@@ -210,8 +214,8 @@ support claims are not evidence that the Reader feature passes this checklist.
   accessible linked post appears once, in collection order, with numbered
   title-based filenames and embedded images. Confirm locked or unsupported posts
   are reported as skipped, temporary tabs are closed, cancellation cleans up,
-  and no unrelated post links are included. Test a collection that lazy-loads or
-  paginates to establish whether every post link is present in the rendered page.
+  and no unrelated post links are included. Confirm Load more is exhausted and
+  the prepared count matches Patreon's displayed collection total.
 - Verify each control on public and legitimately accessible member posts,
   locked previews, and posts containing headings, lists, quotes, links, images,
   and embeds. Do not use the extension to obtain inaccessible content.

@@ -70,6 +70,12 @@ The reference combines the following evidence:
   background, weak card separation, and the native comment-entry surface.
   Later user messages confirm banner background/shadow changes worked and ask
   for a darker input surface. These are scoped confirmations, not full-site QA.
+- **Collection-page structure:** An October 31, 2026 screenshot and two sanitized
+  structural captures show `/collection/{numeric-id}?view=expanded`, a
+  `main[role="main"]` region, a collection heading, 74 displayed posts, 20
+  initially rendered `a[class*="_gridCard"]` elements, direct
+  `/posts/{numeric-id}?collection={numeric-id}` destinations, and a
+  `[class*="_loadMoreContainer"] button`. The sanitized payloads are not committed.
 - **User-confirmed live testing:** On October 25, 2026, the user confirmed live
   Patreon testing was completed for the entire recorded testing history. This
   broader manual confirmation supersedes earlier live-testing-pending notes;
@@ -750,8 +756,9 @@ background so its rectangular canvas does not appear as a black strip in dark mo
 **Intended behavior:** On a pathname matching `/collection/{identifier}`, a
 fixed extension-owned **Download collection** control offers EPUB and Markdown.
 The separate-file option creates one ZIP named from the collection heading. It
-discovers same-origin Patreon post links inside the page's main region, removes
-duplicates while preserving DOM order, and creates numbered title-based files.
+repeatedly activates the collection-scoped Load more control, discovers direct
+`/posts/{numeric-id}` links from collection grid cards, removes duplicates while
+preserving DOM order, and creates numbered title-based files.
 PDF is deliberately deferred: the current post PDF path uses Chrome's interactive
 Save as PDF UI and cannot package generated PDF bytes into a ZIP.
 
@@ -771,18 +778,20 @@ accepts at most 100 unique post links per collection request and keeps a prepare
 request for five minutes.
 
 **Evidence and limits:** The original October 25 post capture contains a collection
-link/card but not the collection page itself. No new live collection DOM was
-supplied for this implementation. `/collection/{identifier}`, a main heading, and
-same-origin post anchors are intended integration boundaries backed by synthetic
-fixtures, not confirmed current-live markup. Two Chrome fixtures verify route
-scoping, URL filtering/deduplication, order, ZIP filenames/content, and cleanup.
+link/card but not the collection page itself. The later October 31 screenshot and
+sanitized structure establish the collection route, main boundary, grid-card link
+suffix, direct numeric post routes, initial 20-card batch, Load more container, and
+displayed 74-post total described above. They are user-supplied rendered evidence,
+not an automated authenticated session. Chrome fixtures verify route scoping,
+Load more expansion, URL filtering/deduplication, direct post routing, order, ZIP
+filenames/content, and cleanup.
 The unpacked-Brave test verifies real extension messaging and download using two
 already-open intercepted synthetic posts; Playwright cannot intercept navigation
 initiated by an extension-created tab, so that creation path remains a manual/live
-check. Pagination, infinite scroll, collections over 100 posts, locked posts,
-remote images, and current live collection ordering remain unverified. If Patreon
-does not render every collection post link at once, additional pagination/loading
-support will be required before “all posts” is established.
+check. The supplied page establishes button-based incremental loading, but a full
+post export after exhausting that control remains pending user confirmation.
+Collections over 100 posts, alternate list markup, locked posts, remote images,
+and current live collection ordering remain unverified.
 
 ## Verification and change history
 

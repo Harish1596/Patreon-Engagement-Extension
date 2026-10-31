@@ -38,9 +38,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
         contentType: "text/html",
         body: `<!doctype html><html><head><title>Test collection | Patreon</title></head><body><main>
           <h1>Test collection</h1>
-          <a href="/example/posts/collection-one-201">Collection post one</a>
-          <a href="/example/posts/collection-two-202">Collection post two</a>
-          <a href="/example/posts/collection-one-201?duplicate=1">Duplicate link</a>
+          <a class="IhO0fW_gridCard" href="/posts/201?collection=555">Collection post one</a>
+          <a class="IhO0fW_gridCard" href="/posts/202?collection=555">Collection post two</a>
+          <a class="IhO0fW_gridCard" href="/posts/201?collection=555">Duplicate link</a>
         </main></body></html>`
       });
       const postNumber = pathname.endsWith("201") ? "one" : pathname.endsWith("202") ? "two" : "";
@@ -154,9 +154,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await popup.getByRole("switch", { name: "Hide engagement bar", exact: true }).uncheck();
     await expect(first.locator('[data-tag="floating-engagement-sheet"]')).toBeVisible();
     const collectionPostOne = await context.newPage();
-    await collectionPostOne.goto("https://www.patreon.com/example/posts/collection-one-201");
+    await collectionPostOne.goto("https://www.patreon.com/posts/201");
     const collectionPostTwo = await context.newPage();
-    await collectionPostTwo.goto("https://www.patreon.com/example/posts/collection-two-202");
+    await collectionPostTwo.goto("https://www.patreon.com/posts/202");
     await expect(collectionPostOne.getByRole("button", { name: "Download post", exact: true })).toBeVisible();
     await expect(collectionPostTwo.getByRole("button", { name: "Download post", exact: true })).toBeVisible();
     const collection = await context.newPage();

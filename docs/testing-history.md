@@ -604,3 +604,15 @@ The installed test uses two already-open intercepted synthetic post pages becaus
 Playwright does not intercept extension-created tab navigation. No live collection
 page or current pagination/lazy-loading behavior was verified; only links rendered
 inside the collection page's main region are established by this checkpoint.
+
+The user's first live collection attempt then reported “No post links were found
+in this collection.” An October 31 screenshot and sanitized structural captures
+showed why: live collection cards use direct `/posts/<numeric-id>` links rather
+than creator-prefixed post routes. The page displayed 74 posts but initially
+rendered 20 `a[class*="_gridCard"]` elements followed by a
+`[class*="_loadMoreContainer"]` button. Discovery now scopes itself to those grid
+cards, accepts direct numeric post routes throughout routing and worker validation,
+and exhausts Load more before preflight. A sanitized regression adds cards through
+that control and excludes a non-card post link. A separate detection case covers
+Reader and Download on direct numeric post URLs. Post-fix live confirmation is
+pending.

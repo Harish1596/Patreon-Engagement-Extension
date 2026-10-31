@@ -141,6 +141,9 @@ accessible text post becomes a separate, numbered file in the order its link
 appears on the collection page; repeated links are removed. Unavailable, locked,
 or unsupported posts are skipped and reported before export.
 
+Before preparing files, the extension repeatedly uses Patreon's collection
+**Load more** control until every card exposed by the page is rendered.
+
 The extension prepares linked posts locally in temporary Patreon tabs, reusing
 an already-open matching post tab when possible. At most one temporary post tab
 is processed at a time; focus returns to the collection and the temporary tab is
@@ -153,6 +156,7 @@ Post pages are recognized locally using this pathname structure:
 
 ```text
 /<creator>/posts/<post-slug>-<numeric-post-id>
+/posts/<numeric-post-id>
 ```
 
 The engagement-bar toggle targets:
@@ -166,7 +170,8 @@ div[data-tag="floating-engagement-sheet"]
 - The hide/show setting is stored only on the local device.
 - The extension only runs on `https://www.patreon.com/*`.
 - Although the content script remains loaded across Patreon to support its
-  client-side navigation, it modifies the page only when the URL matches a post.
+  client-side navigation, it modifies the page only when the URL matches a post
+  or collection.
 - All executable code and styles are packaged locally. A user-requested offline
   export may fetch the post's displayed inline images directly from their media
   origins; no selectors, scripts, analytics, or other remote code are fetched.

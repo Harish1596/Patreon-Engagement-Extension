@@ -84,3 +84,12 @@ test("current generated class prefixes retain body and surface discovery", async
   await expect(page.locator("#live-surface")).toHaveAttribute("data-patreon-reader-surface", "");
   expect(await page.evaluate(() => document.querySelectorAll(PatreonDOM.BODY).length)).toBe(1);
 });
+
+test("direct numeric Patreon post paths support Reader and export", async ({ page }) => {
+  await setup(page, {
+    url: "https://www.patreon.com/posts/173307122?collection=1581433",
+    stored: { readerEnabled: true }
+  });
+  await expect(page.getByRole("button", { name: "Download post", exact: true })).toBeVisible();
+  await expect(button(page)).toBeVisible();
+});
