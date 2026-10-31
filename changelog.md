@@ -11,6 +11,7 @@
 - Reuse one temporary worker tab throughout each collection export.
 - Wait through transient Load more disabled states until pagination is exhausted.
 - Prefer validated local API cursor pagination with Load more as a fallback.
+- Title-case the Download Collection control and dialog heading.
 
 ## 1.1.1
 

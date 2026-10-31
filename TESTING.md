@@ -29,6 +29,11 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection label adjustment, October 31, 2026: the three focused Chrome
+collection cases, the installed-extension Brave case, and syntax checks for 31
+JavaScript files passed after changing the control and dialog heading to
+**Download Collection**.
+
 Separate-file collection export, October 31, 2026: **43 Chrome cases passed with
 the Brave-only installed case skipped, all 44 Brave cases passed, and all 16
 tooling tests passed**. Collection and detection cases cover route scoping, the

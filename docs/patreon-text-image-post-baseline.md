@@ -760,7 +760,7 @@ background so its rectangular canvas does not appear as a black strip in dark mo
 ## Collection export boundary (unreleased)
 
 **Intended behavior:** On a pathname matching `/collection/{identifier}`, a
-fixed extension-owned **Download collection** control offers EPUB and Markdown.
+fixed extension-owned **Download Collection** control offers EPUB and Markdown.
 The separate-file option creates one ZIP named from the collection heading. It
 first finds the current page's observed same-origin `/api/posts` request for the
 route's collection ID, removes its cursor, and follows validated next links or

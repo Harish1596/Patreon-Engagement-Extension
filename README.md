@@ -135,7 +135,7 @@ user-requested export containing images from that origin.
 
 ### Download separate posts from a collection
 
-On a Patreon `/collection/...` page, select **Download collection** and choose
+On a Patreon `/collection/...` page, select **Download Collection** and choose
 EPUB or Markdown. The extension creates one ZIP named after the collection. Each
 accessible text post becomes a separate, numbered file in the order its link
 appears on the collection page; repeated links are removed. Unavailable, locked,

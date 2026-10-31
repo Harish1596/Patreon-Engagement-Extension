@@ -645,3 +645,8 @@ an exact unique-post count before preflight. An unavailable or changed private
 response falls back to the tested Load more path. A new synthetic two-page API
 case verifies three ordered IDs are prepared without clicking the page control;
 the raw supplied response and its content-specific IDs/cursor are not committed.
+
+The collection trigger and dialog heading were subsequently changed from
+“Download collection” to “Download Collection.” Three focused Chrome collection
+cases, the installed-extension Brave case, and syntax checks for 31 JavaScript
+files passed; this wording-only change adds no new Patreon markup claim.

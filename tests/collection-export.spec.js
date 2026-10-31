@@ -27,7 +27,7 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
     };</script>
   </main></body></html>`;
   await setup(page, { content, url: "https://www.patreon.com/collection/500" });
-  const trigger = page.getByRole("button", { name: "Download collection", exact: true });
+  const trigger = page.getByRole("button", { name: "Download Collection", exact: true });
   await expect(trigger).toBeVisible();
   await trigger.click();
   await expect(page.getByRole("status")).toContainText("3 posts are ready");
@@ -81,7 +81,7 @@ test("collection export follows local API cursors without clicking Load more", a
     });
   }, apiBase);
 
-  await page.getByRole("button", { name: "Download collection", exact: true }).click();
+  await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("3 posts are ready");
   expect(await page.evaluate(() => requestedCollectionUrls)).toEqual([
     "https://www.patreon.com/posts/101",
@@ -93,15 +93,15 @@ test("collection export follows local API cursors without clicking Load more", a
 
 test("collection controls are scoped to collection routes", async ({ page }) => {
   await setup(page);
-  await expect(page.getByRole("button", { name: "Download collection", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Download Collection", exact: true })).toHaveCount(0);
   await page.evaluate(() => {
     history.pushState({}, "", "/collection/500");
     document.body.innerHTML = '<main><h1>Collection</h1><a class="IhO0fW_gridCard" href="/posts/101">Post</a></main>';
   });
-  await expect(page.getByRole("button", { name: "Download collection", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download Collection", exact: true })).toBeVisible();
   await page.evaluate(() => {
     history.pushState({}, "", "/example");
     document.body.append(document.createElement("div"));
   });
-  await expect(page.getByRole("button", { name: "Download collection", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Download Collection", exact: true })).toHaveCount(0);
 });

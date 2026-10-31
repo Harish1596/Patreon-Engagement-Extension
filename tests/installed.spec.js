@@ -161,7 +161,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect(collectionPostTwo.getByRole("button", { name: "Download post", exact: true })).toBeVisible();
     const collection = await context.newPage();
     await collection.goto("https://www.patreon.com/collection/555");
-    const collectionDownload = collection.getByRole("button", { name: "Download collection", exact: true });
+    const collectionDownload = collection.getByRole("button", { name: "Download Collection", exact: true });
     await expect(collectionDownload).toBeVisible();
     await collectionDownload.click();
     await expect(collection.getByRole("status")).toContainText("posts are ready", { timeout: 20_000 });

@@ -287,12 +287,12 @@
     style.textContent = `:host{all:initial}*{box-sizing:border-box}.trigger{position:fixed;right:20px;bottom:20px;z-index:2147483646;border:1px solid #dedee3;border-radius:999px;padding:10px 16px;color:#202026;background:#fff;box-shadow:0 8px 30px #0003;font:650 14px/1.4 system-ui,sans-serif;cursor:pointer}.trigger:hover{background:#f4f4f6}section{position:fixed;right:20px;bottom:74px;z-index:2147483647;width:340px;max-width:calc(100vw - 24px);padding:18px;border:1px solid #dedee3;border-radius:16px;color:#202026;background:#fff;box-shadow:0 12px 48px #0003;font:14px/1.45 system-ui,sans-serif}[hidden]{display:none!important}header{display:flex;align-items:start;justify-content:space-between;gap:12px}h2{margin:0;font-size:18px}p{margin:6px 0 14px;color:#686872;font-size:12px}.close{padding:5px 9px;border:1px solid #dedee3;border-radius:8px;color:inherit;background:#f4f4f6;font:inherit;cursor:pointer}.close:disabled{opacity:.5;cursor:default}iframe{display:block;width:100%;height:42px;border:0}#collection-export-status{min-height:38px;margin:13px 0 0}[data-tone=error]{color:#a32037}[data-tone=success]{color:#216e39}:focus-visible{outline:2px solid #b82d47;outline-offset:2px}@media(prefers-color-scheme:dark){.trigger,section{color:#f2f2f5;background:#232326;border-color:#48484e}.trigger:hover,.close{background:#323237}.close{border-color:#505058}p{color:#b4b4be}[data-tone=error]{color:#ff9bac}[data-tone=success]{color:#82d99b}}`;
     trigger = element("button", {
       type: "button", class: "trigger", "aria-haspopup": "dialog", "aria-expanded": "false"
-    }, "Download collection");
+    }, "Download Collection");
     dialog = element("section", {
       role: "dialog", "aria-modal": "true", "aria-labelledby": "collection-export-heading", hidden: ""
     });
     const header = element("header");
-    header.append(element("h2", { id: "collection-export-heading" }, "Download collection"));
+    header.append(element("h2", { id: "collection-export-heading" }, "Download Collection"));
     const dismiss = element("button", { type: "button", class: "close", "aria-label": "Close collection download" }, "×");
     dismiss.addEventListener("click", () => close(true));
     header.append(dismiss);
