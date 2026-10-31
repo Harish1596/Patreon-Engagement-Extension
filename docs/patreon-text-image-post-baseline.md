@@ -758,7 +758,10 @@ fixed extension-owned **Download collection** control offers EPUB and Markdown.
 The separate-file option creates one ZIP named from the collection heading. It
 repeatedly activates the collection-scoped Load more control, discovers direct
 `/posts/{numeric-id}` links from collection grid cards, removes duplicates while
-preserving DOM order, and creates numbered title-based files.
+preserving DOM order, and creates numbered title-based files. A temporarily
+disabled Load more control is treated as in-progress: discovery waits for it to
+become usable again and continues until the control remains absent. A stalled
+disabled control produces an error instead of silently preparing a partial set.
 PDF is deliberately deferred: the current post PDF path uses Chrome's interactive
 Save as PDF UI and cannot package generated PDF bytes into a ZIP.
 

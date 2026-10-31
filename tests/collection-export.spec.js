@@ -13,21 +13,28 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
     <h1>Example collection</h1>
     <div id="cards"><a class="IhO0fW_gridCard" href="/posts/101?collection=500">First</a></div>
     <div class="IhO0fW_loadMoreContainer"><button id="load-more">Load more</button></div>
-    <a href="/example/posts/unrelated-103">Unrelated main link</a>
-    <script>document.getElementById("load-more").onclick = () => {
-      document.getElementById("cards").insertAdjacentHTML("beforeend",
-        '<a class="IhO0fW_gridCard" href="/posts/102?collection=500">Second</a><a class="IhO0fW_gridCard" href="/posts/101?collection=500">Duplicate</a>');
-      document.querySelector(".IhO0fW_loadMoreContainer").remove();
+    <a href="/example/posts/unrelated-104">Unrelated main link</a>
+    <script>let nextPost = 102; document.getElementById("load-more").onclick = event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      setTimeout(() => {
+        document.getElementById("cards").insertAdjacentHTML("beforeend",
+          '<a class="IhO0fW_gridCard" href="/posts/' + nextPost + '?collection=500">Next</a><a class="IhO0fW_gridCard" href="/posts/101?collection=500">Duplicate</a>');
+        nextPost++;
+        if (nextPost > 103) document.querySelector(".IhO0fW_loadMoreContainer").remove();
+        else setTimeout(() => { button.disabled = false; }, 250);
+      }, 20);
     };</script>
   </main></body></html>`;
   await setup(page, { content, url: "https://www.patreon.com/collection/500" });
   const trigger = page.getByRole("button", { name: "Download collection", exact: true });
   await expect(trigger).toBeVisible();
   await trigger.click();
-  await expect(page.getByRole("status")).toContainText("2 posts are ready");
+  await expect(page.getByRole("status")).toContainText("3 posts are ready");
   expect(await page.evaluate(() => requestedCollectionUrls)).toEqual([
     "https://www.patreon.com/posts/101",
-    "https://www.patreon.com/posts/102"
+    "https://www.patreon.com/posts/102",
+    "https://www.patreon.com/posts/103"
   ]);
   const pending = page.waitForEvent("download");
   await page.frameLocator('iframe[title="Collection export formats"]')
@@ -37,8 +44,10 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
   const bytes = await downloadBytes(download);
   expect(bytes.includes(Buffer.from("001 - First post.md"))).toBe(true);
   expect(bytes.includes(Buffer.from("002 - Second post.md"))).toBe(true);
+  expect(bytes.includes(Buffer.from("003 - Third post.md"))).toBe(true);
   expect(bytes.includes(Buffer.from("# First post"))).toBe(true);
   expect(bytes.includes(Buffer.from("# Second post"))).toBe(true);
+  expect(bytes.includes(Buffer.from("# Third post"))).toBe(true);
 });
 
 test("collection controls are scoped to collection routes", async ({ page }) => {

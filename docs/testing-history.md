@@ -626,3 +626,11 @@ completion, cancellation, failure, expiry detection, or collection-tab closure.
 Already-open matching user tabs remain reusable and are never navigated. A Node
 background-worker regression verifies three unopened posts use one created tab,
 navigate it for both phases, and close it once after the build.
+
+Live testing then showed preparation advancing by exactly one 20-card batch each
+time the collection dialog opened. Discovery had treated Patreon's transiently
+disabled Load more control as the end of pagination immediately after detecting
+new cards. It now waits for the control to be re-enabled and continues clicking
+until the control remains absent; a timeout is an explicit error rather than a
+partial export. The collection fixture reproduces a delayed re-enable across two
+batches and verifies that all three synthetic post links are prepared in one run.

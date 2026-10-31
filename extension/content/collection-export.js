@@ -50,20 +50,45 @@
 
   const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
+  function loadMoreButton() {
+    return collectionScope().querySelector('[class*="_loadMoreContainer"] button');
+  }
+
+  function isDisabled(button) {
+    return button.disabled || button.getAttribute("aria-disabled") === "true";
+  }
+
+  async function waitForLoadMoreReady() {
+    let missingChecks = 0;
+    for (let attempt = 0; attempt < 150; attempt++) {
+      const button = loadMoreButton();
+      if (button) {
+        missingChecks = 0;
+        if (!isDisabled(button)) return button;
+      } else if (++missingChecks >= 10) {
+        return null;
+      }
+      await delay(100);
+    }
+    throw new Error("Patreon did not finish enabling Load more.");
+  }
+
+  async function waitForNextBatch(before) {
+    for (let attempt = 0; attempt < 150; attempt++) {
+      await delay(100);
+      if (postUrls().length > before) return true;
+    }
+    throw new Error("Patreon did not load the next group of collection posts.");
+  }
+
   async function loadAllPostLinks() {
     for (let page = 0; page < 100; page++) {
-      const scope = collectionScope();
-      const button = scope.querySelector('[class*="_loadMoreContainer"] button');
-      if (!button || button.disabled || button.getAttribute("aria-disabled") === "true") return;
+      const button = await waitForLoadMoreReady();
+      if (!button) return;
       const before = postUrls().length;
       report(`Loading all posts from this collection… ${before} found.`);
       button.click();
-      let changed = false;
-      for (let attempt = 0; attempt < 150; attempt++) {
-        await delay(100);
-        if (postUrls().length > before || !button.isConnected) { changed = true; break; }
-      }
-      if (!changed) throw new Error("Patreon did not load the next group of collection posts.");
+      await waitForNextBatch(before);
     }
     throw new Error("This collection has too many pages to prepare safely.");
   }

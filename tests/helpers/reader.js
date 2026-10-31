@@ -86,7 +86,8 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             return globalThis.collectionBuildResult || {
               files: [
                 { title: "First post", extension: "md", encoding: "text", data: "# First post" },
-                { title: "Second post", extension: "md", encoding: "text", data: "# Second post" }
+                { title: "Second post", extension: "md", encoding: "text", data: "# Second post" },
+                { title: "Third post", extension: "md", encoding: "text", data: "# Third post" }
               ],
               skipped: 0
             };
