@@ -29,6 +29,16 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Separate-file collection export, October 31, 2026: **41 Chrome cases passed with
+the Brave-only installed case skipped, all 42 Brave cases passed, and all 15
+tooling tests passed**. Two collection cases cover route scoping, same-origin post
+link discovery, duplicate removal, order, numbered Markdown ZIP entries, content,
+and filename. The unpacked-Brave case exercises real tab registration, extension
+messaging, post extraction, ZIP download, and repeat-format preparation against
+intercepted synthetic Patreon pages. Syntax checks cover 30 JavaScript files.
+No live collection page, pagination/lazy loading behavior, locked collection,
+remote collection image, or third-party EPUB reader was verified.
+
 Unreleased post-export development, October 29, 2026: **39 Chrome cases, 40
 Brave cases, and 15 tooling tests passed**. Chrome skips the Brave-only installed
 extension case. Five export cases cover Markdown, EPUB, the PDF print path,
@@ -139,7 +149,7 @@ Windows/Linux path discovery has unit coverage, not native browser-run coverage.
 
 ## Test organization and limits
 
-Browser specs are grouped into appearance, comments, detection, export, lifecycle,
+Browser specs are grouped into appearance, collection export, comments, detection, export, lifecycle,
 popup, settings, and installed-extension suites. Base HTML lives in `tests/fixtures/`;
 shared setup, API mocks, and UI controls are in `tests/helpers/reader.js`. The helper
 loads runtime scripts/styles in the order declared by `extension/manifest.json`,
@@ -196,6 +206,12 @@ support claims are not evidence that the Reader feature passes this checklist.
   details and ordering in EPUB and Markdown. Confirm all three formats default to
   the sanitized post title as their filename. Open EPUB output in at least two readers and validate it with an EPUB 3
   validator. Check Markdown data-image support in the intended viewer.
+- Open a collection and export separate EPUB and Markdown ZIPs. Confirm every
+  accessible linked post appears once, in collection order, with numbered
+  title-based filenames and embedded images. Confirm locked or unsupported posts
+  are reported as skipped, temporary tabs are closed, cancellation cleans up,
+  and no unrelated post links are included. Test a collection that lazy-loads or
+  paginates to establish whether every post link is present in the rendered page.
 - Verify each control on public and legitimately accessible member posts,
   locked previews, and posts containing headings, lists, quotes, links, images,
   and embeds. Do not use the extension to obtain inaccessible content.

@@ -133,6 +133,22 @@ already rendered for the user. A granted origin can remain in the browser's
 extension settings until the user revokes it, but it is used only for a later
 user-requested export containing images from that origin.
 
+### Download separate posts from a collection
+
+On a Patreon `/collection/...` page, select **Download collection** and choose
+EPUB or Markdown. The extension creates one ZIP named after the collection. Each
+accessible text post becomes a separate, numbered file in the order its link
+appears on the collection page; repeated links are removed. Unavailable, locked,
+or unsupported posts are skipped and reported before export.
+
+The extension prepares linked posts locally in temporary Patreon tabs, reusing
+an already-open matching post tab when possible. At most one temporary post tab
+is processed at a time; focus returns to the collection and the temporary tab is
+closed after that post is prepared or packaged. Image
+permissions use the same exact-origin prompt as individual post export. PDF is
+not included in this first separate-file implementation because browser-native
+Save as PDF cannot be placed into a ZIP without a dedicated PDF generator.
+
 Post pages are recognized locally using this pathname structure:
 
 ```text
@@ -174,6 +190,7 @@ extension/                   Installable source; manifest at this directory's ro
   shared/extension.js        Browser API adapter and validated preferences
   content/                   Page scripts and page-side CSS
     export.js                PDF, EPUB, and Markdown post export
+    collection-export.js     Separate-file collection ZIP export
   background/media.js       Permission-checked inline-image retrieval
   popup/                     Toolbar popup HTML, JavaScript, and CSS
   icons/                     Runtime icon assets

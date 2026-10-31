@@ -6,6 +6,7 @@
 - Embed displayed inline post images for offline use with on-demand,
   exact-origin media permission prompts.
 - Use the sanitized post title as the default filename for every export format.
+- Add separate-file collection export as a ZIP of ordered EPUB or Markdown posts.
 
 ## 1.1.1
 

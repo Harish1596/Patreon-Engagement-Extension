@@ -3,6 +3,13 @@ const path = require("node:path");
 const fs = require("node:fs");
 const { browserExecutable } = require("../scripts/browser-config");
 
+async function downloadBytes(download) {
+  const stream = await download.createReadStream();
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
 test("installed Brave extension: actual storage, content scripts, and popup", async () => {
   test.skip(process.env.TEST_BROWSER !== "brave", "Uses Brave's unpacked-extension support.");
   const root = path.resolve(__dirname, "../extension");
@@ -25,16 +32,32 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       }
       throw new Error("Unpacked extension did not load");
     });
-    await context.route("https://www.patreon.com/**", (route) => route.fulfill({
-      contentType: "text/html",
-      // Simulate a framework removing the early-injected flag on initial load.
-      body: fs.readFileSync(path.join(__dirname, "fixtures/installed-post.html"), "utf8")
-        .replace("</body>", `<script>addEventListener("load", () => {
+    await context.route("https://www.patreon.com/**", (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      if (pathname.startsWith("/collection/")) return route.fulfill({
+        contentType: "text/html",
+        body: `<!doctype html><html><head><title>Test collection | Patreon</title></head><body><main>
+          <h1>Test collection</h1>
+          <a href="/example/posts/collection-one-201">Collection post one</a>
+          <a href="/example/posts/collection-two-202">Collection post two</a>
+          <a href="/example/posts/collection-one-201?duplicate=1">Duplicate link</a>
+        </main></body></html>`
+      });
+      const postNumber = pathname.endsWith("201") ? "one" : pathname.endsWith("202") ? "two" : "";
+      let body = fs.readFileSync(path.join(__dirname, "fixtures/installed-post.html"), "utf8");
+      if (postNumber) body = body
+        .replace("Installed extension test", `Collection post ${postNumber}`)
+        .replace("Post content.", `Collection body ${postNumber}.`);
+      return route.fulfill({
+        contentType: "text/html",
+        // Simulate a framework removing the early-injected flag on initial load.
+        body: body.replace("</body>", `<script>addEventListener("load", () => {
           document.documentElement.removeAttribute("data-hide-patreon-floating-engagement");
           document.body.append(document.createElement("div"));
           window.hideFlagRemovedOnLoad = true;
         });</script></body>`)
-    }));
+      });
+    });
     const first = await context.newPage();
     await first.goto("https://www.patreon.com/example/posts/test-123");
     const second = await context.newPage();
@@ -130,6 +153,36 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect(second.locator("#body")).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');
     await popup.getByRole("switch", { name: "Hide engagement bar", exact: true }).uncheck();
     await expect(first.locator('[data-tag="floating-engagement-sheet"]')).toBeVisible();
+    const collectionPostOne = await context.newPage();
+    await collectionPostOne.goto("https://www.patreon.com/example/posts/collection-one-201");
+    const collectionPostTwo = await context.newPage();
+    await collectionPostTwo.goto("https://www.patreon.com/example/posts/collection-two-202");
+    await expect(collectionPostOne.getByRole("button", { name: "Download post", exact: true })).toBeVisible();
+    await expect(collectionPostTwo.getByRole("button", { name: "Download post", exact: true })).toBeVisible();
+    const collection = await context.newPage();
+    await collection.goto("https://www.patreon.com/collection/555");
+    const collectionDownload = collection.getByRole("button", { name: "Download collection", exact: true });
+    await expect(collectionDownload).toBeVisible();
+    await collectionDownload.click();
+    await expect(collection.getByRole("status")).toContainText("posts are ready", { timeout: 20_000 });
+    const collectionMarkdown = collection.frameLocator('iframe[title="Collection export formats"]')
+      .getByRole("button", { name: "Markdown", exact: true });
+    await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    const [collectionZip] = await Promise.all([
+      collection.waitForEvent("download"),
+      collectionMarkdown.click()
+    ]);
+    expect(collectionZip.suggestedFilename()).toBe("Test collection.zip");
+    const collectionBytes = await downloadBytes(collectionZip);
+    expect(collectionBytes.includes(Buffer.from("001 - Collection post one.md"))).toBe(true);
+    expect(collectionBytes.includes(Buffer.from("002 - Collection post two.md"))).toBe(true);
+    expect(collectionBytes.includes(Buffer.from("Collection body one."))).toBe(true);
+    expect(collectionBytes.includes(Buffer.from("Collection body two."))).toBe(true);
+    await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    await collection.getByRole("button", { name: "Close collection download", exact: true }).click();
+    await collection.close();
+    await collectionPostOne.close();
+    await collectionPostTwo.close();
   } finally {
     await context.close();
   }

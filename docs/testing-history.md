@@ -587,3 +587,20 @@ stem to the print document and temporarily to the Patreon tab while invoking
 Chrome's print UI, then restores the original tab title. The PDF fixture verifies
 illegal filename characters are removed, the title is present at print time, and
 the existing tab title is restored.
+
+### Separate-file collection export — October 31, 2026
+
+Added the first collection-export mode for `/collection/{identifier}` pages.
+EPUB and Markdown produce a collection-named ZIP containing one numbered file per
+accessible text post in rendered link order. Same-origin post URLs are deduplicated;
+the worker reuses registered post tabs without requesting broad tab-history access,
+or creates and later closes temporary Patreon tabs. Exact media-origin permission
+is collected during preflight and requested from the packaged chooser's direct
+format-button gesture. PDF and combined-document collection output remain deferred.
+
+Verification passed 41 Chrome cases with the Brave-only installed test skipped,
+all 42 Brave cases, all 15 tooling tests, and syntax checks for 30 JavaScript files.
+The installed test uses two already-open intercepted synthetic post pages because
+Playwright does not intercept extension-created tab navigation. No live collection
+page or current pagination/lazy-loading behavior was verified; only links rendered
+inside the collection page's main region are established by this checkpoint.

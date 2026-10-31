@@ -31,6 +31,15 @@
   };
   const filename = (title, extension) => `${fileStem(title)}.${extension}`;
 
+  function base64(bytes) {
+    let result = "";
+    const chunk = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunk) {
+      result += String.fromCharCode(...bytes.subarray(offset, offset + chunk));
+    }
+    return btoa(result);
+  }
+
   function element(tag, attributes = {}, text) {
     const node = document.createElement(tag);
     for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, value);
@@ -119,6 +128,18 @@
         if (parsed.protocol !== "https:") throw new Error("Only HTTPS post images can be embedded.");
         return `${parsed.origin}/*`;
       }))];
+  }
+
+  function describePost() {
+    const post = findPost();
+    if (!post) throw new Error("The current post could not be found.");
+    const titles = [...post.scope.querySelectorAll(TITLE)].filter(post.belongs);
+    const titleNode = titles.find(node => node.getClientRects().length) || titles[0];
+    if (!titleNode) throw new Error("The current post title is not available.");
+    return {
+      title: titleNode.textContent.trim() || "Patreon post",
+      origins: currentOrigins()
+    };
   }
 
   function authorName(scope) {
@@ -269,6 +290,20 @@
     return makeZip(entries);
   }
 
+  function markdownFor(post) {
+    return `**Creator:** ${post.author}\n\n**Download time:** ${post.downloadedAt}\n\n**Source:** [${post.sourceUrl}](${post.sourceUrl})\n\n---\n\n# ${post.title}\n\n${renderMarkdown(post.body, post.assets).trim()}\n`;
+  }
+
+  async function buildPortableFile(format) {
+    if (!["epub", "markdown"].includes(format)) throw new Error("The collection export format is invalid.");
+    const post = await prepare();
+    if (format === "markdown") {
+      return { title: post.title, extension: "md", encoding: "text", data: markdownFor(post) };
+    }
+    const bytes = new Uint8Array(await makeEpub(post).arrayBuffer());
+    return { title: post.title, extension: "epub", encoding: "base64", data: base64(bytes) };
+  }
+
   async function printPdf(post) {
     const outputTitle = fileStem(post.title);
     const content = renderHtml(post.body, post.assets, asset => asset.dataUrl);
@@ -309,8 +344,7 @@
     try {
       const post = await prepare();
       if (format === "markdown") {
-        const markdown = `**Creator:** ${post.author}\n\n**Download time:** ${post.downloadedAt}\n\n**Source:** [${post.sourceUrl}](${post.sourceUrl})\n\n---\n\n# ${post.title}\n\n${renderMarkdown(post.body, post.assets).trim()}\n`;
-        saveBlob(new Blob([markdown], { type: "text/markdown;charset=utf-8" }), filename(post.title, "md"));
+        saveBlob(new Blob([markdownFor(post)], { type: "text/markdown;charset=utf-8" }), filename(post.title, "md"));
         report("Markdown download started.", "success");
       } else if (format === "epub") {
         saveBlob(makeEpub(post), filename(post.title, "epub"));
@@ -424,7 +458,18 @@
     if (open && !event.composedPath().includes(host) && !event.composedPath().includes(trigger)) close();
   }, true);
   api.runtime.onMessage.addListener((message, sender, respond) => {
-    if (sender.id !== api.runtime.id || message?.type !== "POST_EXPORT_CHOICE") return;
+    if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
+    if (message.type === "DESCRIBE_POST_EXPORT") {
+      try { respond({ post: describePost() }); }
+      catch (error) { respond({ error: error.message || "The post is not ready for export." }); }
+      return;
+    }
+    if (message.type === "BUILD_POST_EXPORT") {
+      buildPortableFile(message.format).then((file) => respond({ file }))
+        .catch((error) => respond({ error: error.message || "The post could not be exported." }));
+      return true;
+    }
+    if (message.type !== "POST_EXPORT_CHOICE") return;
     if (!open || message.token !== requestToken) {
       respond({ error: "The export panel is no longer active. Reopen Download." });
       return;
@@ -454,5 +499,5 @@
   }, true);
   window.addEventListener("resize", position);
   window.addEventListener("scroll", position, { passive: true, capture: true });
-  globalThis.PatreonExporter = Object.freeze({ reconcile });
+  globalThis.PatreonExporter = Object.freeze({ reconcile, makeZip, saveBlob, fileStem });
 })();

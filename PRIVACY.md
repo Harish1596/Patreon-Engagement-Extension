@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: October 29, 2026
+Last updated: October 31, 2026
 
 Patreon Reader (the "extension") is designed to provide its single
 purpose without collecting or transmitting personal information. All processing
@@ -28,6 +28,11 @@ floating engagement bar and apply optional reading appearance preferences:
   inline-image URLs in memory to create the selected PDF, EPUB, or Markdown
   output. PDF also records the local export time. It excludes comments and
   surrounding page UI and does not retain a copy after generating the local file.
+- When the user explicitly exports a collection, it reads the post links rendered
+  in that collection and temporarily opens or reuses those Patreon post pages to
+  create separate EPUB or Markdown files inside one local ZIP. Extension-created
+  tabs are closed after packaging or cancellation. The extension does not request
+  broad browser-history or tab-access permission.
 - To embed remote inline images, it asks the browser for access to the exact
   image origins used by that post. After permission is granted, the locally
   installed extension fetches those image bytes directly from the media origin.
@@ -71,8 +76,8 @@ The extension uses the following access:
   preferences locally in the browser.
 - **Access to `https://www.patreon.com/*`:** Loads the packaged content script
   and stylesheets, identifies supported post URLs and DOM elements, hides or
-  restores the floating engagement bar, and adds optional Reader controls and
-  appearance styles.
+  restores the floating engagement bar, adds Reader/export controls and appearance
+  styles, and locally processes user-selected post or collection exports.
 - **Optional media-origin access:** Requested only after the user chooses an
   export containing remote inline images. The prompt is limited to the exact
   HTTPS origins found in that post body and allows the extension to retrieve

@@ -1,6 +1,6 @@
 # Patreon post-page reference: text posts with inline images
 
-Last maintained: October 29, 2026. Current hotfix: **1.1.1** (live confirmation pending).
+Last maintained: October 31, 2026. Current hotfix: **1.1.1** (live confirmation pending).
 Post export is an unreleased development feature with synthetic verification;
 live Patreon export verification is pending.
 Feature baseline: **1.1.0**, renumbered from
@@ -45,6 +45,7 @@ access to it; conversation memory alone is not the persistence mechanism.
 - [Current settings and color contract](#current-settings-and-color-contract): exact preferences/palettes.
 - [Runtime and settings ownership](#runtime-and-settings-ownership): code and lifecycle.
 - [Post export boundary](#post-export-boundary-unreleased): local formats, media access, and evidence limits.
+- [Collection export boundary](#collection-export-boundary-unreleased): separate-file ZIP behavior and evidence limits.
 - [UI-change comparison procedure](#ui-change-comparison-procedure): how to update this reference.
 - [Captured hook inventory](#captured-hook-inventory): all observed data-tag/testid values and counts.
 - [Not yet established](#not-yet-established): gaps that must not be assumed away.
@@ -743,6 +744,45 @@ No new Patreon markup observation is claimed by this feature as of October 29,
 2026; the original October 25 capture remains the live structural baseline.
 The chooser frame explicitly matches the surrounding white or `#232326` panel
 background so its rectangular canvas does not appear as a black strip in dark mode.
+
+## Collection export boundary (unreleased)
+
+**Intended behavior:** On a pathname matching `/collection/{identifier}`, a
+fixed extension-owned **Download collection** control offers EPUB and Markdown.
+The separate-file option creates one ZIP named from the collection heading. It
+discovers same-origin Patreon post links inside the page's main region, removes
+duplicates while preserving DOM order, and creates numbered title-based files.
+PDF is deliberately deferred: the current post PDF path uses Chrome's interactive
+Save as PDF UI and cannot package generated PDF bytes into a ZIP.
+
+The worker prepares each linked post through its normal rendered post page. Post
+content scripts register their own tab URL with the worker, allowing an already
+open matching tab to be reused without the broad `tabs` permission. Otherwise the
+worker creates one temporary Patreon tab at a time, immediately returns to the
+collection tab, and closes that tab after the post is prepared or packaged.
+The preflight gathers only exact remote-image origins before the packaged chooser
+enables its direct user-gesture permission request. After approval, each post uses
+the same sanitized extraction and embedded-media path as individual export.
+
+Unavailable or unsupported post pages are skipped during preflight and their count
+is shown. A failure while building a post after successful preflight aborts the ZIP
+rather than silently producing a newly partial result. The current implementation
+accepts at most 100 unique post links per collection request and keeps a prepared
+request for five minutes.
+
+**Evidence and limits:** The original October 25 post capture contains a collection
+link/card but not the collection page itself. No new live collection DOM was
+supplied for this implementation. `/collection/{identifier}`, a main heading, and
+same-origin post anchors are intended integration boundaries backed by synthetic
+fixtures, not confirmed current-live markup. Two Chrome fixtures verify route
+scoping, URL filtering/deduplication, order, ZIP filenames/content, and cleanup.
+The unpacked-Brave test verifies real extension messaging and download using two
+already-open intercepted synthetic posts; Playwright cannot intercept navigation
+initiated by an extension-created tab, so that creation path remains a manual/live
+check. Pagination, infinite scroll, collections over 100 posts, locked posts,
+remote images, and current live collection ordering remain unverified. If Patreon
+does not render every collection post link at once, additional pagination/loading
+support will be required before “all posts” is established.
 
 ## Verification and change history
 

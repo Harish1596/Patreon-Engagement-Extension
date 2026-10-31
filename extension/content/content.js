@@ -2,6 +2,7 @@
   const { api, call, normalize } = globalThis.PatreonExtension;
   const ROOT_ATTRIBUTE = "data-hide-patreon-floating-engagement";
   const POST_PATH = /^\/([^/]+)\/posts\/(?:[^/]+-)?\d+\/?$/;
+  const COLLECTION_PATH = /^\/collection\/[^/]+\/?$/;
   const RESERVED_ROOT_PATHS = new Set([
     "about",
     "apps",
@@ -25,15 +26,27 @@
   let scheduled = false;
 
   const saveReader = (value) => call(api.storage.local, "set", { readerPreferences: value });
+  function syncExportablePostTab() {
+    call(api.runtime, "sendMessage", {
+      type: isPostPage() ? "REGISTER_EXPORTABLE_POST_TAB" : "UNREGISTER_EXPORTABLE_POST_TAB"
+    }).catch(() => {});
+  }
+
   function refreshReader() {
     globalThis.PatreonReader.configure(readerEnabled, readerPreferences, saveReader);
     globalThis.PatreonReader.reconcile(isPostPage());
     globalThis.PatreonExporter.reconcile(isPostPage());
+    globalThis.PatreonCollectionExporter.reconcile(isCollectionPage());
+    syncExportablePostTab();
   }
 
   function isPostPage() {
     const match = POST_PATH.exec(window.location.pathname);
     return Boolean(match && !RESERVED_ROOT_PATHS.has(match[1].toLowerCase()));
+  }
+
+  function isCollectionPage() {
+    return COLLECTION_PATH.test(window.location.pathname);
   }
 
   function applyVisibility() {
@@ -51,6 +64,7 @@
       readerEnabled,
       readerMounted: Boolean(document.querySelector("[data-patreon-reader-button]")),
       downloadMounted: Boolean(document.querySelector("[data-patreon-download-button]")),
+      collectionDownloadMounted: Boolean(document.querySelector("[data-patreon-collection-download]")),
       isPostPage: isPostPage()
     };
   }
@@ -64,6 +78,8 @@
       applyVisibility();
       globalThis.PatreonReader.reconcile(isPostPage());
       globalThis.PatreonExporter.reconcile(isPostPage());
+      globalThis.PatreonCollectionExporter.reconcile(isCollectionPage());
+      syncExportablePostTab();
     });
   }
 
@@ -116,6 +132,8 @@
     // Keep the existing safe visibility default and leave Reader disabled.
     applyVisibility();
     globalThis.PatreonExporter.reconcile(isPostPage());
+    globalThis.PatreonCollectionExporter.reconcile(isCollectionPage());
+    syncExportablePostTab();
   });
 
   window.addEventListener("popstate", checkForRouteChange);

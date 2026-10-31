@@ -10,7 +10,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["export/chooser.html", "export/chooser.js", "export/chooser.css"],
+      "resources": ["export/chooser.html", "export/chooser.js", "export/chooser.css", "export/collection-chooser.html", "export/collection-chooser.js", "export/collection-chooser.css"],
       "matches": ["https://www.patreon.com/*"]
     }
   ],
@@ -35,7 +35,7 @@
     {
       "matches": ["https://www.patreon.com/*"],
       "css": ["content/content.css"],
-      "js": ["shared/extension.js", "content/patreon-dom.js", "content/reader.js", "content/export.js", "content/content.js"],
+      "js": ["shared/extension.js", "content/patreon-dom.js", "content/reader.js", "content/export.js", "content/collection-export.js", "content/content.js"],
       "run_at": "document_start"
     }
   ]

@@ -4,7 +4,8 @@ const extensionRoot = path.resolve(__dirname, "../../extension");
 const fixture = fs.readFileSync(path.join(__dirname, "../fixtures/text-image-post.html"), "utf8").trimEnd();
 const contentScripts = JSON.parse(fs.readFileSync(path.join(extensionRoot, "manifest.json"), "utf8")).content_scripts[0];
 
-async function setup(page, { stored = {}, namespace = "chrome", content = fixture } = {}) {
+async function setup(page, { stored = {}, namespace = "chrome", content = fixture,
+  url = "https://www.patreon.com/example/posts/test-123" } = {}) {
   await page.route("https://www.patreon.com/**", (route) => route.fulfill({ contentType: "text/html", body: content }));
   await page.route("https://fixture-extension.invalid/export/chooser.html**", (route) => route.fulfill({
     contentType: "text/html",
@@ -19,7 +20,18 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
       }, "https://www.patreon.com");
       </script></body></html>`
   }));
-  await page.goto("https://www.patreon.com/example/posts/test-123");
+  await page.route("https://fixture-extension.invalid/export/collection-chooser.html**", (route) => route.fulfill({
+    contentType: "text/html",
+    body: `<!doctype html><html><body><main aria-label="Collection export formats">
+      <button data-format="epub">EPUB</button><button data-format="markdown">Markdown</button>
+      </main><script>
+      const token = location.hash.slice(1);
+      for (const button of document.querySelectorAll("button")) button.onclick = () => parent.postMessage({
+        source: "patreon-reader-collection-export", token, format: button.dataset.format
+      }, "https://www.patreon.com");
+      </script></body></html>`
+  }));
+  await page.goto(url);
   await page.evaluate(({ stored, namespace }) => {
     delete globalThis.browser;
     delete globalThis.chrome;
@@ -60,6 +72,29 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
               ...(message.error ? { error: message.error } : { format: message.format })
             });
           }
+          if (message.type === "PREPARE_COLLECTION_EXPORT") {
+            globalThis.requestedCollectionUrls = message.urls;
+            return { registered: true, count: message.urls.length, skipped: 0, origins: [] };
+          }
+          if (message.type === "DELIVER_COLLECTION_EXPORT") {
+            return deliver({
+              type: "COLLECTION_EXPORT_CHOICE", token: message.token,
+              ...(message.error ? { error: message.error } : { format: message.format })
+            });
+          }
+          if (message.type === "BUILD_COLLECTION_EXPORT") {
+            return globalThis.collectionBuildResult || {
+              files: [
+                { title: "First post", extension: "md", encoding: "text", data: "# First post" },
+                { title: "Second post", extension: "md", encoding: "text", data: "# Second post" }
+              ],
+              skipped: 0
+            };
+          }
+          if (message.type === "CANCEL_COLLECTION_EXPORT") {
+            globalThis.collectionExportCancelled = true;
+            return { cancelled: true };
+          }
           if (message.type !== "FETCH_POST_EXPORT_IMAGE") return null;
           if (globalThis.exportImageError) return { error: globalThis.exportImageError };
           const response = await fetch(message.url);
@@ -94,9 +129,9 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
     globalThis.readStored = api.storage.local.get;
     addEventListener("message", (event) => {
       if (event.origin === "https://fixture-extension.invalid"
-        && event.data?.source === "patreon-reader-export") {
+        && ["patreon-reader-export", "patreon-reader-collection-export"].includes(event.data?.source)) {
         deliver({
-          type: "POST_EXPORT_CHOICE",
+          type: event.data.source === "patreon-reader-export" ? "POST_EXPORT_CHOICE" : "COLLECTION_EXPORT_CHOICE",
           token: event.data.token,
           ...(event.data.error ? { error: event.data.error } : { format: event.data.format })
         });

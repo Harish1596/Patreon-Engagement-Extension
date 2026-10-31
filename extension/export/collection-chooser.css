@@ -1,0 +1,22 @@
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+html, body, main { margin: 0; min-width: 0; background: #fff; }
+main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+button {
+  min-width: 0;
+  padding: 8px 6px;
+  border: 1px solid #dedee3;
+  border-radius: 8px;
+  color: #202026;
+  background: #f4f4f6;
+  font: 650 14px/1.45 system-ui, sans-serif;
+  cursor: pointer;
+}
+button:hover { background: #e9e9ee; }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible { outline: 2px solid #b82d47; outline-offset: 2px; }
+@media (prefers-color-scheme: dark) {
+  html, body, main { background: #232326; }
+  button { color: #f2f2f5; background: #323237; border-color: #505058; }
+  button:hover { background: #414148; }
+}

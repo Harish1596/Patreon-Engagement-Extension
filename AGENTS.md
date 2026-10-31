@@ -31,7 +31,8 @@ release/checkpoint evidence in [testing history](docs/testing-history.md).
 Runtime lives under `extension/`, with its manifest at `extension/manifest.json`.
 Ownership: `shared/extension.js` validates preferences; `content/patreon-dom.js`
 owns DOM hooks/discovery/surface selection; `content/reader.js` manages and mounts
-Reader; `content/content.js` handles routing/storage;
+Reader; `content/export.js` owns post file generation; `content/collection-export.js`
+owns collection discovery and ZIP UI; `content/content.js` handles routing/storage;
 `content/content.css` styles the page; `popup/popup.js` controls the two master
 toggles. Browser specs are split by responsibility and use `tests/fixtures/` and
 `tests/helpers/`; Node tooling tests are in `tests/tooling/`. `scripts/` contains
