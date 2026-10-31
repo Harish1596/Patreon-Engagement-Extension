@@ -29,6 +29,12 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection ZIP compatibility, October 31, 2026: the focused Chrome collection
+download passed Info-ZIP validation and macOS `ditto` extraction after assigning
+the outer archive `application/zip` and valid DOS entry timestamps. The reported
+74-entry live archive was complete and extracted successfully with both tools;
+Archive Utility rejected that earlier noncanonical download.
+
 Collection label adjustment, October 31, 2026: the three focused Chrome
 collection cases, the installed-extension Brave case, and syntax checks for 31
 JavaScript files passed after changing the control and dialog heading to

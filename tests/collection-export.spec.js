@@ -1,4 +1,6 @@
 const { test, expect } = require("@playwright/test");
+const { execFileSync } = require("node:child_process");
+const fs = require("node:fs");
 const { setup } = require("./helpers/reader");
 
 async function downloadBytes(download) {
@@ -8,7 +10,7 @@ async function downloadBytes(download) {
   return Buffer.concat(chunks);
 }
 
-test("collection export creates ordered separate Markdown files in one ZIP", async ({ page }) => {
+test("collection export creates ordered separate Markdown files in one ZIP", async ({ page }, testInfo) => {
   const content = `<!doctype html><html><head><title>Example collection | Patreon</title></head><body><main>
     <h1>Example collection</h1>
     <div id="cards"><a class="IhO0fW_gridCard" href="/posts/101?collection=500">First</a></div>
@@ -42,6 +44,17 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
   const download = await pending;
   expect(download.suggestedFilename()).toBe("Example collection.zip");
   const bytes = await downloadBytes(download);
+  expect(bytes.readUInt16LE(12)).not.toBe(0);
+  expect(await page.evaluate(() => PatreonExporter.makeZip([], "application/zip").type))
+    .toBe("application/zip");
+  const archive = testInfo.outputPath("Example collection.zip");
+  fs.writeFileSync(archive, bytes);
+  execFileSync("unzip", ["-t", archive]);
+  if (process.platform === "darwin") {
+    const extracted = testInfo.outputPath("ditto-extracted");
+    fs.mkdirSync(extracted);
+    execFileSync("ditto", ["-x", "-k", archive, extracted]);
+  }
   expect(bytes.includes(Buffer.from("001 - First post.md"))).toBe(true);
   expect(bytes.includes(Buffer.from("002 - Second post.md"))).toBe(true);
   expect(bytes.includes(Buffer.from("003 - Third post.md"))).toBe(true);

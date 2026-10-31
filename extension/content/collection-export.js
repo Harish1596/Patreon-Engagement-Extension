@@ -256,7 +256,7 @@
       });
       if (!result?.files?.length) throw new Error(result?.error || "The collection did not produce any files.");
       const entries = result.files.map((file, index) => decodeFile(file, index, result.files.length));
-      saveBlob(makeZip(entries), `${fileStem(collectionTitle())}.zip`);
+      saveBlob(makeZip(entries, "application/zip"), `${fileStem(collectionTitle())}.zip`);
       requestToken = "";
       await prepareSession(`${format === "epub" ? "EPUB" : "Markdown"} ZIP download started.`);
     } catch (error) {

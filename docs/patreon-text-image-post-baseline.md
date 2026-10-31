@@ -772,6 +772,8 @@ control and reading direct `/posts/{numeric-id}` grid-card links. A temporarily
 disabled control is treated as in-progress; a stalled control produces an error
 instead of silently preparing a partial set. Both paths remove duplicates while
 preserving collection order and create numbered title-based files.
+The outer collection archive uses `application/zip` and valid DOS timestamps;
+individual EPUB payloads retain `application/epub+zip`.
 PDF is deliberately deferred: the current post PDF path uses Chrome's interactive
 Save as PDF UI and cannot package generated PDF bytes into a ZIP.
 

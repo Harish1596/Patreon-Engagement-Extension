@@ -650,3 +650,13 @@ The collection trigger and dialog heading were subsequently changed from
 “Download collection” to “Download Collection.” Three focused Chrome collection
 cases, the installed-extension Brave case, and syntax checks for 31 JavaScript
 files passed; this wording-only change adds no new Patreon markup claim.
+
+The first live 74-entry EPUB collection ZIP was rejected by macOS Archive Utility.
+Metadata-only inspection found a complete 2.4 MB ZIP whose 74 entries passed
+Info-ZIP verification and macOS `ditto` extraction, ruling out truncation and ZIP32
+overflow. The shared writer had nevertheless labeled the outer collection archive
+as `application/epub+zip` and emitted invalid all-zero DOS dates. Collection ZIPs
+now use `application/zip`, while shared entries receive one valid timestamp and
+EPUB payloads retain their required MIME type. The focused browser regression now
+checks the MIME selection, nonzero date, Info-ZIP validation, and macOS `ditto`
+extraction without committing or reading the supplied post contents.

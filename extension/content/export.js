@@ -226,16 +226,26 @@
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
-  function zipHeader(size, crc, nameLength, offset, central = false) {
+  function dosTimestamp(value = new Date()) {
+    const year = Math.min(2107, Math.max(1980, value.getFullYear()));
+    return {
+      time: (value.getHours() << 11) | (value.getMinutes() << 5) | Math.floor(value.getSeconds() / 2),
+      date: ((year - 1980) << 9) | ((value.getMonth() + 1) << 5) | value.getDate()
+    };
+  }
+
+  function zipHeader(size, crc, nameLength, offset, timestamp, central = false) {
     const bytes = new Uint8Array(central ? 46 : 30);
     const view = new DataView(bytes.buffer);
     view.setUint32(0, central ? 0x02014b50 : 0x04034b50, true);
     if (central) {
       view.setUint16(4, 20, true); view.setUint16(6, 20, true); view.setUint16(8, 0x800, true);
+      view.setUint16(12, timestamp.time, true); view.setUint16(14, timestamp.date, true);
       view.setUint32(16, crc, true); view.setUint32(20, size, true); view.setUint32(24, size, true);
       view.setUint16(28, nameLength, true); view.setUint32(42, offset, true);
     } else {
       view.setUint16(4, 20, true); view.setUint16(6, 0x800, true);
+      view.setUint16(10, timestamp.time, true); view.setUint16(12, timestamp.date, true);
       view.setUint32(14, crc, true); view.setUint32(18, size, true); view.setUint32(22, size, true);
       view.setUint16(26, nameLength, true);
     }
@@ -251,17 +261,18 @@
     return (crc ^ 0xffffffff) >>> 0;
   }
 
-  function makeZip(entries) {
+  function makeZip(entries, type = "application/epub+zip") {
     const parts = [];
     const central = [];
     let offset = 0;
+    const timestamp = dosTimestamp();
     for (const entry of entries) {
       const name = utf8(entry.name);
       const data = typeof entry.data === "string" ? utf8(entry.data) : entry.data;
       const crc = crc32(data);
-      const local = zipHeader(data.length, crc, name.length, offset, false);
+      const local = zipHeader(data.length, crc, name.length, offset, timestamp, false);
       parts.push(local, name, data);
-      central.push(zipHeader(data.length, crc, name.length, offset, true), name);
+      central.push(zipHeader(data.length, crc, name.length, offset, timestamp, true), name);
       offset += local.length + name.length + data.length;
     }
     const centralSize = central.reduce((sum, part) => sum + part.length, 0);
@@ -270,7 +281,7 @@
     view.setUint32(0, 0x06054b50, true);
     view.setUint16(8, entries.length, true); view.setUint16(10, entries.length, true);
     view.setUint32(12, centralSize, true); view.setUint32(16, offset, true);
-    return new Blob([...parts, ...central, end], { type: "application/epub+zip" });
+    return new Blob([...parts, ...central, end], { type });
   }
 
   function makeEpub(post) {

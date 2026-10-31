@@ -12,6 +12,7 @@
 - Wait through transient Load more disabled states until pagination is exhausted.
 - Prefer validated local API cursor pagination with Load more as a fallback.
 - Title-case the Download Collection control and dialog heading.
+- Emit collection ZIPs with the canonical MIME type and valid entry timestamps.
 
 ## 1.1.1
 
