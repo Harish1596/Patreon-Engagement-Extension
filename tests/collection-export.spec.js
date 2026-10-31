@@ -50,6 +50,47 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
   expect(bytes.includes(Buffer.from("# Third post"))).toBe(true);
 });
 
+test("collection export follows local API cursors without clicking Load more", async ({ page }) => {
+  const content = `<!doctype html><html><head><title>API collection | Patreon</title></head><body><main>
+    <h1>API collection</h1>
+    <div><a class="IhO0fW_gridCard" href="/posts/101?collection=500">First</a></div>
+    <div class="IhO0fW_loadMoreContainer"><button id="load-more">Load more</button></div>
+    <script>window.loadMoreClicks = 0; document.getElementById("load-more").onclick = () => { window.loadMoreClicks++; };</script>
+  </main></body></html>`;
+  await setup(page, { content, url: "https://www.patreon.com/collection/500" });
+  const apiBase = "https://www.patreon.com/api/posts?filter%5Bcampaign_id%5D=900&filter%5Bcollection_id%5D=500&sort=collection_order";
+  await page.route("https://www.patreon.com/api/posts**", async route => {
+    const cursor = new URL(route.request().url()).searchParams.get("page[cursor]");
+    const data = cursor ? [{ id: "103", type: "post" }] : [
+      { id: "101", type: "post" }, { id: "102", type: "post" }
+    ];
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data,
+        links: { next: cursor ? null : `${apiBase}&page%5Bcursor%5D=next-page` },
+        meta: { pagination: { total: 3, cursors: { next: cursor ? null : "next-page" } } }
+      })
+    });
+  });
+  await page.evaluate(url => {
+    const original = performance.getEntriesByType.bind(performance);
+    Object.defineProperty(performance, "getEntriesByType", {
+      configurable: true,
+      value: type => type === "resource" ? [...original(type), { name: url }] : original(type)
+    });
+  }, apiBase);
+
+  await page.getByRole("button", { name: "Download collection", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("3 posts are ready");
+  expect(await page.evaluate(() => requestedCollectionUrls)).toEqual([
+    "https://www.patreon.com/posts/101",
+    "https://www.patreon.com/posts/102",
+    "https://www.patreon.com/posts/103"
+  ]);
+  expect(await page.evaluate(() => window.loadMoreClicks)).toBe(0);
+});
+
 test("collection controls are scoped to collection routes", async ({ page }) => {
   await setup(page);
   await expect(page.getByRole("button", { name: "Download collection", exact: true })).toHaveCount(0);

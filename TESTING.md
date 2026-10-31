@@ -29,12 +29,13 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
-Separate-file collection export, October 31, 2026: **42 Chrome cases passed with
-the Brave-only installed case skipped, all 43 Brave cases passed, and all 16
+Separate-file collection export, October 31, 2026: **43 Chrome cases passed with
+the Brave-only installed case skipped, all 44 Brave cases passed, and all 16
 tooling tests passed**. Collection and detection cases cover route scoping, the
-observed `/posts/<id>` card form, Load more expansion, same-origin filtering,
-transient disabled-button recovery across multiple batches, duplicate removal,
-order, numbered Markdown ZIP entries, content, and filename.
+observed `/posts/<id>` card form, same-origin API cursor pagination without a UI
+click, Load more fallback, transient disabled-button recovery across multiple
+batches, same-origin filtering, duplicate removal, order, numbered Markdown ZIP
+entries, content, and filename.
 The unpacked-Brave case exercises real tab registration, extension
 messaging, post extraction, ZIP download, and repeat-format preparation against
 intercepted synthetic Patreon pages. A background-worker unit case verifies that

@@ -12,6 +12,23 @@
   let open = false;
   let busy = false;
   let route = "";
+  const observedApiRequests = [];
+
+  function rememberApiRequest(value) {
+    try {
+      const url = new URL(value, location.href);
+      if (url.origin !== location.origin || url.pathname !== "/api/posts") return;
+      observedApiRequests.push(url.href);
+      if (observedApiRequests.length > 20) observedApiRequests.shift();
+    } catch { /* Ignore unrelated or malformed resource names. */ }
+  }
+
+  try {
+    const resourceObserver = new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) rememberApiRequest(entry.name);
+    });
+    resourceObserver.observe({ type: "resource", buffered: true });
+  } catch { /* The current performance entries remain available as a fallback. */ }
 
   function element(tag, attributes = {}, text) {
     const node = document.createElement(tag);
@@ -46,6 +63,92 @@
       if (!seen.has(url.href)) { seen.add(url.href); result.push(url.href); }
     }
     return result;
+  }
+
+  function routeCollectionId() {
+    const match = /^\/collection\/([^/]+)\/?$/.exec(location.pathname);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  function validCollectionApiUrl(value, collectionId, campaignId = "") {
+    try {
+      const url = new URL(value, location.href);
+      if (url.origin !== location.origin || url.pathname !== "/api/posts"
+        || url.searchParams.get("filter[collection_id]") !== collectionId
+        || (campaignId && url.searchParams.get("filter[campaign_id]") !== campaignId)) return null;
+      return url;
+    } catch { return null; }
+  }
+
+  function collectionApiTemplate() {
+    const collectionId = routeCollectionId();
+    if (!collectionId) return null;
+    const current = performance.getEntriesByType("resource").map(entry => entry.name);
+    const candidates = [...observedApiRequests, ...current];
+    for (let index = candidates.length - 1; index >= 0; index--) {
+      const url = validCollectionApiUrl(candidates[index], collectionId);
+      if (!url) continue;
+      url.searchParams.delete("page[cursor]");
+      return url;
+    }
+    return null;
+  }
+
+  function nextCollectionApiUrl(payload, template, collectionId, campaignId) {
+    const linked = payload?.links?.next;
+    if (typeof linked === "string" && linked) {
+      const url = validCollectionApiUrl(linked, collectionId, campaignId);
+      if (!url) throw new Error("Patreon returned an invalid collection page link.");
+      return url;
+    }
+    const cursor = payload?.meta?.pagination?.cursors?.next;
+    if (typeof cursor !== "string" || !cursor) return null;
+    const url = new URL(template.href);
+    url.searchParams.set("page[cursor]", cursor);
+    return url;
+  }
+
+  async function apiPostUrls() {
+    const template = collectionApiTemplate();
+    if (!template) return null;
+    const collectionId = routeCollectionId();
+    const campaignId = template.searchParams.get("filter[campaign_id]") || "";
+    const result = [];
+    const seen = new Set();
+    let expectedTotal = null;
+    let pageUrl = template;
+    for (let page = 0; page < 100; page++) {
+      report(`Reading collection pages… ${result.length} found.`);
+      const response = await fetch(pageUrl.href, {
+        credentials: "include",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) throw new Error(`Patreon collection request failed (${response.status}).`);
+      const payload = await response.json();
+      if (!Array.isArray(payload?.data)) throw new Error("Patreon returned an invalid collection page.");
+      const total = Number(payload?.meta?.pagination?.total);
+      if (Number.isSafeInteger(total) && total >= 0) {
+        if (expectedTotal !== null && expectedTotal !== total) {
+          throw new Error("Patreon changed the collection total during preparation.");
+        }
+        expectedTotal = total;
+      }
+      for (const item of payload.data) {
+        if (item?.type !== "post" || !/^\d+$/.test(item.id)) continue;
+        const url = `${location.origin}/posts/${item.id}`;
+        if (!seen.has(url)) { seen.add(url); result.push(url); }
+      }
+      if (result.length > 100) throw new Error("This collection contains more than 100 posts.");
+      pageUrl = nextCollectionApiUrl(payload, template, collectionId, campaignId);
+      if (!pageUrl) {
+        if (expectedTotal !== null && result.length !== expectedTotal) {
+          throw new Error(`Patreon returned ${result.length} of ${expectedTotal} collection posts.`);
+        }
+        if (!result.length) throw new Error("Patreon returned no collection posts.");
+        return result;
+      }
+    }
+    throw new Error("This collection has too many API pages to prepare safely.");
   }
 
   const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -112,8 +215,13 @@
     setBusy(true);
     chooser.src = "about:blank";
     report(prefix || "Finding accessible posts in this collection…");
-    await loadAllPostLinks();
-    const urls = postUrls();
+    let urls;
+    try { urls = await apiPostUrls(); }
+    catch { urls = null; }
+    if (!urls) {
+      await loadAllPostLinks();
+      urls = postUrls();
+    }
     if (!urls.length) throw new Error("No post links were found in this collection.");
     requestToken = crypto.randomUUID();
     const result = await call(api.runtime, "sendMessage", {

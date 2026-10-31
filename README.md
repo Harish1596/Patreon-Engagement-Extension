@@ -141,10 +141,13 @@ accessible text post becomes a separate, numbered file in the order its link
 appears on the collection page; repeated links are removed. Unavailable, locked,
 or unsupported posts are skipped and reported before export.
 
-Before preparing files, the extension repeatedly uses Patreon's collection
-**Load more** control until every card exposed by the page is rendered. A button
-disabled during loading is treated as temporary: the extension waits for Patreon
-to enable it again and continues instead of preparing a partial collection.
+Before preparing files, the extension follows the current page's locally observed,
+same-origin collection pagination request until Patreon returns no next cursor.
+It validates the collection ID and reported total and does not persist the request
+or its response. If that internal request is unavailable or changes, the extension
+falls back to repeatedly using Patreon's **Load more** control. A button disabled
+during loading is treated as temporary: the extension waits for Patreon to enable
+it again and continues instead of preparing a partial collection.
 
 The extension prepares linked posts locally, reusing an already-open matching
 post tab when possible. Otherwise it creates one inactive temporary Patreon tab

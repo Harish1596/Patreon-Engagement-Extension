@@ -76,6 +76,12 @@ The reference combines the following evidence:
   initially rendered `a[class*="_gridCard"]` elements, direct
   `/posts/{numeric-id}?collection={numeric-id}` destinations, and a
   `[class*="_loadMoreContainer"] button`. The sanitized payloads are not committed.
+- **Collection pagination response:** A later October 31 user-supplied request and
+  response establish a same-origin `/api/posts` query filtered by campaign and
+  collection, ordered by `collection_order`. Its page contains 20 post resources;
+  `meta.pagination.total` reports 74 and `meta.pagination.cursors.next` supplies
+  the next cursor. The raw response, IDs, cursor, and post/media content are not
+  committed.
 - **User-confirmed live testing:** On October 25, 2026, the user confirmed live
   Patreon testing was completed for the entire recorded testing history. This
   broader manual confirmation supersedes earlier live-testing-pending notes;
@@ -756,12 +762,16 @@ background so its rectangular canvas does not appear as a black strip in dark mo
 **Intended behavior:** On a pathname matching `/collection/{identifier}`, a
 fixed extension-owned **Download collection** control offers EPUB and Markdown.
 The separate-file option creates one ZIP named from the collection heading. It
-repeatedly activates the collection-scoped Load more control, discovers direct
-`/posts/{numeric-id}` links from collection grid cards, removes duplicates while
-preserving DOM order, and creates numbered title-based files. A temporarily
-disabled Load more control is treated as in-progress: discovery waits for it to
-become usable again and continues until the control remains absent. A stalled
-disabled control produces an error instead of silently preparing a partial set.
+first finds the current page's observed same-origin `/api/posts` request for the
+route's collection ID, removes its cursor, and follows validated next links or
+cursors until none remains. It accepts numeric post resources in API order and
+requires their unique count to match the stable reported total. Request URLs are
+kept only in memory. If no usable API template is available or the private response
+changes, discovery falls back to activating the collection-scoped Load more
+control and reading direct `/posts/{numeric-id}` grid-card links. A temporarily
+disabled control is treated as in-progress; a stalled control produces an error
+instead of silently preparing a partial set. Both paths remove duplicates while
+preserving collection order and create numbered title-based files.
 PDF is deliberately deferred: the current post PDF path uses Chrome's interactive
 Save as PDF UI and cannot package generated PDF bytes into a ZIP.
 
@@ -788,16 +798,18 @@ link/card but not the collection page itself. The later October 31 screenshot an
 sanitized structure establish the collection route, main boundary, grid-card link
 suffix, direct numeric post routes, initial 20-card batch, Load more container, and
 displayed 74-post total described above. They are user-supplied rendered evidence,
-not an automated authenticated session. Chrome fixtures verify route scoping,
-Load more expansion, URL filtering/deduplication, direct post routing, order, ZIP
-filenames/content, and cleanup.
+not an automated authenticated session. The supplied pagination response establishes
+the internal cursor shape but not a public compatibility contract. Chrome fixtures
+verify route scoping, two-page API traversal without clicking Load more, fallback
+expansion, URL filtering/deduplication, direct post routing, order, ZIP filenames/
+content, and cleanup.
 The unpacked-Brave test verifies real extension messaging and download using two
 already-open intercepted synthetic posts; Playwright cannot intercept navigation
 initiated by an extension-created tab, so that creation path remains a manual/live
-check. The supplied page establishes button-based incremental loading, but a full
-post export after exhausting that control remains pending user confirmation.
-Collections over 100 posts, alternate list markup, locked posts, remote images,
-and current live collection ordering remain unverified.
+check. A full post export using the new cursor path remains pending user
+confirmation. The private endpoint can change without notice; Load more remains
+the compatibility fallback. Collections over 100 posts, alternate list markup,
+locked posts, remote images, and current live collection ordering remain unverified.
 
 ## Verification and change history
 
