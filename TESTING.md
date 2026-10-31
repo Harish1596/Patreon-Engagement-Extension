@@ -30,13 +30,15 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 ## Automated checks
 
 Separate-file collection export, October 31, 2026: **42 Chrome cases passed with
-the Brave-only installed case skipped, all 43 Brave cases passed, and all 15
+the Brave-only installed case skipped, all 43 Brave cases passed, and all 16
 tooling tests passed**. Collection and detection cases cover route scoping, the
 observed `/posts/<id>` card form, Load more expansion, same-origin filtering,
 duplicate removal, order, numbered Markdown ZIP entries, content, and filename.
 The unpacked-Brave case exercises real tab registration, extension
 messaging, post extraction, ZIP download, and repeat-format preparation against
-intercepted synthetic Patreon pages. Syntax checks cover 30 JavaScript files.
+intercepted synthetic Patreon pages. A background-worker unit case verifies that
+all unopened collection posts reuse one temporary tab through preparation and
+build, then close it. Syntax checks cover 31 JavaScript files.
 A user-supplied October 31 screenshot and sanitized structure establish 20
 initial grid cards, a Load more control, 74 displayed total posts, and direct
 numeric post paths. Automated export against that authenticated page, locked
@@ -213,7 +215,8 @@ support claims are not evidence that the Reader feature passes this checklist.
 - Open a collection and export separate EPUB and Markdown ZIPs. Confirm every
   accessible linked post appears once, in collection order, with numbered
   title-based filenames and embedded images. Confirm locked or unsupported posts
-  are reported as skipped, temporary tabs are closed, cancellation cleans up,
+  are reported as skipped, the single temporary worker tab is reused and closed,
+  cancellation cleans up,
   and no unrelated post links are included. Confirm Load more is exhausted and
   the prepared count matches Patreon's displayed collection total.
 - Verify each control on public and legitimately accessible member posts,

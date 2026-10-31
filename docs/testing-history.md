@@ -616,3 +616,13 @@ and exhausts Load more before preflight. A sanitized regression adds cards throu
 that control and excludes a non-card post link. A separate detection case covers
 Reader and Download on direct numeric post URLs. Post-fix live confirmation is
 pending.
+
+The initial worker lifecycle created a new temporary tab for every unopened post
+during preflight and again during packaging. After the user reported that the
+resulting tab churn was disruptive, the worker was changed to keep one inactive,
+session-owned tab and navigate it sequentially through every unopened post. The
+same worker survives from preflight through the selected build and is closed on
+completion, cancellation, failure, expiry detection, or collection-tab closure.
+Already-open matching user tabs remain reusable and are never navigated. A Node
+background-worker regression verifies three unopened posts use one created tab,
+navigate it for both phases, and close it once after the build.

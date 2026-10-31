@@ -46,13 +46,20 @@
   async function discardCollection(token) {
     const session = collections.get(token);
     collections.delete(token);
-    if (session) await closeTabs(session.posts.filter(post => post.owned).map(post => post.tabId));
+    if (session?.workerTabId) await closeTabs([session.workerTabId]);
   }
 
-  async function createPostTab(url, session) {
-    const tab = await call(api.tabs, "create", {
-      url, active: false, windowId: session.ownerWindowId
-    });
+  async function navigateWorker(session, url) {
+    if (session.workerTabId) {
+      try {
+        await call(api.tabs, "update", session.workerTabId, { url, active: false });
+        return session.workerTabId;
+      } catch {
+        session.workerTabId = null;
+      }
+    }
+    const tab = await call(api.tabs, "create", { url, active: false, windowId: session.ownerWindowId });
+    session.workerTabId = tab.id;
     return tab.id;
   }
 
@@ -64,6 +71,11 @@
       await call(api.tabs, "update", ownerTabId, { active: true });
       return askPost(tabId, message);
     }
+  }
+
+  async function askWorkerPost(session, url, message) {
+    const tabId = await navigateWorker(session, url);
+    return askOwnedPost(tabId, session.ownerTabId, message);
   }
 
   async function askPost(tabId, message, attempts = 60) {
@@ -83,29 +95,18 @@
     const files = [];
     for (const post of session.posts) {
       if (cancelledCollections.has(token)) throw new Error("The collection export was cancelled.");
-      let tabId = post.tabId;
-      let owned = false;
-      try {
-        if (!tabId) {
-          tabId = await createPostTab(post.url, session);
-          owned = true;
-        }
-        let result;
+      let result;
+      if (post.tabId) {
         try {
-          result = owned
-            ? await askOwnedPost(tabId, session.ownerTabId, { type: "BUILD_POST_EXPORT", format })
-            : await askPost(tabId, { type: "BUILD_POST_EXPORT", format });
-        } catch (error) {
-          if (owned) throw error;
-          tabId = await createPostTab(post.url, session);
-          owned = true;
-          result = await askOwnedPost(tabId, session.ownerTabId, { type: "BUILD_POST_EXPORT", format });
+          result = await askPost(post.tabId, { type: "BUILD_POST_EXPORT", format });
+        } catch {
+          result = await askWorkerPost(session, post.url, { type: "BUILD_POST_EXPORT", format });
         }
-        if (cancelledCollections.has(token)) throw new Error("The collection export was cancelled.");
-        files.push(result.file);
-      } finally {
-        if (owned && tabId) await closeTabs([tabId]);
+      } else {
+        result = await askWorkerPost(session, post.url, { type: "BUILD_POST_EXPORT", format });
       }
+      if (cancelledCollections.has(token)) throw new Error("The collection export was cancelled.");
+      files.push(result.file);
     }
     return files;
   }
@@ -118,55 +119,45 @@
     }
     cancelledCollections.delete(message.token);
     await discardCollection(message.token);
-    const posts = [];
-    let skipped = 0;
+    const session = {
+      ownerTabId: sender.tab.id,
+      ownerWindowId: sender.tab.windowId,
+      workerTabId: null,
+      posts: [],
+      skipped: 0,
+      expires: Date.now() + 5 * 60_000
+    };
     try {
       for (const url of urls) {
         const existing = [...knownPosts].find(([, postUrl]) => postUrl === url);
-        const owned = !existing;
-        const tab = existing ? { id: existing[0] }
-          : { id: await createPostTab(url, { ownerWindowId: sender.tab.windowId }) };
         try {
-          const result = owned
-            ? await askOwnedPost(tab.id, sender.tab.id, { type: "DESCRIBE_POST_EXPORT" })
-            : await askPost(tab.id, { type: "DESCRIBE_POST_EXPORT" });
+          const result = existing
+            ? await askPost(existing[0], { type: "DESCRIBE_POST_EXPORT" })
+            : await askWorkerPost(session, url, { type: "DESCRIBE_POST_EXPORT" });
           if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
-          posts.push({
-            tabId: owned ? null : tab.id,
-            owned: false,
+          session.posts.push({
+            tabId: existing ? existing[0] : null,
             url,
             title: result.post.title,
             origins: result.post.origins
           });
-          if (owned) await closeTabs([tab.id]);
         } catch (error) {
-          if (cancelledCollections.has(message.token)) {
-            if (owned) await closeTabs([tab.id]);
-            throw error;
-          }
-          skipped++;
-          if (owned) await closeTabs([tab.id]);
+          if (cancelledCollections.has(message.token)) throw error;
+          session.skipped++;
         }
       }
-      if (!posts.length) throw new Error("No accessible text posts in this collection could be prepared.");
+      if (!session.posts.length) throw new Error("No accessible text posts in this collection could be prepared.");
       if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
-      const session = {
-        ownerTabId: sender.tab.id,
-        ownerWindowId: sender.tab.windowId,
-        posts,
-        skipped,
-        expires: Date.now() + 5 * 60_000
-      };
       collections.set(message.token, session);
       cancelledCollections.delete(message.token);
       return {
         registered: true,
-        count: posts.length,
-        skipped,
-        origins: [...new Set(posts.flatMap(post => post.origins))]
+        count: session.posts.length,
+        skipped: session.skipped,
+        origins: [...new Set(session.posts.flatMap(post => post.origins))]
       };
     } catch (error) {
-      await closeTabs(posts.filter(post => post.owned).map(post => post.tabId));
+      if (session.workerTabId) await closeTabs([session.workerTabId]);
       cancelledCollections.delete(message.token);
       throw error;
     }
@@ -344,5 +335,11 @@
     return true;
   });
 
-  api.tabs.onRemoved.addListener(tabId => knownPosts.delete(tabId));
+  api.tabs.onRemoved.addListener(tabId => {
+    knownPosts.delete(tabId);
+    for (const [token, session] of collections) {
+      if (session.ownerTabId === tabId) discardCollection(token);
+      else if (session.workerTabId === tabId) session.workerTabId = null;
+    }
+  });
 })();

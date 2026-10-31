@@ -765,8 +765,11 @@ Save as PDF UI and cannot package generated PDF bytes into a ZIP.
 The worker prepares each linked post through its normal rendered post page. Post
 content scripts register their own tab URL with the worker, allowing an already
 open matching tab to be reused without the broad `tabs` permission. Otherwise the
-worker creates one temporary Patreon tab at a time, immediately returns to the
-collection tab, and closes that tab after the post is prepared or packaged.
+worker creates one inactive temporary Patreon tab and navigates that same tab
+through unopened posts in sequence. If Chromium defers the inactive tab, the
+worker briefly activates it and immediately returns to the collection. The tab
+remains session-owned across preflight and packaging, then closes on completion,
+cancellation, failure, expiry detection, or collection-tab closure.
 The preflight gathers only exact remote-image origins before the packaged chooser
 enables its direct user-gesture permission request. After approval, each post uses
 the same sanitized extraction and embedded-media path as individual export.

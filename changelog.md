@@ -8,6 +8,7 @@
 - Use the sanitized post title as the default filename for every export format.
 - Add separate-file collection export as a ZIP of ordered EPUB or Markdown posts.
 - Support direct numeric collection post links and expand every Load more batch.
+- Reuse one temporary worker tab throughout each collection export.
 
 ## 1.1.1
 
