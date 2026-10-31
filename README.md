@@ -160,6 +160,10 @@ permissions use the same exact-origin prompt as individual post export. PDF is
 not included in this first separate-file implementation because browser-native
 Save as PDF cannot be placed into a ZIP without a dedicated PDF generator.
 
+Generated EPUB and Markdown data crosses extension boundaries in bounded chunks,
+then the collection page assembles the ZIP locally. No message contains a complete
+large post or the complete collection payload.
+
 Post pages are recognized locally using this pathname structure:
 
 ```text

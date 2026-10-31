@@ -29,6 +29,15 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Chunked collection transfer, November 1, 2026: **43 Chrome cases passed with the
+Brave-only installed case skipped, all 44 Brave cases passed, and all 16 tooling
+tests passed**; syntax checks cover 31 JavaScript files. The background regression
+uses a synthetic file larger than two chunks and verifies that both messaging
+boundaries transfer no more than 1 MiB of file data per response, return metadata
+instead of aggregate contents, reconstruct the exact declared length, finish the
+session, and close both phase workers. The installed Brave case verifies the real
+content-script/service-worker collection path.
+
 Collection worker cleanup, October 31, 2026: all 16 tooling tests passed after
 changing the worker lifecycle to close the single reusable tab at the end of
 preflight and again at the end of file generation. The regression verifies three

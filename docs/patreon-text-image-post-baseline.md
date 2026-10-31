@@ -789,6 +789,12 @@ failure, expiry detection, and collection-tab closure also clean up any active w
 The preflight gathers only exact remote-image origins before the packaged chooser
 enables its direct user-gesture permission request. After approval, each post uses
 the same sanitized extraction and embedded-media path as individual export.
+Generated file metadata crosses first; file contents are then pulled in at most
+1 MiB character chunks from the post tab to the background and from the background
+to the collection page. Completed source chunks are released, the final ZIP is
+assembled locally on the collection page, and transfer failure cancels the session.
+This avoids the browser's 64 MiB per-message limit without changing embedded-media
+behavior.
 
 Unavailable or unsupported post pages are skipped during preflight and their count
 is shown. A failure while building a post after successful preflight aborts the ZIP

@@ -83,7 +83,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             });
           }
           if (message.type === "BUILD_COLLECTION_EXPORT") {
-            return globalThis.collectionBuildResult || {
+            const result = globalThis.collectionBuildResult || {
               files: [
                 { title: "First post", extension: "md", encoding: "text", data: "# First post" },
                 { title: "Second post", extension: "md", encoding: "text", data: "# Second post" },
@@ -91,6 +91,24 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
               ],
               skipped: 0
             };
+            if (result.error) return result;
+            globalThis.collectionTransferFiles = result.files;
+            globalThis.collectionChunkSizes = [];
+            return {
+              files: result.files.map(({ data, ...file }) => ({ ...file, length: data.length })),
+              skipped: result.skipped
+            };
+          }
+          if (message.type === "GET_COLLECTION_EXPORT_CHUNK") {
+            const file = globalThis.collectionTransferFiles?.[message.index];
+            if (!file) return { error: "Missing synthetic collection file." };
+            const data = file.data.slice(message.offset, message.offset + 1024 * 1024);
+            globalThis.collectionChunkSizes.push(data.length);
+            return { data, done: message.offset + data.length === file.data.length };
+          }
+          if (message.type === "FINISH_COLLECTION_EXPORT") {
+            globalThis.collectionTransferFiles = null;
+            return { finished: true };
           }
           if (message.type === "CANCEL_COLLECTION_EXPORT") {
             globalThis.collectionExportCancelled = true;

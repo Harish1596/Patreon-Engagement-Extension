@@ -61,6 +61,7 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
   expect(bytes.includes(Buffer.from("# First post"))).toBe(true);
   expect(bytes.includes(Buffer.from("# Second post"))).toBe(true);
   expect(bytes.includes(Buffer.from("# Third post"))).toBe(true);
+  expect(await page.evaluate(() => collectionChunkSizes.every(size => size <= 1024 * 1024))).toBe(true);
 });
 
 test("collection export follows local API cursors without clicking Load more", async ({ page }) => {

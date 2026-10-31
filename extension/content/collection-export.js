@@ -13,6 +13,7 @@
   let busy = false;
   let route = "";
   const observedApiRequests = [];
+  const MAX_TRANSFER_CHARS = 1024 * 1024;
 
   function rememberApiRequest(value) {
     try {
@@ -246,6 +247,32 @@
     return { name: `${number} - ${fileStem(file.title)}.${file.extension}`, data };
   }
 
+  async function receiveFile(token, metadata, index) {
+    if (!metadata || typeof metadata.title !== "string"
+      || !["md", "epub"].includes(metadata.extension)
+      || !["text", "base64"].includes(metadata.encoding)
+      || !Number.isSafeInteger(metadata.length) || metadata.length < 0) {
+      throw new Error("The collection returned invalid file metadata.");
+    }
+    const chunks = [];
+    let offset = 0;
+    while (offset < metadata.length) {
+      const result = await call(api.runtime, "sendMessage", {
+        type: "GET_COLLECTION_EXPORT_CHUNK", token, index, offset
+      });
+      if (typeof result?.data !== "string" || !result.data.length
+        || result.data.length > MAX_TRANSFER_CHARS) {
+        throw new Error(result?.error || "The collection returned an invalid file chunk.");
+      }
+      chunks.push(result.data);
+      offset += result.data.length;
+      if (Boolean(result.done) !== (offset === metadata.length)) {
+        throw new Error("A collection file ended at an unexpected position.");
+      }
+    }
+    return { ...metadata, data: chunks.join("") };
+  }
+
   async function run(format) {
     if (busy) return;
     setBusy(true);
@@ -255,11 +282,23 @@
         type: "BUILD_COLLECTION_EXPORT", token: requestToken, format
       });
       if (!result?.files?.length) throw new Error(result?.error || "The collection did not produce any files.");
-      const entries = result.files.map((file, index) => decodeFile(file, index, result.files.length));
+      const entries = [];
+      for (let index = 0; index < result.files.length; index++) {
+        report(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files… ${index + 1} of ${result.files.length}.`);
+        const file = await receiveFile(requestToken, result.files[index], index);
+        entries.push(decodeFile(file, index, result.files.length));
+      }
       saveBlob(makeZip(entries, "application/zip"), `${fileStem(collectionTitle())}.zip`);
+      const finished = await call(api.runtime, "sendMessage", {
+        type: "FINISH_COLLECTION_EXPORT", token: requestToken
+      });
+      if (!finished?.finished) throw new Error(finished?.error || "The collection transfer could not be completed.");
       requestToken = "";
       await prepareSession(`${format === "epub" ? "EPUB" : "Markdown"} ZIP download started.`);
     } catch (error) {
+      if (requestToken) call(api.runtime, "sendMessage", {
+        type: "CANCEL_COLLECTION_EXPORT", token: requestToken
+      }).catch(() => {});
       requestToken = "";
       chooser.src = "about:blank";
       report(error.message || "The collection could not be exported.", "error");

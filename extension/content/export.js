@@ -13,6 +13,8 @@
   let route = "";
   let open = false;
   let busy = false;
+  const portableTransfers = new Map();
+  const MAX_TRANSFER_CHARS = 1024 * 1024;
   const MAX_EXPORT_IMAGE_BYTES = 100 * 1024 * 1024;
 
   const utf8 = (value) => new TextEncoder().encode(value);
@@ -476,9 +478,41 @@
       return;
     }
     if (message.type === "BUILD_POST_EXPORT") {
-      buildPortableFile(message.format).then((file) => respond({ file }))
+      if (typeof message.transferId !== "string" || !/^[0-9a-f-]{36}$/i.test(message.transferId)) {
+        respond({ error: "The post export transfer is invalid." });
+        return;
+      }
+      buildPortableFile(message.format).then((file) => {
+        portableTransfers.set(message.transferId, file);
+        respond({ file: {
+          title: file.title,
+          extension: file.extension,
+          encoding: file.encoding,
+          length: file.data.length
+        } });
+      })
         .catch((error) => respond({ error: error.message || "The post could not be exported." }));
       return true;
+    }
+    if (message.type === "GET_POST_EXPORT_CHUNK") {
+      const file = portableTransfers.get(message.transferId);
+      const offset = message.offset;
+      if (!file || !Number.isSafeInteger(offset) || offset < 0 || offset > file.data.length) {
+        respond({ error: "The post export transfer expired or is invalid." });
+        return;
+      }
+      let end = Math.min(file.data.length, offset + MAX_TRANSFER_CHARS);
+      if (end < file.data.length && /[\uD800-\uDBFF]/.test(file.data[end - 1])) end--;
+      const data = file.data.slice(offset, end);
+      const done = end === file.data.length;
+      if (done) portableTransfers.delete(message.transferId);
+      respond({ data, done });
+      return;
+    }
+    if (message.type === "RELEASE_POST_EXPORT") {
+      portableTransfers.delete(message.transferId);
+      respond({ released: true });
+      return;
     }
     if (message.type !== "POST_EXPORT_CHOICE") return;
     if (!open || message.token !== requestToken) {

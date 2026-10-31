@@ -669,3 +669,22 @@ creates one fresh worker and closes it during the existing terminal cleanup. The
 tooling regression verifies three unopened posts use one created/navigated/closed
 tab during preflight and one during generation, with no worker retained between
 phases or after completion.
+
+### Chunked collection transfer — November 1, 2026
+
+Live EPUB and Markdown attempts then failed with Chrome/Brave's “Message exceeded
+maximum allowed size of 64MiB” error. Each post returned its complete encoded file
+in one tab message, and the background later returned every completed file in one
+collection message. EPUB Base64 and Markdown inline-image data amplified those
+aggregate JSON payloads before ZIP assembly.
+
+Both boundaries now exchange metadata first and pull file data in at most 1 MiB
+character chunks. Post transfers are released after the background reconstructs
+them; collection-file data is released after its final chunk; successful completion
+or any cancellation discards the session. The collection page constructs the ZIP
+only after reconstructing each declared file length. A tooling regression uses a
+synthetic file larger than two chunks and checks chunk bounds, metadata-only build
+responses, exact reconstruction, finalization, and worker cleanup. The full final
+matrix passed 43 Chrome cases plus one expected skip, all 44 Brave cases, all 16
+tooling tests, and syntax checks for 31 JavaScript files. Live post-fix confirmation
+remains pending.

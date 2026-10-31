@@ -6,6 +6,7 @@
   const collections = new Map();
   const knownPosts = new Map();
   const cancelledCollections = new Set();
+  const MAX_TRANSFER_CHARS = 1024 * 1024;
 
   function call(target, method, ...args) {
     if (globalThis.browser?.runtime) return target[method](...args);
@@ -97,22 +98,64 @@
     throw lastError || new Error("The post did not become ready for export.");
   }
 
+  function validFileMetadata(file) {
+    return file && typeof file.title === "string"
+      && ["md", "epub"].includes(file.extension)
+      && ["text", "base64"].includes(file.encoding)
+      && Number.isSafeInteger(file.length) && file.length >= 0;
+  }
+
+  async function pullPostFile(tabId, transferId, metadata) {
+    if (!validFileMetadata(metadata)) throw new Error("The post returned invalid export metadata.");
+    const chunks = [];
+    let offset = 0;
+    try {
+      while (offset < metadata.length) {
+        const result = await askPost(tabId, {
+          type: "GET_POST_EXPORT_CHUNK", transferId, offset
+        });
+        if (typeof result.data !== "string" || !result.data.length
+          || result.data.length > MAX_TRANSFER_CHARS) {
+          throw new Error("The post returned an invalid export chunk.");
+        }
+        chunks.push(result.data);
+        offset += result.data.length;
+        if (Boolean(result.done) !== (offset === metadata.length)) {
+          throw new Error("The post export ended at an unexpected position.");
+        }
+      }
+      if (offset !== metadata.length) throw new Error("The post export is incomplete.");
+      return { ...metadata, data: chunks.join("") };
+    } finally {
+      call(api.tabs, "sendMessage", tabId, { type: "RELEASE_POST_EXPORT", transferId }).catch(() => {});
+    }
+  }
+
   async function buildCollection(token, session, format) {
     const files = [];
     for (const post of session.posts) {
       if (cancelledCollections.has(token)) throw new Error("The collection export was cancelled.");
       let result;
+      let usedTabId;
+      const transferId = crypto.randomUUID();
+      const request = { type: "BUILD_POST_EXPORT", format, transferId };
       if (post.tabId) {
         try {
-          result = await askPost(post.tabId, { type: "BUILD_POST_EXPORT", format });
+          result = await askPost(post.tabId, request);
+          usedTabId = post.tabId;
         } catch {
-          result = await askWorkerPost(session, post.url, { type: "BUILD_POST_EXPORT", format });
+          result = await askWorkerPost(session, post.url, request);
+          usedTabId = session.workerTabId;
         }
       } else {
-        result = await askWorkerPost(session, post.url, { type: "BUILD_POST_EXPORT", format });
+        result = await askWorkerPost(session, post.url, request);
+        usedTabId = session.workerTabId;
       }
-      if (cancelledCollections.has(token)) throw new Error("The collection export was cancelled.");
-      files.push(result.file);
+      if (cancelledCollections.has(token)) {
+        call(api.tabs, "sendMessage", usedTabId, { type: "RELEASE_POST_EXPORT", transferId }).catch(() => {});
+        throw new Error("The collection export was cancelled.");
+      }
+      files.push(await pullPostFile(usedTabId, transferId, result.file));
     }
     return files;
   }
@@ -188,7 +231,8 @@
       if (["REGISTER_POST_EXPORT", "GET_POST_EXPORT_REQUEST", "DELIVER_POST_EXPORT", "FETCH_POST_EXPORT_IMAGE",
         "REGISTER_EXPORTABLE_POST_TAB", "UNREGISTER_EXPORTABLE_POST_TAB",
         "PREPARE_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_REQUEST", "DELIVER_COLLECTION_EXPORT",
-        "BUILD_COLLECTION_EXPORT", "CANCEL_COLLECTION_EXPORT"].includes(message.type)) {
+        "BUILD_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_CHUNK", "FINISH_COLLECTION_EXPORT",
+        "CANCEL_COLLECTION_EXPORT"].includes(message.type)) {
         respond({ error: "Post export requests must come from Patreon." });
       }
       return;
@@ -295,14 +339,55 @@
         return;
       }
       buildCollection(message.token, session, message.format).then(async files => {
-        const skipped = session.skipped;
-        await discardCollection(message.token);
+        await closeWorker(session);
+        session.files = files;
+        session.expires = Date.now() + 5 * 60_000;
         cancelledCollections.delete(message.token);
-        respond({ files, skipped });
+        respond({
+          files: files.map(file => ({
+            title: file.title,
+            extension: file.extension,
+            encoding: file.encoding,
+            length: file.data.length
+          })),
+          skipped: session.skipped
+        });
       }).catch(async error => {
         await discardCollection(message.token);
         cancelledCollections.delete(message.token);
         respond({ error: error.message || "One of the collection posts could not be exported." });
+      });
+      return true;
+    }
+
+    if (message.type === "GET_COLLECTION_EXPORT_CHUNK") {
+      const session = collectionFor(message, sender);
+      const index = message.index;
+      const file = Number.isSafeInteger(index) && index >= 0 ? session?.files?.[index] : null;
+      const offset = message.offset;
+      if (!file || typeof file.data !== "string" || !Number.isSafeInteger(offset)
+        || offset < 0 || offset > file.data.length) {
+        respond({ error: "The collection file transfer expired or is invalid." });
+        return;
+      }
+      let end = Math.min(file.data.length, offset + MAX_TRANSFER_CHARS);
+      if (end < file.data.length && /[\uD800-\uDBFF]/.test(file.data[end - 1])) end--;
+      const data = file.data.slice(offset, end);
+      const done = end === file.data.length;
+      if (done) file.data = null;
+      respond({ data, done });
+      return;
+    }
+
+    if (message.type === "FINISH_COLLECTION_EXPORT") {
+      const session = collectionFor(message, sender);
+      if (!session) {
+        respond({ error: "The collection export request expired. Reopen Download." });
+        return;
+      }
+      discardCollection(message.token).then(() => {
+        cancelledCollections.delete(message.token);
+        respond({ finished: true });
       });
       return true;
     }

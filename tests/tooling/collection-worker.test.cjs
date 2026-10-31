@@ -10,8 +10,10 @@ function backgroundHarness() {
   let listener;
   let removedListener;
   let nextTabId = 10;
+  let nextTransferId = 1;
   const tabUrls = new Map();
-  const calls = { create: [], update: [], remove: [] };
+  const transfers = new Map();
+  const calls = { create: [], update: [], remove: [], workerChunks: [] };
   const browser = {
     runtime: {
       id: "fixture-extension",
@@ -36,7 +38,19 @@ function backgroundHarness() {
           return { post: { title: `Post ${id}`, origins: [] } };
         }
         if (message.type === "BUILD_POST_EXPORT") {
-          return { file: { title: `Post ${id}`, extension: "md", encoding: "text", data: id } };
+          const data = id === "101" ? "x".repeat(2 * 1024 * 1024 + 17) : id;
+          transfers.set(message.transferId, data);
+          return { file: { title: `Post ${id}`, extension: "md", encoding: "text", length: data.length } };
+        }
+        if (message.type === "GET_POST_EXPORT_CHUNK") {
+          const source = transfers.get(message.transferId);
+          const data = source.slice(message.offset, message.offset + 1024 * 1024);
+          calls.workerChunks.push(data.length);
+          return { data, done: message.offset + data.length === source.length };
+        }
+        if (message.type === "RELEASE_POST_EXPORT") {
+          transfers.delete(message.transferId);
+          return { released: true };
         }
         return { delivered: true };
       },
@@ -54,6 +68,7 @@ function backgroundHarness() {
   };
   vm.runInNewContext(source, {
     browser, URL, Map, Set, Promise, Uint8Array, Date, Error, Array,
+    crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
     setTimeout, clearTimeout, fetch: async () => { throw new Error("Unexpected fetch"); },
     btoa: value => Buffer.from(value, "binary").toString("base64")
   });
@@ -70,7 +85,7 @@ function backgroundHarness() {
   return { calls, send };
 }
 
-test("collection export closes each phase's reusable temporary worker tab", async () => {
+test("collection export chunks payloads and closes each phase's reusable worker", async () => {
   const { calls, send } = backgroundHarness();
   const token = "11111111-1111-4111-8111-111111111111";
   const urls = [101, 102, 103].map(id => `https://www.patreon.com/posts/${id}`);
@@ -83,7 +98,20 @@ test("collection export closes each phase's reusable temporary worker tab", asyn
 
   const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
   assert.equal(built.files.length, 3);
+  assert.equal(built.files[0].data, undefined);
+  assert.equal(built.files[0].length, 2 * 1024 * 1024 + 17);
+  let received = "";
+  while (received.length < built.files[0].length) {
+    const chunk = await send({
+      type: "GET_COLLECTION_EXPORT_CHUNK", token, index: 0, offset: received.length
+    });
+    assert.ok(chunk.data.length <= 1024 * 1024);
+    received += chunk.data;
+  }
+  assert.equal(received.length, built.files[0].length);
+  assert.ok(calls.workerChunks.every(length => length <= 1024 * 1024));
   assert.equal(calls.create.length, 2);
   assert.deepEqual(calls.update.map(call => call.url), [...urls.slice(1), ...urls.slice(1)]);
   assert.deepEqual(calls.remove, calls.create.map(call => call.id));
+  assert.equal((await send({ type: "FINISH_COLLECTION_EXPORT", token })).finished, true);
 });
