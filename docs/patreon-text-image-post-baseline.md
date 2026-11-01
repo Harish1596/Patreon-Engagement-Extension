@@ -756,11 +756,20 @@ No new Patreon markup observation is claimed by this feature as of October 29,
 2026; the original October 25 capture remains the live structural baseline.
 The chooser frame explicitly matches the surrounding white or `#232326` panel
 background so its rectangular canvas does not appear as a black strip in dark mode.
+The post dialog displays an indeterminate activity bar while registering its
+chooser and preparing post text and inline media. It hides the bar after the
+download or print handoff starts and on preparation errors, while the live status
+message retains the result.
 
 ## Collection export boundary (unreleased)
 
 **Intended behavior:** On a pathname matching `/collection/{identifier}`, a
 fixed extension-owned **Download Collection** control offers EPUB and Markdown.
+Its dialog shows an extension-owned progress bar from discovery through ZIP
+packaging. Discovery and packaging are indeterminate when no trustworthy total is
+available; preparation, generation, and page-side file receipt report completed
+post counts against the validated total. Completion and error states hide the bar
+while retaining the live status message.
 The separate-file option creates one ZIP named from the collection heading. It
 first finds the current page's observed same-origin `/api/posts` request for the
 route's collection ID, removes its cursor, and follows validated next links or

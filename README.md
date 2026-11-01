@@ -124,6 +124,10 @@ recommendation cards, membership prompts, navigation, or other surrounding UI.
 - **Markdown** downloads one `.md` file with images embedded as data URLs and
   the same three details above the title, also named from the post title.
 
+The download dialog shows an accessible activity bar while it prepares the
+available options, post text, and inline images, then clears it when the download
+starts or an error is reported.
+
 Export processing happens locally. For remote inline images, the browser asks
 for access to each exact media origin when the user starts an export. The
 extension then fetches only image URLs found inside that post body. Denying
@@ -140,6 +144,11 @@ EPUB or Markdown. The extension creates one ZIP named after the collection. Each
 accessible text post becomes a separate, numbered file in the order its link
 appears on the collection page; repeated links are removed. Unavailable, locked,
 or unsupported posts are skipped and reported before export.
+
+The collection dialog keeps an activity bar visible throughout discovery,
+preparation, file generation, transfer, and ZIP packaging. It reports completed
+posts against the known total during preparation, generation, and transfer;
+stages without a reliable total use an indeterminate bar.
 
 Before preparing files, the extension follows the current page's locally observed,
 same-origin collection pagination request until Patreon returns no next cursor.

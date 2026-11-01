@@ -139,6 +139,7 @@
         const url = `${location.origin}/posts/${item.id}`;
         if (!seen.has(url)) { seen.add(url); result.push(url); }
       }
+      setProgress("Finding collection posts", result.length, expectedTotal);
       if (result.length > 100) throw new Error("This collection contains more than 100 posts.");
       pageUrl = nextCollectionApiUrl(payload, template, collectionId, campaignId);
       if (!pageUrl) {
@@ -202,6 +203,26 @@
     if (status) { status.textContent = message; status.dataset.tone = tone; }
   }
 
+  function setProgress(label = "", current, total) {
+    const progress = shadow?.querySelector("#collection-export-progress");
+    if (!progress) return;
+    if (!label) {
+      progress.hidden = true;
+      progress.removeAttribute("value");
+      progress.removeAttribute("aria-valuetext");
+      return;
+    }
+    progress.hidden = false;
+    if (Number.isSafeInteger(current) && Number.isSafeInteger(total) && total > 0) {
+      progress.max = total;
+      progress.value = Math.min(total, Math.max(0, current));
+      progress.setAttribute("aria-valuetext", `${label}: ${progress.value} of ${total}`);
+    } else {
+      progress.removeAttribute("value");
+      progress.setAttribute("aria-valuetext", label);
+    }
+  }
+
   function setBusy(value) {
     busy = value;
     const close = shadow?.querySelector(".close");
@@ -215,6 +236,7 @@
   async function prepareSession(prefix = "") {
     setBusy(true);
     chooser.src = "about:blank";
+    setProgress("Finding collection posts");
     report(prefix || "Finding accessible posts in this collection…");
     let urls;
     try { urls = await apiPostUrls(); }
@@ -225,6 +247,7 @@
     }
     if (!urls.length) throw new Error("No post links were found in this collection.");
     requestToken = crypto.randomUUID();
+    setProgress("Preparing posts", 0, urls.length);
     const result = await call(api.runtime, "sendMessage", {
       type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls
     });
@@ -232,6 +255,7 @@
     loadChooser();
     const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
     report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${skipped}`, prefix ? "success" : "");
+    setProgress();
     setBusy(false);
   }
 
@@ -276,6 +300,7 @@
   async function run(format) {
     if (busy) return;
     setBusy(true);
+    setProgress(`Building ${format === "epub" ? "EPUB" : "Markdown"} files`);
     report(`Building ${format === "epub" ? "EPUB" : "Markdown"} files…`);
     try {
       const result = await call(api.runtime, "sendMessage", {
@@ -285,9 +310,13 @@
       const entries = [];
       for (let index = 0; index < result.files.length; index++) {
         report(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files… ${index + 1} of ${result.files.length}.`);
+        setProgress(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files`, index, result.files.length);
         const file = await receiveFile(requestToken, result.files[index], index);
         entries.push(decodeFile(file, index, result.files.length));
+        setProgress(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files`, index + 1, result.files.length);
       }
+      report("Packaging collection ZIP…");
+      setProgress("Packaging collection ZIP");
       saveBlob(makeZip(entries, "application/zip", true), `${fileStem(collectionTitle())}.zip`);
       const finished = await call(api.runtime, "sendMessage", {
         type: "FINISH_COLLECTION_EXPORT", token: requestToken
@@ -302,6 +331,7 @@
       requestToken = "";
       chooser.src = "about:blank";
       report(error.message || "The collection could not be exported.", "error");
+      setProgress();
       setBusy(false);
     }
   }
@@ -323,7 +353,7 @@
     host = element("div", { "data-patreon-collection-download": "" });
     shadow = host.attachShadow({ mode: "open" });
     const style = element("style");
-    style.textContent = `:host{all:initial}*{box-sizing:border-box}.trigger{position:fixed;right:20px;bottom:20px;z-index:2147483646;border:1px solid #dedee3;border-radius:999px;padding:10px 16px;color:#202026;background:#fff;box-shadow:0 8px 30px #0003;font:650 14px/1.4 system-ui,sans-serif;cursor:pointer}.trigger:hover{background:#f4f4f6}section{position:fixed;right:20px;bottom:74px;z-index:2147483647;width:340px;max-width:calc(100vw - 24px);padding:18px;border:1px solid #dedee3;border-radius:16px;color:#202026;background:#fff;box-shadow:0 12px 48px #0003;font:14px/1.45 system-ui,sans-serif}[hidden]{display:none!important}header{display:flex;align-items:start;justify-content:space-between;gap:12px}h2{margin:0;font-size:18px}p{margin:6px 0 14px;color:#686872;font-size:12px}.close{padding:5px 9px;border:1px solid #dedee3;border-radius:8px;color:inherit;background:#f4f4f6;font:inherit;cursor:pointer}.close:disabled{opacity:.5;cursor:default}iframe{display:block;width:100%;height:42px;border:0}#collection-export-status{min-height:38px;margin:13px 0 0}[data-tone=error]{color:#a32037}[data-tone=success]{color:#216e39}:focus-visible{outline:2px solid #b82d47;outline-offset:2px}@media(prefers-color-scheme:dark){.trigger,section{color:#f2f2f5;background:#232326;border-color:#48484e}.trigger:hover,.close{background:#323237}.close{border-color:#505058}p{color:#b4b4be}[data-tone=error]{color:#ff9bac}[data-tone=success]{color:#82d99b}}`;
+    style.textContent = `:host{all:initial}*{box-sizing:border-box}.trigger{position:fixed;right:20px;bottom:20px;z-index:2147483646;border:1px solid #dedee3;border-radius:999px;padding:10px 16px;color:#202026;background:#fff;box-shadow:0 8px 30px #0003;font:650 14px/1.4 system-ui,sans-serif;cursor:pointer}.trigger:hover{background:#f4f4f6}section{position:fixed;right:20px;bottom:74px;z-index:2147483647;width:340px;max-width:calc(100vw - 24px);padding:18px;border:1px solid #dedee3;border-radius:16px;color:#202026;background:#fff;box-shadow:0 12px 48px #0003;font:14px/1.45 system-ui,sans-serif}[hidden]{display:none!important}header{display:flex;align-items:start;justify-content:space-between;gap:12px}h2{margin:0;font-size:18px}p{margin:6px 0 14px;color:#686872;font-size:12px}.close{padding:5px 9px;border:1px solid #dedee3;border-radius:8px;color:inherit;background:#f4f4f6;font:inherit;cursor:pointer}.close:disabled{opacity:.5;cursor:default}iframe{display:block;width:100%;height:42px;border:0}progress{display:block;width:100%;height:8px;margin:12px 0 0;accent-color:#b82d47}#collection-export-status{min-height:38px;margin:10px 0 0}[data-tone=error]{color:#a32037}[data-tone=success]{color:#216e39}:focus-visible{outline:2px solid #b82d47;outline-offset:2px}@media(prefers-color-scheme:dark){.trigger,section{color:#f2f2f5;background:#232326;border-color:#48484e}.trigger:hover,.close{background:#323237}.close{border-color:#505058}p{color:#b4b4be}[data-tone=error]{color:#ff9bac}[data-tone=success]{color:#82d99b}}`;
     trigger = element("button", {
       type: "button", class: "trigger", "aria-haspopup": "dialog", "aria-expanded": "false"
     }, "Download Collection");
@@ -339,6 +369,7 @@
     dialog.append(header,
       element("p", {}, "Creates a ZIP with one file per accessible text post, in collection order."),
       chooser,
+      element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
       element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
     trigger.addEventListener("click", () => {
       if (open) return close(true);
@@ -347,6 +378,7 @@
       trigger.setAttribute("aria-expanded", "true");
       prepareSession().catch(error => {
         report(error.message || "The collection could not be prepared.", "error");
+        setProgress();
         setBusy(false);
       });
     });
@@ -371,7 +403,20 @@
   }
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
-    if (sender.id !== api.runtime.id || message?.type !== "COLLECTION_EXPORT_CHOICE") return;
+    if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
+    if (message.type === "COLLECTION_EXPORT_PROGRESS") {
+      if (!open || message.token !== requestToken) return;
+      if (!Number.isSafeInteger(message.current) || !Number.isSafeInteger(message.total)
+        || message.current < 0 || message.total < 1 || message.current > message.total) return;
+      const label = message.phase === "prepare"
+        ? "Preparing posts"
+        : `Building ${message.format === "epub" ? "EPUB" : "Markdown"} files`;
+      report(`${label}… ${message.current} of ${message.total}.`);
+      setProgress(label, message.current, message.total);
+      respond({ reported: true });
+      return;
+    }
+    if (message.type !== "COLLECTION_EXPORT_CHOICE") return;
     if (!open || message.token !== requestToken) {
       respond({ error: "The collection export panel is no longer active." });
       return;

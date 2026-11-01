@@ -709,3 +709,24 @@ test uses a synthetic entry spanning multiple stored DEFLATE blocks, asserts met
 passed 43 Chrome cases plus one expected skip, all 44 Brave cases, all 16 tooling
 tests, and syntax checks for 31 JavaScript files. Live post-fix Archive Utility
 confirmation remains pending.
+
+### Download progress feedback — November 1, 2026
+
+Post preparation and multi-stage collection export previously relied only on
+changing status text, leaving long media fetches and large collections without a
+persistent visual activity indicator. The post dialog now exposes an accessible
+indeterminate progress bar while registering download options and preparing text
+and images. The collection dialog covers discovery, preparation, generation,
+page-side chunk receipt, and ZIP packaging; preparation, generation, and receipt
+use completed-post counts, while stages without a reliable total remain
+indeterminate. Completion and errors hide the bar and preserve the status result.
+
+The background worker sends owner-tab-only progress messages before and after
+each prepared or generated post. Tests verify the three-post `0, 1, 2, 3`
+sequences, visible post progress during a delayed remote image request, and the
+collection bar's discovery-to-ready lifecycle. A yield originally placed before
+the synthetic ZIP download was removed because it could discard Chromium's
+transient user activation and block the download. The final matrix passed 43
+Chrome cases plus one expected skip, all 44 Brave cases, all 16 tooling tests,
+and syntax checks for 31 JavaScript files. No new live Patreon markup observation
+is claimed by this change.

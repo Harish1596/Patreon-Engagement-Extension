@@ -29,6 +29,15 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Download progress, November 1, 2026: **43 Chrome cases passed with the Brave-only
+installed case skipped, all 44 Brave cases passed, and all 16 tooling tests
+passed**; syntax checks cover 31 JavaScript files. The post regression holds a
+remote image request open and verifies that the accessible activity bar remains
+visible until the download starts. The collection regression verifies that the
+bar appears immediately during discovery and clears when all posts are ready;
+the background-worker test verifies exact `0..N` preparation and generation
+updates for a three-post collection.
+
 Outer ZIP deflate compatibility, November 1, 2026: **43 Chrome cases passed with
 the Brave-only installed case skipped, all 44 Brave cases passed, and all 16
 tooling tests passed**; syntax checks cover 31 JavaScript files. The focused
@@ -256,6 +265,9 @@ support claims are not evidence that the Reader feature passes this checklist.
   cancellation cleans up,
   and no unrelated post links are included. Confirm Load more is exhausted and
   the prepared count matches Patreon's displayed collection total.
+- While opening a post download and exporting a collection, confirm the progress
+  bar is visible during work, advances by post when totals are known, and clears
+  on completion or error without blocking another format choice.
 - Verify each control on public and legitimately accessible member posts,
   locked previews, and posts containing headings, lists, quotes, links, images,
   and embeds. Do not use the extension to obtain inaccessible content.

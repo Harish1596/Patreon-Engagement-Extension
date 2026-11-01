@@ -371,6 +371,14 @@
     if (status) { status.textContent = message; status.dataset.tone = tone; }
   }
 
+  function setProgress(label = "") {
+    const progress = shadow?.querySelector("#export-progress");
+    if (!progress) return;
+    progress.hidden = !label;
+    if (label) progress.setAttribute("aria-valuetext", label);
+    else progress.removeAttribute("aria-valuetext");
+  }
+
   function loadChooser() {
     chooser.src = `${api.runtime.getURL("export/chooser.html")}?instance=${crypto.randomUUID()}#${requestToken}`;
   }
@@ -378,6 +386,7 @@
   async function run(format) {
     if (busy) return;
     busy = true;
+    setProgress("Preparing the post and its images");
     report("Preparing the post and its images…");
     try {
       const post = await prepare();
@@ -395,6 +404,7 @@
       report(error.message || "The post could not be exported.", "error");
     } finally {
       busy = false;
+      setProgress();
       if (open && chooser?.isConnected && requestToken) {
         loadChooser();
       }
@@ -413,7 +423,7 @@
     host = element("div", { "data-patreon-download-panel": "" });
     shadow = host.attachShadow({ mode: "open" });
     const style = element("style");
-    style.textContent = `:host{all:initial}*{box-sizing:border-box}[hidden]{display:none!important}section{position:fixed;z-index:2147483647;width:300px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;padding:18px;border:1px solid #dedee3;border-radius:16px;color:#202026;background:#fff;box-shadow:0 12px 48px #0003;font:14px/1.45 system-ui,sans-serif}header{display:flex;align-items:start;justify-content:space-between;gap:12px}h2{margin:0;font-size:18px}p{margin:5px 0 14px;color:#686872;font-size:12px}button{font:inherit;cursor:pointer;color:inherit;background:#f4f4f6;border:1px solid #dedee3;border-radius:8px;padding:8px 10px}button:hover{background:#e9e9ee}.close{padding:5px 9px}iframe{display:block;width:100%;height:42px;border:0}#export-status{min-height:18px;margin:13px 0 0}[data-tone=error]{color:#a32037}[data-tone=success]{color:#216e39}:focus-visible{outline:2px solid #b82d47;outline-offset:2px}@media(prefers-color-scheme:dark){section{color:#f2f2f5;background:#232326;border-color:#48484e}p{color:#b4b4be}button{background:#323237;border-color:#505058}button:hover{background:#414148}[data-tone=error]{color:#ff9bac}[data-tone=success]{color:#82d99b}}`;
+    style.textContent = `:host{all:initial}*{box-sizing:border-box}[hidden]{display:none!important}section{position:fixed;z-index:2147483647;width:300px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;padding:18px;border:1px solid #dedee3;border-radius:16px;color:#202026;background:#fff;box-shadow:0 12px 48px #0003;font:14px/1.45 system-ui,sans-serif}header{display:flex;align-items:start;justify-content:space-between;gap:12px}h2{margin:0;font-size:18px}p{margin:5px 0 14px;color:#686872;font-size:12px}button{font:inherit;cursor:pointer;color:inherit;background:#f4f4f6;border:1px solid #dedee3;border-radius:8px;padding:8px 10px}button:hover{background:#e9e9ee}.close{padding:5px 9px}iframe{display:block;width:100%;height:42px;border:0}progress{display:block;width:100%;height:8px;margin:12px 0 0;accent-color:#b82d47}#export-status{min-height:18px;margin:10px 0 0}[data-tone=error]{color:#a32037}[data-tone=success]{color:#216e39}:focus-visible{outline:2px solid #b82d47;outline-offset:2px}@media(prefers-color-scheme:dark){section{color:#f2f2f5;background:#232326;border-color:#48484e}p{color:#b4b4be}button{background:#323237;border-color:#505058}button:hover{background:#414148}[data-tone=error]{color:#ff9bac}[data-tone=success]{color:#82d99b}}`;
     dialog = element("section", { role: "dialog", "aria-modal": "true", "aria-labelledby": "export-heading", hidden: "" });
     const header = element("header");
     header.append(element("h2", { id: "export-heading" }, "Download post"));
@@ -422,6 +432,7 @@
     header.append(dismiss);
     chooser = element("iframe", { title: "Post export formats" });
     dialog.append(header, element("p", {}, "Includes the displayed post text and inline images for offline use."), chooser,
+      element("progress", { id: "export-progress", "aria-label": "Post download progress", hidden: "" }),
       element("p", { id: "export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
     shadow.append(style, dialog);
     document.documentElement.append(host);
@@ -432,6 +443,7 @@
     open = true; dialog.hidden = false; trigger.setAttribute("aria-expanded", "true"); position();
     shadow.querySelector(".close").focus();
     chooser.src = "about:blank";
+    setProgress("Preparing download options");
     report("Preparing download options…");
     try {
       requestToken = crypto.randomUUID();
@@ -441,7 +453,11 @@
       if (!registered?.registered) throw new Error(registered?.error || "Unable to prepare media access.");
       loadChooser();
       report("Nothing leaves this browser.");
-    } catch (error) { report(error.message || "Unable to prepare download options.", "error"); }
+      setProgress();
+    } catch (error) {
+      report(error.message || "Unable to prepare download options.", "error");
+      setProgress();
+    }
   }
 
   function position() {

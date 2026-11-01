@@ -98,6 +98,14 @@
     throw lastError || new Error("The post did not become ready for export.");
   }
 
+  async function reportCollectionProgress(session, token, phase, current, total, format = "") {
+    try {
+      await call(api.tabs, "sendMessage", session.ownerTabId, {
+        type: "COLLECTION_EXPORT_PROGRESS", token, phase, current, total, format
+      });
+    } catch { /* The owner tab may have closed or navigated. */ }
+  }
+
   function validFileMetadata(file) {
     return file && typeof file.title === "string"
       && ["md", "epub"].includes(file.extension)
@@ -133,7 +141,9 @@
 
   async function buildCollection(token, session, format) {
     const files = [];
-    for (const post of session.posts) {
+    await reportCollectionProgress(session, token, "build", 0, session.posts.length, format);
+    for (let index = 0; index < session.posts.length; index++) {
+      const post = session.posts[index];
       if (cancelledCollections.has(token)) throw new Error("The collection export was cancelled.");
       let result;
       let usedTabId;
@@ -156,6 +166,7 @@
         throw new Error("The collection export was cancelled.");
       }
       files.push(await pullPostFile(usedTabId, transferId, result.file));
+      await reportCollectionProgress(session, token, "build", index + 1, session.posts.length, format);
     }
     return files;
   }
@@ -177,7 +188,9 @@
       expires: Date.now() + 5 * 60_000
     };
     try {
-      for (const url of urls) {
+      await reportCollectionProgress(session, message.token, "prepare", 0, urls.length);
+      for (let index = 0; index < urls.length; index++) {
+        const url = urls[index];
         const existing = [...knownPosts].find(([, postUrl]) => postUrl === url);
         try {
           const result = existing
@@ -194,6 +207,7 @@
           if (cancelledCollections.has(message.token)) throw error;
           session.skipped++;
         }
+        await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length);
       }
       if (!session.posts.length) throw new Error("No accessible text posts in this collection could be prepared.");
       if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");

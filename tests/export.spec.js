@@ -77,17 +77,23 @@ test("PDF prepares a sanitized offline print view and invokes native printing", 
 });
 
 test("remote post media requests only its exact origin and embeds returned bytes", async ({ page }) => {
-  await page.route("https://media.example/**", route => route.fulfill({
-    contentType: "image/png",
-    body: Buffer.from("89504e470d0a1a0a", "hex")
-  }));
+  await page.route("https://media.example/**", async route => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from("89504e470d0a1a0a", "hex")
+    });
+  });
   const image = "https://media.example/post-image.png?signature=private";
   const content = require("./helpers/reader").fixture.replace(/data:image\/svg\+xml,[^\"]+/, image);
   await setup(page, { content });
   await downloadButton(page).click();
+  const progress = downloadDialog(page).getByRole("progressbar", { name: "Post download progress" });
   const pending = page.waitForEvent("download");
   await formatButton(page, "Markdown").click();
+  await expect(progress).toBeVisible();
   const markdown = (await downloadBytes(await pending)).toString("utf8");
+  await expect(progress).toBeHidden();
   expect(await page.evaluate(() => requestedExportOrigins)).toEqual(["https://media.example/*"]);
   expect(markdown).toContain("# A sample post");
   expect(markdown).toContain("**Creator:** Not available");

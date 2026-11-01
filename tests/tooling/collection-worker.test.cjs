@@ -13,7 +13,7 @@ function backgroundHarness() {
   let nextTransferId = 1;
   const tabUrls = new Map();
   const transfers = new Map();
-  const calls = { create: [], update: [], remove: [], workerChunks: [] };
+  const calls = { create: [], update: [], remove: [], workerChunks: [], progress: [] };
   const browser = {
     runtime: {
       id: "fixture-extension",
@@ -32,6 +32,10 @@ function backgroundHarness() {
         return { id: tabId };
       },
       async sendMessage(tabId, message) {
+        if (message.type === "COLLECTION_EXPORT_PROGRESS") {
+          calls.progress.push(message);
+          return { reported: true };
+        }
         const url = tabUrls.get(tabId) || "https://www.patreon.com/posts/open-999";
         const id = new URL(url).pathname.split("/").pop();
         if (message.type === "DESCRIBE_POST_EXPORT") {
@@ -95,6 +99,7 @@ test("collection export chunks payloads and closes each phase's reusable worker"
   assert.equal(calls.create.length, 1);
   assert.deepEqual(calls.update.map(call => call.url), urls.slice(1));
   assert.deepEqual(calls.remove, [calls.create[0].id]);
+  assert.deepEqual(calls.progress.filter(item => item.phase === "prepare").map(item => item.current), [0, 1, 2, 3]);
 
   const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
   assert.equal(built.files.length, 3);
@@ -110,6 +115,7 @@ test("collection export chunks payloads and closes each phase's reusable worker"
   }
   assert.equal(received.length, built.files[0].length);
   assert.ok(calls.workerChunks.every(length => length <= 1024 * 1024));
+  assert.deepEqual(calls.progress.filter(item => item.phase === "build").map(item => item.current), [0, 1, 2, 3]);
   assert.equal(calls.create.length, 2);
   assert.deepEqual(calls.update.map(call => call.url), [...urls.slice(1), ...urls.slice(1)]);
   assert.deepEqual(calls.remove, calls.create.map(call => call.id));

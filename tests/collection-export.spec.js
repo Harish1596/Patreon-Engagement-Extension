@@ -30,9 +30,12 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
   </main></body></html>`;
   await setup(page, { content, url: "https://www.patreon.com/collection/500" });
   const trigger = page.getByRole("button", { name: "Download Collection", exact: true });
+  const progress = page.getByRole("progressbar", { name: "Collection download progress" });
   await expect(trigger).toBeVisible();
   await trigger.click();
+  await expect(progress).toBeVisible();
   await expect(page.getByRole("status")).toContainText("3 posts are ready");
+  await expect(progress).toBeHidden();
   expect(await page.evaluate(() => requestedCollectionUrls)).toEqual([
     "https://www.patreon.com/posts/101",
     "https://www.patreon.com/posts/102",
