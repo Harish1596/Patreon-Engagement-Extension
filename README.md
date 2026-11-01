@@ -162,7 +162,8 @@ Save as PDF cannot be placed into a ZIP without a dedicated PDF generator.
 
 Generated EPUB and Markdown data crosses extension boundaries in bounded chunks,
 then the collection page assembles the ZIP locally. No message contains a complete
-large post or the complete collection payload.
+large post or the complete collection payload. The outer ZIP uses standard deflate
+framing for macOS archive compatibility without altering nested EPUB files.
 
 Post pages are recognized locally using this pathname structure:
 

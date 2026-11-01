@@ -688,3 +688,24 @@ responses, exact reconstruction, finalization, and worker cleanup. The full fina
 matrix passed 43 Chrome cases plus one expected skip, all 44 Brave cases, all 16
 tooling tests, and syntax checks for 31 JavaScript files. Live post-fix confirmation
 remains pending.
+
+### Outer ZIP deflate compatibility — November 1, 2026
+
+A second live EPUB collection download still produced an unsupported-format report.
+Metadata-only inspection found a complete 76 MB archive with 74 entries, valid
+timestamps, correct central-directory offsets, and successful Info-ZIP and macOS
+`ditto` extraction. All 74 nested EPUB containers also passed ZIP validation. The
+remaining distinction from a canonical repack was the outer method-0 storage
+framing: macOS classified the live download as generic data, while a method-8
+deflate repack was recognized as ZIP data.
+
+The shared writer now optionally wraps outer collection entries in standards-
+compliant raw-DEFLATE stored blocks and records method 8 with separate compressed
+and uncompressed sizes. This adds framing only; it does not recompress or alter
+the nested EPUB bytes, and individual EPUB construction continues using stored
+entries so its first `mimetype` entry remains specification-compliant. The focused
+test uses a synthetic entry spanning multiple stored DEFLATE blocks, asserts method
+8, and passes Info-ZIP plus macOS `ditto`; the full final matrix
+passed 43 Chrome cases plus one expected skip, all 44 Brave cases, all 16 tooling
+tests, and syntax checks for 31 JavaScript files. Live post-fix Archive Utility
+confirmation remains pending.

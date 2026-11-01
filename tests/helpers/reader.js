@@ -85,7 +85,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
           if (message.type === "BUILD_COLLECTION_EXPORT") {
             const result = globalThis.collectionBuildResult || {
               files: [
-                { title: "First post", extension: "md", encoding: "text", data: "# First post" },
+                { title: "First post", extension: "md", encoding: "text", data: `# First post\n${"x".repeat(70_000)}` },
                 { title: "Second post", extension: "md", encoding: "text", data: "# Second post" },
                 { title: "Third post", extension: "md", encoding: "text", data: "# Third post" }
               ],

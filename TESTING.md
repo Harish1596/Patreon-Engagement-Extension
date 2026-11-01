@@ -29,6 +29,16 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Outer ZIP deflate compatibility, November 1, 2026: **43 Chrome cases passed with
+the Brave-only installed case skipped, all 44 Brave cases passed, and all 16
+tooling tests passed**; syntax checks cover 31 JavaScript files. The focused
+collection case verifies method 8, valid timestamps, Info-ZIP validation, and
+macOS `ditto` extraction with a synthetic entry spanning multiple DEFLATE blocks.
+The second supplied live archive was complete and all
+74 nested EPUB containers validated, but its method-0 outer archive was still
+classified as generic data. The new deflate stored-block output is identified as
+ZIP data while leaving individual EPUB ZIP structure unchanged.
+
 Chunked collection transfer, November 1, 2026: **43 Chrome cases passed with the
 Brave-only installed case skipped, all 44 Brave cases passed, and all 16 tooling
 tests passed**; syntax checks cover 31 JavaScript files. The background regression

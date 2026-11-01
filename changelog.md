@@ -15,6 +15,7 @@
 - Emit collection ZIPs with the canonical MIME type and valid entry timestamps.
 - Close collection worker tabs immediately after preflight and file generation.
 - Transfer collection files in bounded chunks to avoid browser message limits.
+- Use deflate framing for macOS-compatible outer collection ZIP archives.
 
 ## 1.1.1
 

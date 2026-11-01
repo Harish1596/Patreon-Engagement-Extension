@@ -288,7 +288,7 @@
         const file = await receiveFile(requestToken, result.files[index], index);
         entries.push(decodeFile(file, index, result.files.length));
       }
-      saveBlob(makeZip(entries, "application/zip"), `${fileStem(collectionTitle())}.zip`);
+      saveBlob(makeZip(entries, "application/zip", true), `${fileStem(collectionTitle())}.zip`);
       const finished = await call(api.runtime, "sendMessage", {
         type: "FINISH_COLLECTION_EXPORT", token: requestToken
       });

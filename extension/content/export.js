@@ -236,22 +236,45 @@
     };
   }
 
-  function zipHeader(size, crc, nameLength, offset, timestamp, central = false) {
+  function zipHeader(compressedSize, uncompressedSize, crc, nameLength, offset, timestamp, method, central = false) {
     const bytes = new Uint8Array(central ? 46 : 30);
     const view = new DataView(bytes.buffer);
     view.setUint32(0, central ? 0x02014b50 : 0x04034b50, true);
     if (central) {
       view.setUint16(4, 20, true); view.setUint16(6, 20, true); view.setUint16(8, 0x800, true);
+      view.setUint16(10, method, true);
       view.setUint16(12, timestamp.time, true); view.setUint16(14, timestamp.date, true);
-      view.setUint32(16, crc, true); view.setUint32(20, size, true); view.setUint32(24, size, true);
+      view.setUint32(16, crc, true); view.setUint32(20, compressedSize, true); view.setUint32(24, uncompressedSize, true);
       view.setUint16(28, nameLength, true); view.setUint32(42, offset, true);
     } else {
       view.setUint16(4, 20, true); view.setUint16(6, 0x800, true);
+      view.setUint16(8, method, true);
       view.setUint16(10, timestamp.time, true); view.setUint16(12, timestamp.date, true);
-      view.setUint32(14, crc, true); view.setUint32(18, size, true); view.setUint32(22, size, true);
+      view.setUint32(14, crc, true); view.setUint32(18, compressedSize, true); view.setUint32(22, uncompressedSize, true);
       view.setUint16(26, nameLength, true);
     }
     return bytes;
+  }
+
+  function deflateStored(bytes) {
+    const blocks = Math.max(1, Math.ceil(bytes.length / 0xffff));
+    const output = new Uint8Array(bytes.length + blocks * 5);
+    let sourceOffset = 0;
+    let outputOffset = 0;
+    do {
+      const size = Math.min(0xffff, bytes.length - sourceOffset);
+      const final = sourceOffset + size === bytes.length;
+      const complement = (~size) & 0xffff;
+      output[outputOffset++] = final ? 1 : 0;
+      output[outputOffset++] = size & 0xff;
+      output[outputOffset++] = size >>> 8;
+      output[outputOffset++] = complement & 0xff;
+      output[outputOffset++] = complement >>> 8;
+      output.set(bytes.subarray(sourceOffset, sourceOffset + size), outputOffset);
+      sourceOffset += size;
+      outputOffset += size;
+    } while (sourceOffset < bytes.length);
+    return output;
   }
 
   function crc32(bytes) {
@@ -263,7 +286,7 @@
     return (crc ^ 0xffffffff) >>> 0;
   }
 
-  function makeZip(entries, type = "application/epub+zip") {
+  function makeZip(entries, type = "application/epub+zip", deflate = false) {
     const parts = [];
     const central = [];
     let offset = 0;
@@ -271,11 +294,13 @@
     for (const entry of entries) {
       const name = utf8(entry.name);
       const data = typeof entry.data === "string" ? utf8(entry.data) : entry.data;
+      const payload = deflate ? deflateStored(data) : data;
+      const method = deflate ? 8 : 0;
       const crc = crc32(data);
-      const local = zipHeader(data.length, crc, name.length, offset, timestamp, false);
-      parts.push(local, name, data);
-      central.push(zipHeader(data.length, crc, name.length, offset, timestamp, true), name);
-      offset += local.length + name.length + data.length;
+      const local = zipHeader(payload.length, data.length, crc, name.length, offset, timestamp, method, false);
+      parts.push(local, name, payload);
+      central.push(zipHeader(payload.length, data.length, crc, name.length, offset, timestamp, method, true), name);
+      offset += local.length + name.length + payload.length;
     }
     const centralSize = central.reduce((sum, part) => sum + part.length, 0);
     const end = new Uint8Array(22);

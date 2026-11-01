@@ -44,6 +44,7 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
   const download = await pending;
   expect(download.suggestedFilename()).toBe("Example collection.zip");
   const bytes = await downloadBytes(download);
+  expect(bytes.readUInt16LE(8)).toBe(8);
   expect(bytes.readUInt16LE(12)).not.toBe(0);
   expect(await page.evaluate(() => PatreonExporter.makeZip([], "application/zip").type))
     .toBe("application/zip");
