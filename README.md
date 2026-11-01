@@ -160,6 +160,14 @@ and browser-session storage clears when the browser session ends. Missing or
 expired sessions produce a visible panel error. Generated file bytes are
 released after each download, and post text/images are read again for each export.
 
+If a chapter fails during generation or transfer, the remaining chapters continue.
+Completed files stay in collection-page memory and **Retry failed posts** fetches
+only missing files. No ZIP is downloaded until every prepared chapter is ready.
+If packaging fails, **Retry packaging** reuses all completed files. You can close
+and reopen the panel without losing this progress. Reloading, navigating away,
+cancelling, refreshing the collection, or choosing another format clears it.
+This recovery does not retry posts already reported as skipped during preparation.
+
 The collection dialog keeps an activity bar visible throughout discovery,
 preparation, file generation, transfer, and ZIP packaging. It reports completed
 posts against the known total during preparation, generation, and transfer;
@@ -183,13 +191,13 @@ during loading is treated as temporary: the extension waits for Patreon to enabl
 it again and continues instead of preparing a partial collection.
 
 The extension prepares linked posts locally, reusing an already-open matching
-post tab when possible. Otherwise it creates one inactive temporary Patreon tab
+post tab when possible. During preparation it otherwise creates one inactive temporary Patreon tab
 and navigates that same tab through every post in sequence. Readiness retries
 remain in the background without activating the worker or collection tab, so you
 can use another tab while the operation runs. The preflight worker
-closes as soon as preparation finishes; a fresh single worker used for the chosen
-format closes as soon as file generation finishes. Cancellation and failures also
-close the active worker. Before exporting each post, the extension waits for the
+closes as soon as preparation finishes; each chapter generation request closes
+its temporary worker when that chapter is received by the background.
+Cancellation and failures also close the active worker. Before exporting each post, the extension waits for the
 requested document to finish loading and verifies its post ID, preventing an old
 page from being exported again while the worker navigates. Image
 permissions use the same exact-origin prompt as individual post export. PDF is

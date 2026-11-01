@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Retain completed collection chapters after generation/transfer failures, retry
+  missing posts, and retry ZIP packaging without fetching completed posts again.
 - Add local post export in PDF, EPUB, and Markdown formats.
 - Embed displayed inline post images for offline use with on-demand,
   exact-origin media permission prompts.

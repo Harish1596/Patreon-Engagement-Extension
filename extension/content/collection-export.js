@@ -14,6 +14,7 @@
   let route = "";
   let discoveryCache = null;
   let activeOperation = null;
+  let checkpoint = null;
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const observedApiRequests = [];
   const MAX_TRANSFER_CHARS = 1024 * 1024;
@@ -23,6 +24,8 @@
     activeOperation = operation;
     const restart = shadow?.querySelector(".restart");
     if (restart) restart.hidden = true;
+    const retry = shadow?.querySelector(".retry");
+    if (retry) retry.hidden = true;
     return operation;
   }
 
@@ -45,6 +48,7 @@
     if (!busy || !operation || operation.handedOff) return;
     const ownerHost = host;
     operation.controller.abort();
+    checkpoint = null;
     activeOperation = null;
     const token = requestToken;
     requestToken = "";
@@ -305,7 +309,8 @@
     chooser.src = `${api.runtime.getURL("export/collection-chooser.html")}?instance=${crypto.randomUUID()}#${requestToken}`;
   }
 
-  async function discardPreparation() {
+  async function discardPreparation(clearCheckpoint = true) {
+    if (clearCheckpoint) checkpoint = null;
     const token = requestToken;
     requestToken = "";
     if (token) await call(api.runtime, "sendMessage", {
@@ -313,7 +318,7 @@
     }).catch(() => {});
   }
 
-  async function prepareSession(prefix = "", refresh = false, operation = beginOperation()) {
+  async function prepareSession(prefix = "", refresh = false, operation = beginOperation(), continueOperation = false) {
     checkOperation(operation);
     const signal = operation.controller.signal;
     const preparationRoute = route;
@@ -322,7 +327,7 @@
     report(prefix || "Finding accessible posts in this collection…");
     if (refresh || (discoveryCache && discoveryCache.expires <= Date.now())) {
       discoveryCache = null;
-      await discardPreparation();
+      await discardPreparation(refresh);
       checkOperation(operation);
     }
     let discovered = discoveryCache?.discovered;
@@ -352,7 +357,7 @@
         if (Array.isArray(existing?.origins)) result = existing;
       } catch { /* The service worker may have restarted or expired the session. */ }
       checkOperation(operation);
-      if (!result) await discardPreparation();
+      if (!result) await discardPreparation(false);
     }
     if (route !== preparationRoute || !host?.isConnected) return;
     checkOperation(operation);
@@ -367,6 +372,9 @@
     }
     if (route !== preparationRoute || !host?.isConnected) return;
     checkOperation(operation);
+    if (checkpoint && (checkpoint.count !== result.count
+      || checkpoint.signature !== JSON.stringify(result.postUrls))) checkpoint = null;
+    if (continueOperation) return result;
     loadChooser();
     const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
     const lockedMessage = locked ? ` ${locked} locked ${locked === 1 ? "post was" : "posts were"} skipped.` : "";
@@ -374,6 +382,16 @@
     setProgress();
     setBusy(false);
     activeOperation = null;
+    if (checkpoint) showRetry();
+  }
+
+  function showRetry() {
+    const complete = checkpoint.entries.filter(Boolean).length;
+    const remaining = checkpoint.count - complete;
+    report(`${complete} of ${checkpoint.count} posts retained. ${remaining ? `${remaining} failed. ${checkpoint.error || ""}` : "Packaging failed."} Retry to resume.`, "error");
+    const retry = shadow.querySelector(".retry");
+    retry.textContent = remaining ? "Retry failed posts" : "Retry packaging";
+    retry.hidden = false;
   }
 
   function decodeFile(file, index, total) {
@@ -423,26 +441,54 @@
     setProgress(`Building ${format === "epub" ? "EPUB" : "Markdown"} files`);
     report(`Building ${format === "epub" ? "EPUB" : "Markdown"} files…`);
     try {
-      const result = await waitFor(call(api.runtime, "sendMessage", {
-        type: "BUILD_COLLECTION_EXPORT", token: requestToken, format
+      let prepared = await waitFor(call(api.runtime, "sendMessage", {
+        type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
       }), signal);
+      if (!Number.isSafeInteger(prepared?.count)) {
+        prepared = await prepareSession("", false, operation, true);
+      }
+      if (!Number.isSafeInteger(prepared?.count) || prepared.count < 1) {
+        throw new Error(prepared?.error || "The collection session is unavailable. Reopen Download Collection.");
+      }
       checkOperation(operation);
-      if (!result?.files?.length) throw new Error(result?.error || "The collection did not produce any files.");
-      const entries = [];
-      for (let index = 0; index < result.files.length; index++) {
-        report(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files… ${index + 1} of ${result.files.length}.`);
-        setProgress(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files`, index, result.files.length);
-        const file = await receiveFile(requestToken, result.files[index], index, signal);
-        entries.push(decodeFile(file, index, result.files.length));
-        setProgress(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files`, index + 1, result.files.length);
+      const signature = JSON.stringify(prepared.postUrls);
+      if (!checkpoint || checkpoint.format !== format || checkpoint.count !== prepared.count || checkpoint.signature !== signature) {
+        checkpoint = { format, count: prepared.count, signature, entries: [], error: "" };
+      }
+      for (let index = 0; index < checkpoint.count; index++) {
+        if (checkpoint.entries[index]) continue;
+        try {
+          report(`Building post ${index + 1} of ${checkpoint.count}…`);
+          setProgress("Building posts", checkpoint.entries.filter(Boolean).length, checkpoint.count);
+          const result = await waitFor(call(api.runtime, "sendMessage", {
+            type: "BUILD_COLLECTION_EXPORT", token: requestToken, format, index
+          }), signal);
+          checkOperation(operation);
+          if (!result?.files?.length) throw new Error(result?.error || "The post did not produce a file.");
+          const file = await receiveFile(requestToken, result.files[0], index, signal);
+          checkOperation(operation);
+          checkpoint.entries[index] = decodeFile(file, index, checkpoint.count);
+        } catch (error) {
+          checkOperation(operation);
+          checkpoint.error = `Post ${index + 1}: ${error.message || "Export failed."}`;
+        }
+      }
+      if (checkpoint.entries.filter(Boolean).length !== checkpoint.count) {
+        setProgress();
+        setBusy(false);
+        activeOperation = null;
+        loadChooser();
+        showRetry();
+        return;
       }
       report("Packaging collection ZIP…");
       setProgress("Packaging collection ZIP");
-      const archive = await makeCollectionZip(entries, signal);
+      const archive = await makeCollectionZip(checkpoint.entries, signal);
       checkOperation(operation);
       operation.handedOff = true;
       setBusy(true);
       saveBlob(archive, `${fileStem(collectionTitle())}.zip`);
+      checkpoint = null;
       const finished = await call(api.runtime, "sendMessage", {
         type: "FINISH_COLLECTION_EXPORT", token: requestToken
       });
@@ -450,15 +496,12 @@
       await prepareSession(`${format === "epub" ? "EPUB" : "Markdown"} ZIP download started.`, false, operation);
     } catch (error) {
       if (signal.aborted || activeOperation !== operation) return;
-      if (requestToken) call(api.runtime, "sendMessage", {
-        type: "CANCEL_COLLECTION_EXPORT", token: requestToken
-      }).catch(() => {});
-      requestToken = "";
-      chooser.src = "about:blank";
       report(error.message || "The collection could not be exported.", "error");
       setProgress();
       setBusy(false);
       activeOperation = null;
+      loadChooser();
+      if (checkpoint) showRetry();
     }
   }
 
@@ -504,7 +547,9 @@
     cancel.addEventListener("click", cancelOperation);
     const restart = element("button", { type: "button", class: "close restart", hidden: "" }, "Start again");
     restart.addEventListener("click", () => prepareSession().catch(showPreparationError));
-    controls.append(refresh, cancel, restart);
+    const retry = element("button", { type: "button", class: "close retry", hidden: "" }, "Retry failed posts");
+    retry.addEventListener("click", () => { if (checkpoint) run(checkpoint.format); });
+    controls.append(refresh, cancel, restart, retry);
     dialog.append(controls);
     trigger.addEventListener("click", () => {
       if (open) return close(true);
@@ -527,6 +572,7 @@
     host = shadow = trigger = dialog = chooser = undefined;
     requestToken = "";
     discoveryCache = null;
+    checkpoint = null;
     open = busy = false;
   }
 
@@ -554,8 +600,9 @@
       const label = message.phase === "prepare"
         ? "Preparing posts"
         : `Building ${message.format === "epub" ? "EPUB" : "Markdown"} files`;
-      report(`${label}… ${message.current} of ${message.total}.`);
-      setProgress(label, message.current, message.total);
+      const current = message.phase === "build" && checkpoint ? checkpoint.entries.filter(Boolean).length : message.current;
+      report(`${label}… ${current} of ${message.total}.`);
+      setProgress(label, current, message.total);
       respond({ reported: true });
       return;
     }

@@ -6,7 +6,30 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.resolve(__dirname, "../../extension/background/media.js"), "utf8");
 
-function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, fastTimers = false, fetchMedia } = {}) {
+test("indexed chapter failure keeps the session retryable across worker restart", async () => {
+  let fail = true;
+  const { send, calls, restart } = backgroundHarness({ fastTimers: true, failBuild: id => fail && id === "102" });
+  const token = "11111111-1111-4111-8111-111111111111";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: [101, 102].map(id => `https://www.patreon.com/posts/${id}`) });
+  assert.match((await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown", index: -1 })).error, /index/);
+  const first = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown", index: 0 });
+  assert.equal(first.files.length, 1);
+  assert.equal(first.files[0].title, "Post 101");
+  const failed = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown", index: 1 });
+  assert.match(failed.error, /Synthetic build failure/);
+  assert.equal(calls.remove.length, calls.create.length);
+  assert.equal((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).count, 2);
+  restart();
+  fail = false;
+  const recovered = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown", index: 1 });
+  assert.equal(recovered.files[0].title, "Post 102");
+  const chunk = await send({ type: "GET_COLLECTION_EXPORT_CHUNK", token, index: 1, offset: 0 });
+  assert.equal(chunk.data, "102");
+  assert.equal(chunk.done, true);
+  assert.equal(calls.remove.length, calls.create.length);
+});
+
+function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, fastTimers = false, fetchMedia, failBuild = () => false } = {}) {
   let listener;
   let removedListener;
   let nextTabId = 10;
@@ -70,6 +93,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
           return { post: { title: `Post ${id}`, origins: [], postId: id } };
         }
         if (message.type === "BUILD_POST_EXPORT") {
+          if (failBuild(id)) return { error: "Synthetic build failure." };
           const data = id === "101" ? "x".repeat(2 * 1024 * 1024 + 17) : id;
           transfers.set(message.transferId, data);
           return { file: { title: `Post ${id}`, extension: "md", encoding: "text", length: data.length, postId: id } };

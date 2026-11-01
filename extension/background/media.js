@@ -104,16 +104,22 @@
     collections.delete(token);
     if (session) {
       session.controller?.abort();
-      const active = session.activePost;
-      if (active) {
-        cancelledMediaTransfers.add(`${active.tabId}:${active.transferId}`);
-        for (const controller of mediaRequests.get(`${active.tabId}:${active.transferId}`) || []) controller.abort();
-        call(api.tabs, "sendMessage", active.tabId, { type: "CANCEL_POST_EXPORT", transferId: active.transferId }).catch(() => {});
-      }
+      cancelActivePost(session);
       delete session.files;
       await closeWorker(session);
     }
     await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
+  }
+
+  function cancelActivePost(session) {
+    const active = session.activePost;
+    if (!active) return;
+    const key = `${active.tabId}:${active.transferId}`;
+    cancelledMediaTransfers.add(key);
+    for (const controller of mediaRequests.get(key) || []) controller.abort();
+    call(api.tabs, "sendMessage", active.tabId,
+      { type: "CANCEL_POST_EXPORT", transferId: active.transferId }).catch(() => {});
+    session.activePost = null;
   }
 
   async function closeWorker(session) {
@@ -208,10 +214,11 @@
     }
   }
 
-  async function buildCollection(token, session, format) {
+  async function buildCollection(token, session, format, selectedIndex) {
     const files = [];
     await reportCollectionProgress(session, token, "build", 0, session.posts.length, format);
     for (let index = 0; index < session.posts.length; index++) {
+      if (selectedIndex !== undefined && index !== selectedIndex) continue;
       const post = session.posts[index];
       if (cancelledCollections.has(token)) throw new Error("The collection export was cancelled.");
       let result;
@@ -304,6 +311,7 @@
       return {
         registered: true,
         count: session.posts.length,
+        postUrls: session.posts.map(post => post.url),
         skipped: session.skipped,
         origins: [...new Set(session.posts.flatMap(post => post.origins))]
       };
@@ -414,6 +422,7 @@
       respond(session ? {
         origins: [...new Set(session.posts.flatMap(post => post.origins))],
         count: session.posts.length,
+        postUrls: session.posts.map(post => post.url),
         skipped: session.skipped
       } : { error: "The collection export request expired. Reopen Download." });
       return;
@@ -441,12 +450,16 @@
         return;
       }
       if (session.building) { respond({ error: "A collection export is already running." }); return; }
+      if (message.index !== undefined && (!Number.isSafeInteger(message.index)
+        || message.index < 0 || message.index >= session.posts.length)) {
+        respond({ error: "The collection post index is invalid." }); return;
+      }
       session.building = true;
       session.controller = new AbortController();
-      buildCollection(message.token, session, message.format).then(async files => {
+      buildCollection(message.token, session, message.format, message.index).then(async files => {
         checkCancelled(session);
         await closeWorker(session);
-        session.files = files;
+        session.files = message.index === undefined ? files : Object.assign([], { [message.index]: files[0] });
         session.expires = Date.now() + COLLECTION_CACHE_MS;
         await persistCollection(message.token, session);
         checkCancelled(session);
@@ -462,7 +475,15 @@
           skipped: session.skipped
         });
       }).catch(async error => {
-        await discardCollection(message.token);
+        if (message.index === undefined || session.controller.signal.aborted) {
+          if (collections.get(message.token) === session) await discardCollection(message.token);
+        } else {
+          // Keep prepared metadata so a failed chapter can be requested again.
+          cancelActivePost(session);
+          delete session.files;
+          await closeWorker(session);
+          session.building = false;
+        }
         cancelledCollections.delete(message.token);
         respond({ error: error.message || "One of the collection posts could not be exported." });
       });

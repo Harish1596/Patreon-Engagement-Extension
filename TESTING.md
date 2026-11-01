@@ -29,6 +29,29 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection retry/resume, November 2, 2026: generation now requests and receives
+one chapter at a time. **18 Chrome collection tests, 7 isolated Chrome post tests,
+19 Brave collection/installed tests, and 28 tooling tests passed**; syntax checks
+cover 33 JavaScript files. Browser cases inject chapter-generation and chunk-transfer
+failures, verify later chapters still finish, withhold a partial ZIP, and resume
+only missing chapters in original order. Recovery covers Markdown and nested EPUB
+bytes, panel reopening, missing prepared sessions, packaging failure without
+rebuilding, and explicit Refresh clearing retained entries. The background case
+verifies index bounds, cleanup after failure, retained prepared metadata, and a
+successful indexed retry after worker restart. Completed files stay only in
+page memory; reload/navigation, Cancel, Refresh, or format changes discard them.
+Preflight skips are outside this recovery scope. Authenticated live recovery is
+pending confirmation.
+
+Two focused recovery cases passed again after adding discovery-cache expiry to
+the EPUB retry scenario; completed chapters survive re-preparation when ordered
+post URLs still match.
+
+During broader post-export runs, the existing PDF status and remote-media
+progress checks intermittently failed; the unchanged seven-test post suite
+passed in an isolated Chrome run. The first browser launch attempt was blocked
+by the filesystem sandbox; subsequent runs used isolated profiles outside it.
+
 Active collection cancellation, November 1, 2026: **all 21 targeted Chrome
 collection/post export tests, 22 targeted Brave collection/post/installed tests,
 and 27 tooling tests passed**; syntax checks cover 33 JavaScript files. Browser

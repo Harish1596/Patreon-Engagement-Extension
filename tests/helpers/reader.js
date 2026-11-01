@@ -84,7 +84,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
           if (message.type === "PREPARE_COLLECTION_EXPORT") {
             globalThis.requestedCollectionUrls = message.urls;
             globalThis.collectionPrepareCount++;
-            const result = { registered: true, count: message.urls.length, skipped: 0, origins: [] };
+            const result = { registered: true, count: message.urls.length, postUrls: message.urls, skipped: 0, origins: [] };
             collectionSessions.set(message.token, result);
             return result;
           }
@@ -98,6 +98,9 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             });
           }
           if (message.type === "BUILD_COLLECTION_EXPORT") {
+            globalThis.collectionBuildIndices ||= [];
+            globalThis.collectionBuildIndices.push(message.index);
+            if (globalThis.collectionFailedIndices?.includes(message.index)) return { error: "Synthetic chapter failure." };
             const result = globalThis.collectionBuildResult || {
               files: [
                 { title: "First post", extension: "md", encoding: "text", data: `# First post\n${"x".repeat(70_000)}` },
@@ -110,11 +113,13 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             globalThis.collectionTransferFiles = result.files;
             globalThis.collectionChunkSizes = [];
             return {
-              files: result.files.map(({ data, ...file }) => ({ ...file, length: data.length })),
+              files: (message.index === undefined ? result.files : [result.files[message.index]])
+                .map(({ data, ...file }) => ({ ...file, length: data.length })),
               skipped: result.skipped
             };
           }
           if (message.type === "GET_COLLECTION_EXPORT_CHUNK") {
+            if (globalThis.collectionFailedChunkIndices?.includes(message.index)) return { error: "Synthetic transfer failure." };
             const file = globalThis.collectionTransferFiles?.[message.index];
             if (!file) return { error: "Missing synthetic collection file." };
             const data = file.data.slice(message.offset, message.offset + 1024 * 1024);

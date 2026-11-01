@@ -1,6 +1,6 @@
 # Patreon post-page reference: text posts with inline images
 
-Last maintained: November 1, 2026. Current hotfix: **1.1.1** (live confirmation pending).
+Last maintained: November 2, 2026. Current hotfix: **1.1.1** (live confirmation pending).
 Post export is an unreleased development feature with synthetic verification;
 live Patreon export verification is pending.
 Feature baseline: **1.1.0**, renumbered from
@@ -837,8 +837,9 @@ initial document identity and current URL, and requires `readyState=complete`.
 The background validates the returned ID before accepting successful metadata,
 retrying stale replies during navigation. A registered open tab that no longer
 qualifies falls back to a freshly navigated worker. The worker
-closes immediately when preflight finishes. File generation creates at most one
-new reusable worker and closes it immediately when generation finishes. Cancellation,
+closes immediately when preflight finishes. As of November 2, file generation
+requests one chapter at a time and closes its worker after receiving that chapter
+in the background. Cancellation,
 failure, expiry detection, and collection-tab closure also clean up any active worker.
 The preflight gathers only exact remote-image origins before the packaged chooser
 enables its direct user-gesture permission request. After approval, each post uses
@@ -846,13 +847,23 @@ the same sanitized extraction and embedded-media path as individual export.
 Generated file metadata crosses first; file contents are then pulled in at most
 1 MiB character chunks from the post tab to the background and from the background
 to the collection page. Completed source chunks are released, the final ZIP is
-assembled locally on the collection page, and transfer failure cancels the session.
+assembled locally on the collection page. As of November 2, generation/transfer
+failures preserve prepared metadata and completed page-side chapter files.
 This avoids the browser's 64 MiB per-message limit without changing embedded-media
 behavior.
 
 Unavailable or unsupported post pages are skipped during preflight and their count
-is shown. A failure while building a post after successful preflight aborts the ZIP
-rather than silently producing a newly partial result. The current implementation
+is shown. As of November 2, a failure after preflight no longer discards completed
+chapters: generation/transfer continues through the remaining posts, then offers
+Retry failed posts for missing files. The ZIP is withheld until every prepared
+chapter succeeds. Retry packaging reuses the completed entries after a compression
+failure. Checkpoints stay only in collection-page memory, survive panel closure and
+metadata-only worker restarts, and are cleared by reload/navigation, Cancel,
+Refresh collection, switching formats, or successful ZIP handoff. Expired/missing
+prepared metadata is rebuilt from cached discovery before retry; retained entries
+are reused only when the prepared URL sequence is unchanged. This does not retry
+preflight skips. Synthetic tests cover these recovery paths; authenticated live
+recovery is not yet confirmed. The current implementation
 accepts at most 100 unique post links per collection request. As of November 1,
 collection discovery (links and locked counts) is retained in page memory for
 two hours; prepared metadata is saved in `storage.session` for two hours after

@@ -936,3 +936,35 @@ pages; authenticated live cancellation remains pending confirmation.
 Cancellation ends at the browser download handoff. The Cancel control is hidden
 after that point. A native Patreon Load more request already in flight may finish,
 but the extension does not click further batches or continue exporting.
+
+### Retry and resume collection exports — November 2, 2026
+
+Collection generation now requests and receives individual chapters, retaining
+completed entries in page memory. A failed build or chunk transfer leaves the
+prepared session usable and allows later chapters to finish. Retry failed posts
+requests only missing chapters; the ZIP is withheld until every prepared chapter
+is present. Packaging errors expose Retry packaging without regenerating posts.
+Closing/reopening the panel preserves progress; reload/navigation, Cancel,
+Refresh, switching formats, or successful handoff clears it. Missing or expired
+metadata is prepared again, and the ordered post URLs must match before retained
+files are reused. Preflight skips remain outside this recovery scope. No file
+bytes, post bodies, or media URLs are added to session storage.
+
+Temporary workers close after each chapter is received by the background, and
+failed indexed requests clean up their transfer and media requests without
+discarding preparation metadata. Existing whole-collection requests retain their
+previous behavior for compatibility. No new permission or DOM selector is added.
+
+Verification: 18 Chrome collection tests, 7 isolated Chrome post tests, 19 Brave
+collection/installed tests, and 28 tooling tests passed; syntax checks cover 33
+JavaScript files, and whitespace checks passed. New browser coverage verifies
+Markdown build recovery, EPUB transfer recovery with distinct nested chapter
+bytes, panel reopening, metadata recovery, packaging-only retry, and explicit
+refresh invalidation. A background case verifies indexed bounds, cleanup, and
+retry after worker restart. Broader export runs intermittently failed existing
+PDF-status and remote-media-progress assertions; the unchanged post suite passed
+in isolation. The initial sandboxed browser launch failed; subsequent isolated
+browser profiles ran with the required access. Authenticated live recovery has
+not been verified.
+Two focused Chrome recovery cases also passed after extending the EPUB scenario
+past discovery-cache expiry; retained files survive unchanged re-preparation.
