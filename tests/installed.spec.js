@@ -181,6 +181,20 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     expect(collectionEntries[0].data.toString()).toContain("Collection body one.");
     expect(collectionEntries[1].data.toString()).toContain("Collection body two.");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    const [collectionEpub] = await Promise.all([
+      collection.waitForEvent("download"),
+      collection.frameLocator('iframe[title="Collection export formats"]')
+        .getByRole("button", { name: "EPUB", exact: true }).click()
+    ]);
+    const epubEntries = readZip(await downloadBytes(collectionEpub));
+    expect(epubEntries.map(entry => entry.name)).toEqual([
+      "001 - Collection post one.epub", "002 - Collection post two.epub"
+    ]);
+    expect(readZip(epubEntries[0].data).find(entry => entry.name === "EPUB/post.xhtml").data.toString())
+      .toContain("Collection body one.");
+    expect(readZip(epubEntries[1].data).find(entry => entry.name === "EPUB/post.xhtml").data.toString())
+      .toContain("Collection body two.");
+    await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     await collection.getByRole("button", { name: "Close collection download", exact: true }).click();
     await collection.close();
     await collectionPostOne.close();

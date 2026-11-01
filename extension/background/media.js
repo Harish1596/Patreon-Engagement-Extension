@@ -7,6 +7,7 @@
   const knownPosts = new Map();
   const cancelledCollections = new Set();
   const MAX_TRANSFER_CHARS = 1024 * 1024;
+  const COLLECTION_CACHE_MS = 15 * 60_000;
 
   function call(target, method, ...args) {
     if (globalThis.browser?.runtime) return target[method](...args);
@@ -188,7 +189,7 @@
       workerTabId: null,
       posts: [],
       skipped: 0,
-      expires: Date.now() + 5 * 60_000
+      expires: Date.now() + COLLECTION_CACHE_MS
     };
     try {
       await reportCollectionProgress(session, message.token, "prepare", 0, urls.length);
@@ -221,6 +222,7 @@
       if (!session.posts.length) throw new Error("No accessible text posts in this collection could be prepared.");
       if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
       await closeWorker(session);
+      session.expires = Date.now() + COLLECTION_CACHE_MS;
       collections.set(message.token, session);
       cancelledCollections.delete(message.token);
       return {
@@ -364,7 +366,7 @@
       buildCollection(message.token, session, message.format).then(async files => {
         await closeWorker(session);
         session.files = files;
-        session.expires = Date.now() + 5 * 60_000;
+        session.expires = Date.now() + COLLECTION_CACHE_MS;
         cancelledCollections.delete(message.token);
         respond({
           files: files.map(file => ({
@@ -408,7 +410,8 @@
         respond({ error: "The collection export request expired. Reopen Download." });
         return;
       }
-      discardCollection(message.token).then(() => {
+      delete session.files;
+      closeWorker(session).then(() => {
         cancelledCollections.delete(message.token);
         respond({ finished: true });
       });

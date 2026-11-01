@@ -29,6 +29,25 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection cache reuse, November 1, 2026: **all 7 targeted Chrome collection
+tests, all 8 targeted Brave collection/installed tests, and all 17 tooling tests
+passed**; syntax checks cover 32 JavaScript files. The browser lifecycle regression
+verifies closing/reopening and consecutive Markdown/EPUB download actions perform
+only one API discovery and one preparation pass. It then verifies explicit
+refresh discovers new posts, lost background sessions repeat only preparation,
+15-minute expiry repeats discovery, and collection navigation clears the cache.
+The background regression verifies successful finalization releases transfer data
+while retaining prepared metadata, rebuilding creates/closes a fresh worker
+without repeating preflight, and cancellation invalidates the retained session.
+The installed Brave case downloads Markdown then EPUB using the retained session
+and independently checks both archives contain the correct distinct chapters.
+
+Commands: `npm test -- tests/collection-export.spec.js --reporter=dot`,
+`npm run test:brave -- tests/collection-export.spec.js tests/installed.spec.js --reporter=dot`,
+`npm run test:tooling`, and `npm run check`. These use synthetic pages; live
+authenticated caching behavior after extension reload remains unverified. No full
+browser-suite rerun was performed for this scoped change.
+
 Locked collection posts, November 1, 2026: **all 6 targeted Chrome collection
 tests and all 7 targeted Brave collection/installed-extension tests passed**;
 syntax checks cover 32 JavaScript files. The paginated fixture verifies that

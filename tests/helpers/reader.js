@@ -38,6 +38,9 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
     localStorage.setItem("test-storage", JSON.stringify(stored));
     const listeners = [];
     const messages = [];
+    const collectionSessions = new Map();
+    globalThis.collectionPrepareCount = 0;
+    globalThis.forgetCollectionSessions = () => collectionSessions.clear();
     const deliver = async (message) => {
       for (const listener of messages) {
         const result = await new Promise((resolve) => {
@@ -75,7 +78,13 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
           }
           if (message.type === "PREPARE_COLLECTION_EXPORT") {
             globalThis.requestedCollectionUrls = message.urls;
-            return { registered: true, count: message.urls.length, skipped: 0, origins: [] };
+            globalThis.collectionPrepareCount++;
+            const result = { registered: true, count: message.urls.length, skipped: 0, origins: [] };
+            collectionSessions.set(message.token, result);
+            return result;
+          }
+          if (message.type === "GET_COLLECTION_EXPORT_REQUEST") {
+            return collectionSessions.get(message.token) || { error: "Synthetic session expired." };
           }
           if (message.type === "DELIVER_COLLECTION_EXPORT") {
             return deliver({
@@ -112,6 +121,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             return { finished: true };
           }
           if (message.type === "CANCEL_COLLECTION_EXPORT") {
+            collectionSessions.delete(message.token);
             globalThis.collectionExportCancelled = true;
             return { cancelled: true };
           }

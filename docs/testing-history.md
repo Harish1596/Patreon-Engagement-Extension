@@ -817,3 +817,31 @@ collections. The updated discovery function was also executed read-only in the
 live Brave tab and returned 74 accessible URLs and one locked skip. This confirms
 live discovery only; full installed export after reloading remains pending. No
 private page payload, post content, or account identifiers were committed.
+
+### Reuse collection discovery and preparation — November 1, 2026
+
+Opening the panel always repeated discovery/preflight, and every successful
+download discarded its session and immediately repeated both phases. Discovery
+results now remain in page memory for 15 minutes. Prepared post metadata is kept
+in the background for 15 minutes after preparation/generation. Panel close no
+longer cancels an idle prepared session. Successful finalization releases file
+transfers while preserving preparation, so another format can be selected without
+rediscovery or preflight. Generation still reads each post and its images, and
+all active worker tabs close at the existing phase boundaries.
+
+Refresh collection explicitly invalidates both caches to pick up new chapters
+and changed access. Expiry refreshes on opening; lost worker state reruns only
+preflight using the cached links. Collection navigation/reload clears page cache
+state. A repeat-download test exposed a race caused by navigating the chooser
+through `about:blank` immediately before reloading it with cached data; reuse now
+refreshes the chooser directly.
+
+All seven targeted Chrome collection cases, eight targeted Brave collection/
+installed cases, 17 tooling tests, and syntax checks for 32 JavaScript files
+passed. The new browser lifecycle case verifies one discovery/preflight across
+panel reopen and two format download actions, then checks refresh, lost sessions,
+expiry, and route invalidation. The worker regression verifies transfer release,
+repeat build without preflight, cancellation, and worker closure. This checkpoint
+uses synthetic pages; authenticated live cache reuse remains pending after reload.
+The installed Brave case additionally verifies real consecutive Markdown and EPUB
+downloads with correct distinct chapter content using the same prepared session.

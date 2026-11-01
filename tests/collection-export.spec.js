@@ -185,6 +185,74 @@ for (const count of [1, 2]) {
   });
 }
 
+test("collection reuses discovery and preparation across downloads and refreshes explicitly or on expiry", async ({ page }) => {
+  await setup(page, { content: '<main><h1>Cached collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
+    url: "https://www.patreon.com/collection/500" });
+  let apiCalls = 0;
+  let postCount = 1;
+  const apiBase = "https://www.patreon.com/api/posts?filter%5Bcollection_id%5D=500";
+  await page.route("https://www.patreon.com/api/posts**", route => {
+    apiCalls++;
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({
+      data: Array.from({ length: postCount }, (_, index) => ({ id: String(101 + index), type: "post",
+        attributes: { current_user_can_view: true } })),
+      meta: { pagination: { total: postCount } }
+    }) });
+  });
+  await page.evaluate(url => {
+    const original = performance.getEntriesByType.bind(performance);
+    Object.defineProperty(performance, "getEntriesByType", {
+      configurable: true, value: type => type === "resource" ? [...original(type), { name: url }] : original(type)
+    });
+    globalThis.collectionBuildResult = { files: [{ title: "Post", extension: "md", encoding: "text", data: "# Post" }] };
+  }, apiBase);
+  const trigger = page.getByRole("button", { name: "Download Collection", exact: true });
+  const close = page.getByRole("button", { name: "Close collection download", exact: true });
+  const status = page.getByRole("status");
+  await trigger.click();
+  await expect(status).toContainText("1 post is ready");
+  await close.click();
+  await trigger.click();
+  await expect(status).toContainText("1 post is ready");
+  for (const format of ["Markdown", "EPUB"]) {
+    const pending = page.waitForEvent("download");
+    await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: format, exact: true }).click();
+    await pending;
+    await expect(status).toContainText(`${format} ZIP download started. 1 post is ready`);
+  }
+  expect(apiCalls).toBe(1);
+  expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
+
+  postCount = 2;
+  await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
+  await expect(status).toContainText("2 posts are ready");
+  expect(apiCalls).toBe(2);
+  expect(await page.evaluate(() => collectionPrepareCount)).toBe(2);
+
+  await page.evaluate(() => forgetCollectionSessions());
+  await close.click();
+  await trigger.click();
+  await expect(status).toContainText("2 posts are ready");
+  expect(apiCalls).toBe(2);
+  expect(await page.evaluate(() => collectionPrepareCount)).toBe(3);
+
+  await close.click();
+  await page.evaluate(() => { const original = Date.now; Date.now = () => original() + 16 * 60_000; });
+  await trigger.click();
+  await expect(status).toContainText("2 posts are ready");
+  expect(apiCalls).toBe(3);
+  expect(await page.evaluate(() => collectionPrepareCount)).toBe(4);
+
+  await close.click();
+  await page.evaluate(() => {
+    history.pushState({}, "", "/collection/501");
+    document.body.append(document.createElement("div"));
+  });
+  await trigger.click();
+  await expect(status).toContainText("1 post is ready");
+  expect(await page.evaluate(() => collectionPrepareCount)).toBe(5);
+});
+
 test("collection controls are scoped to collection routes", async ({ page }) => {
   await setup(page);
   await expect(page.getByRole("button", { name: "Download Collection", exact: true })).toHaveCount(0);

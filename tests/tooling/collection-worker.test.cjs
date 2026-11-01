@@ -129,6 +129,14 @@ test("collection export chunks payloads and closes each phase's reusable worker"
   assert.deepEqual(calls.update.map(call => call.url), [...urls.slice(1), ...urls.slice(1)]);
   assert.deepEqual(calls.remove, calls.create.map(call => call.id));
   assert.equal((await send({ type: "FINISH_COLLECTION_EXPORT", token })).finished, true);
+  assert.equal((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).count, 3);
+  assert.ok((await send({ type: "GET_COLLECTION_EXPORT_CHUNK", token, index: 1, offset: 0 })).error);
+  const rebuilt = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
+  assert.equal(rebuilt.files.length, 3);
+  assert.equal(calls.progress.filter(item => item.phase === "prepare").length, 4);
+  assert.deepEqual(calls.remove, calls.create.map(call => call.id));
+  await send({ type: "CANCEL_COLLECTION_EXPORT", token });
+  assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
 });
 
 test("collection worker rejects successful old-document replies until each destination loads", async () => {

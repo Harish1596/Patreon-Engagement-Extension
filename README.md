@@ -149,6 +149,13 @@ excluded before worker preparation and reported separately as a locked post.
 Missing access flags still use normal preparation checks. A collection containing
 only locked posts shows a message without opening worker tabs.
 
+Discovered links, access flags, and preparation results are cached in memory for
+15 minutes on the current collection page. Reopening the panel or downloading
+another format reuses them. Select **Refresh collection** to pick up new chapters
+or membership changes immediately. Expired discovery is refreshed on the next
+opening; navigating away or reloading clears the cache. Generated file bytes are
+released after each download, and post text/images are read again for each export.
+
 The collection dialog keeps an activity bar visible throughout discovery,
 preparation, file generation, transfer, and ZIP packaging. It reports completed
 posts against the known total during preparation, generation, and transfer;

@@ -12,6 +12,8 @@
   let open = false;
   let busy = false;
   let route = "";
+  let discoveryCache = null;
+  const COLLECTION_CACHE_MS = 15 * 60_000;
   const observedApiRequests = [];
   const MAX_TRANSFER_CHARS = 1024 * 1024;
 
@@ -231,35 +233,69 @@
     busy = value;
     const close = shadow?.querySelector(".close");
     if (close) close.disabled = value;
+    const refresh = shadow?.querySelector(".refresh");
+    if (refresh) refresh.disabled = value;
   }
 
   function loadChooser() {
     chooser.src = `${api.runtime.getURL("export/collection-chooser.html")}?instance=${crypto.randomUUID()}#${requestToken}`;
   }
 
-  async function prepareSession(prefix = "") {
+  async function discardPreparation() {
+    const token = requestToken;
+    requestToken = "";
+    if (token) await call(api.runtime, "sendMessage", {
+      type: "CANCEL_COLLECTION_EXPORT", token
+    }).catch(() => {});
+  }
+
+  async function prepareSession(prefix = "", refresh = false) {
+    const preparationRoute = route;
     setBusy(true);
-    chooser.src = "about:blank";
     setProgress("Finding collection posts");
     report(prefix || "Finding accessible posts in this collection…");
-    let discovered;
-    try { discovered = await apiPostUrls(); }
-    catch { discovered = null; }
+    if (refresh || (discoveryCache && discoveryCache.expires <= Date.now())) {
+      discoveryCache = null;
+      await discardPreparation();
+    }
+    let discovered = discoveryCache?.discovered;
     if (!discovered) {
-      await loadAllPostLinks();
-      discovered = { urls: postUrls(), locked: 0 };
+      chooser.src = "about:blank";
+      try { discovered = await apiPostUrls(); }
+      catch { discovered = null; }
+      if (!discovered) {
+        await loadAllPostLinks();
+        discovered = { urls: postUrls(), locked: 0 };
+      }
+      if (route !== preparationRoute || !host?.isConnected) return;
+      discoveryCache = { discovered, expires: Date.now() + COLLECTION_CACHE_MS };
     }
     const { urls, locked } = discovered;
     if (!urls.length && locked) {
       throw new Error(`${locked === 1 ? "The only post is" : `All ${locked} posts are`} locked for your current membership. Nothing was downloaded.`);
     }
     if (!urls.length) throw new Error("No post links were found in this collection.");
-    requestToken = crypto.randomUUID();
-    setProgress("Preparing posts", 0, urls.length);
-    const result = await call(api.runtime, "sendMessage", {
-      type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls
-    });
-    if (!result?.registered) throw new Error(result?.error || "The collection could not be prepared.");
+    let result;
+    if (requestToken) {
+      try {
+        const existing = await call(api.runtime, "sendMessage", {
+          type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
+        });
+        if (Array.isArray(existing?.origins)) result = existing;
+      } catch { /* The service worker may have restarted or expired the session. */ }
+      if (!result) await discardPreparation();
+    }
+    if (route !== preparationRoute || !host?.isConnected) return;
+    if (!result) {
+      chooser.src = "about:blank";
+      requestToken = crypto.randomUUID();
+      setProgress("Preparing posts", 0, urls.length);
+      result = await call(api.runtime, "sendMessage", {
+        type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls
+      });
+      if (!result?.registered) throw new Error(result?.error || "The collection could not be prepared.");
+    }
+    if (route !== preparationRoute || !host?.isConnected) return;
     loadChooser();
     const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
     const lockedMessage = locked ? ` ${locked} locked ${locked === 1 ? "post was" : "posts were"} skipped.` : "";
@@ -331,7 +367,6 @@
         type: "FINISH_COLLECTION_EXPORT", token: requestToken
       });
       if (!finished?.finished) throw new Error(finished?.error || "The collection transfer could not be completed.");
-      requestToken = "";
       await prepareSession(`${format === "epub" ? "EPUB" : "Markdown"} ZIP download started.`);
     } catch (error) {
       if (requestToken) call(api.runtime, "sendMessage", {
@@ -351,10 +386,6 @@
     dialog.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
     chooser.src = "about:blank";
-    if (requestToken) call(api.runtime, "sendMessage", {
-      type: "CANCEL_COLLECTION_EXPORT", token: requestToken
-    }).catch(() => {});
-    requestToken = "";
     if (restoreFocus) trigger.focus();
   }
 
@@ -380,6 +411,16 @@
       chooser,
       element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
       element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
+    const refresh = element("button", { type: "button", class: "close refresh" }, "Refresh collection");
+    refresh.addEventListener("click", () => {
+      if (busy) return;
+      prepareSession("", true).catch(error => {
+        report(error.message || "The collection could not be refreshed.", "error");
+        setProgress();
+        setBusy(false);
+      });
+    });
+    dialog.append(refresh);
     trigger.addEventListener("click", () => {
       if (open) return close(true);
       open = true;
@@ -402,6 +443,7 @@
     host?.remove();
     host = shadow = trigger = dialog = chooser = undefined;
     requestToken = "";
+    discoveryCache = null;
     open = busy = false;
   }
 

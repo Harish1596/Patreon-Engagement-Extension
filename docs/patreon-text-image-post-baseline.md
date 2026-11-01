@@ -839,8 +839,24 @@ behavior.
 Unavailable or unsupported post pages are skipped during preflight and their count
 is shown. A failure while building a post after successful preflight aborts the ZIP
 rather than silently producing a newly partial result. The current implementation
-accepts at most 100 unique post links per collection request and keeps a prepared
-request for five minutes.
+accepts at most 100 unique post links per collection request. As of November 1,
+collection discovery (links and locked counts) is retained in page memory for
+15 minutes; the worker retains prepared metadata for 15 minutes after preparation
+or generation. Closing the panel preserves those caches without retaining a
+worker tab. Successful finalization releases all generated transfer files and
+retains only the prepared metadata for another format. Reopening or finishing a
+download checks the existing session before deciding whether preflight is needed.
+Lost/expired worker state repeats preparation using cached links; expired page
+discovery is fetched again on the next opening. Refresh collection explicitly
+discards both caches and refetches. Navigation/reload clears page state, and
+navigation/cancellation/tab closure discards the background session. Post content
+and media are regenerated for each export, with no persistent caching added.
+
+Synthetic cache verification covers repeat format actions, panel reopening,
+refresh, discovery expiry, lost background state, route invalidation, transferred
+data release, and repeated build worker cleanup. Live authenticated cache behavior
+remains pending confirmation. Cached chooser reuse avoids an intermediate
+`about:blank` navigation, which caused a navigation race in repeat-download tests.
 
 **Evidence and limits:** The original October 25 post capture contains a collection
 link/card but not the collection page itself. The later October 31 screenshot and
