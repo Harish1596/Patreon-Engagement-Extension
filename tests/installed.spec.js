@@ -2,6 +2,7 @@ const { test, expect, chromium } = require("@playwright/test");
 const path = require("node:path");
 const fs = require("node:fs");
 const { browserExecutable } = require("../scripts/browser-config");
+const { readZip } = require("./helpers/zip");
 
 async function downloadBytes(download) {
   const stream = await download.createReadStream();
@@ -176,8 +177,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     const collectionBytes = await downloadBytes(collectionZip);
     expect(collectionBytes.includes(Buffer.from("001 - Collection post one.md"))).toBe(true);
     expect(collectionBytes.includes(Buffer.from("002 - Collection post two.md"))).toBe(true);
-    expect(collectionBytes.includes(Buffer.from("Collection body one."))).toBe(true);
-    expect(collectionBytes.includes(Buffer.from("Collection body two."))).toBe(true);
+    const collectionEntries = readZip(collectionBytes);
+    expect(collectionEntries[0].data.toString()).toContain("Collection body one.");
+    expect(collectionEntries[1].data.toString()).toContain("Collection body two.");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     await collection.getByRole("button", { name: "Close collection download", exact: true }).click();
     await collection.close();

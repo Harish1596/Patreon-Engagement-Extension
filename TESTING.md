@@ -29,13 +29,33 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection archive and identity fixes, November 1, 2026: **45 Chrome cases passed
+with one expected skip, all 46 Brave cases passed, and all 17 tooling tests
+passed**; syntax checks cover 32 JavaScript files. Browser tests exercise real
+compression of a synthetic 1.2 MB nested EPUB, independent raw-DEFLATE inflation,
+exact reconstructed contents, its stored first `mimetype` entry, Info-ZIP integrity,
+macOS ZIP detection, and `ditto` extraction. Archive Utility also extracted the
+browser-generated regression ZIP; `cmp` verified its EPUB matches the independent
+extraction byte-for-byte. The installed Brave test verifies distinct Markdown
+post bodies after actual extension messaging and compressed download.
+
+The background regression holds each worker navigation on the old document for
+two successful replies during both preparation and generation. It verifies eight
+stale replies are rejected, all three output titles are distinct, transferred
+post bodies match the requested IDs, and worker cleanup still occurs. A browser
+regression verifies that incorrect requested IDs and a changed SPA URL with the
+previous document cannot generate a file. Content scripts require a completed
+document with matching initial/current post IDs, and the worker independently
+validates the response ID. Full current authenticated Patreon collection export
+still requires user confirmation after reloading the extension and page.
+
 Archive Utility investigation, November 1, 2026: the user reports that the new
 method-8 download is still unsupported. Metadata and checksum checks on the newest
 76,144,838-byte archive found 74 complete outer entries and valid nested EPUB ZIP
 entries. Nevertheless, `/usr/bin/file -b` reports `data`. The previous method-8
 checkpoint below did **not** establish Archive Utility compatibility.
 
-Synthetic diagnostics using the current ZIP writer reproduce this distinction:
+Synthetic diagnostics using the then-current ZIP writer reproduced this distinction:
 
 | Outer payload | macOS `file` result |
 | --- | --- |
@@ -61,10 +81,11 @@ or full browser-suite run was made for this diagnosis.
 
 Separately, aggregate inspection of all three supplied/local collection archives
 found 74 entries but only one unique post title, source URL, and post body in
-each. UUID/time metadata explains the distinct EPUB byte hashes. Worker navigation
-currently does not wait for the destination document or bind export responses to
+each. UUID/time metadata explains the distinct EPUB byte hashes. At that checkpoint,
+worker navigation did not wait for the destination document or bind export responses to
 the requested post, so successful ZIP validation does not establish correct
-collection contents. Both runtime issues remain unresolved at this checkpoint.
+collection contents. Both issues were unresolved at that diagnostic checkpoint;
+the subsequent fixes and verification are recorded above.
 
 Download progress, November 1, 2026: **43 Chrome cases passed with the Brave-only
 installed case skipped, all 44 Brave cases passed, and all 16 tooling tests

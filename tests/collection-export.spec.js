@@ -2,6 +2,7 @@ const { test, expect } = require("@playwright/test");
 const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const { setup } = require("./helpers/reader");
+const { readZip } = require("./helpers/zip");
 
 async function downloadBytes(download) {
   const stream = await download.createReadStream();
@@ -62,10 +63,49 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
   expect(bytes.includes(Buffer.from("001 - First post.md"))).toBe(true);
   expect(bytes.includes(Buffer.from("002 - Second post.md"))).toBe(true);
   expect(bytes.includes(Buffer.from("003 - Third post.md"))).toBe(true);
-  expect(bytes.includes(Buffer.from("# First post"))).toBe(true);
-  expect(bytes.includes(Buffer.from("# Second post"))).toBe(true);
-  expect(bytes.includes(Buffer.from("# Third post"))).toBe(true);
+  const entries = readZip(bytes);
+  expect(entries.map(entry => entry.data.toString().split("\n")[0]))
+    .toEqual(["# First post", "# Second post", "# Third post"]);
   expect(await page.evaluate(() => collectionChunkSizes.every(size => size <= 1024 * 1024))).toBe(true);
+});
+
+test("collection EPUB ZIP compresses nested EPUBs without confusing macOS format detection", async ({ page }, testInfo) => {
+  await setup(page, { content: '<main><h1>EPUB collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
+    url: "https://www.patreon.com/collection/500" });
+  await page.evaluate(async () => {
+    const nested = PatreonExporter.makeZip([
+      { name: "mimetype", data: "application/epub+zip" },
+      { name: "EPUB/post.xhtml", data: '<html><body>' + 'Synthetic chapter body. '.repeat(50_000) + '</body></html>' }
+    ]);
+    const bytes = new Uint8Array(await nested.arrayBuffer());
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+    globalThis.collectionBuildResult = { files: [{ title: "Example chapter", extension: "epub", encoding: "base64", data: btoa(binary) }] };
+  });
+  await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("post is ready");
+  const pending = page.waitForEvent("download");
+  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "EPUB", exact: true }).click();
+  const bytes = await downloadBytes(await pending);
+  const [entry] = readZip(bytes);
+  expect(entry.method).toBe(8);
+  expect(entry.size).toBeLessThan(entry.data.length / 2);
+  expect(bytes.subarray(30, 130).includes(Buffer.from("application/epub+zip"))).toBe(false);
+  const [mime, body] = readZip(entry.data);
+  expect(mime.name).toBe("mimetype");
+  expect(mime.method).toBe(0);
+  expect(mime.data.toString()).toBe("application/epub+zip");
+  expect(body.data.toString()).toContain("Synthetic chapter body.");
+  const archive = testInfo.outputPath("nested-epub.zip");
+  fs.writeFileSync(archive, bytes);
+  execFileSync("unzip", ["-t", archive]);
+  if (process.platform === "darwin") {
+    expect(execFileSync("file", ["-b", archive], { encoding: "utf8" })).toContain("Zip archive");
+    const extracted = testInfo.outputPath("extracted");
+    fs.mkdirSync(extracted);
+    execFileSync("ditto", ["-x", "-k", archive, extracted]);
+    expect(fs.readFileSync(`${extracted}/${entry.name}`)).toEqual(entry.data);
+  }
 });
 
 test("collection export follows local API cursors without clicking Load more", async ({ page }) => {

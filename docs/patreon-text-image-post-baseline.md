@@ -782,14 +782,17 @@ disabled control is treated as in-progress; a stalled control produces an error
 instead of silently preparing a partial set. Both paths remove duplicates while
 preserving collection order and create numbered title-based files.
 The outer collection archive uses `application/zip`, valid DOS timestamps, and
-ZIP method-8 deflate stored blocks for compatibility with macOS archive detection;
+ZIP method-8 actual DEFLATE compression for compatibility with macOS archive detection;
 individual EPUB payloads retain `application/epub+zip` and their required stored
 `mimetype` entry.
-**November 1 investigation:** The intended macOS compatibility above is not
-achieved for large nested EPUBs. Stored DEFLATE blocks leave the nested EPUB MIME
+**November 1 investigation:** The previous stored-block implementation did not
+achieve compatibility for large nested EPUBs. Stored DEFLATE blocks leave the nested EPUB MIME
 marker visible to macOS's early format scan, causing generic-data classification
 and the reported Archive Utility rejection. Actual compression passes the
-synthetic detection and Archive Utility extraction control. See [current
+synthetic detection and Archive Utility extraction control. The writer now uses
+the browser's compression stream and strips the zlib wrapper to produce the raw
+DEFLATE required by ZIP. Individual EPUB containers retain their original bytes.
+See [current
 diagnostic evidence](../TESTING.md#automated-checks).
 PDF is deliberately deferred: the current post PDF path uses Chrome's interactive
 Save as PDF UI and cannot package generated PDF bytes into a ZIP.
@@ -800,6 +803,12 @@ open matching tab to be reused without the broad `tabs` permission. Otherwise th
 worker creates one inactive temporary Patreon tab and navigates that same tab
 through unopened posts in sequence. If Chromium defers the inactive tab, the
 worker briefly activates it and immediately returns to the collection. The tab
+must finish loading the requested post before answering preflight/build requests:
+the content script compares the requested numeric post ID with its immutable
+initial document identity and current URL, and requires `readyState=complete`.
+The background validates the returned ID before accepting successful metadata,
+retrying stale replies during navigation. A registered open tab that no longer
+qualifies falls back to a freshly navigated worker. The worker
 closes immediately when preflight finishes. File generation creates at most one
 new reusable worker and closes it immediately when generation finishes. Cancellation,
 failure, expiry detection, and collection-tab closure also clean up any active worker.
@@ -838,10 +847,12 @@ the compatibility fallback. Collections over 100 posts, alternate list markup,
 locked posts, remote images, and current live collection ordering remain unverified.
 Subsequent November 1 archive inspection additionally confirms repeated content:
 74 numbered files in each available archive contain one unique title, source,
-and post body. The worker sends export requests immediately after `tabs.update`
-and accepts success without validating the destination post identity. Correct
-per-post extraction after worker navigation remains unresolved; immediate mocked
-navigation and already-open-tab tests do not exercise this race.
+and post body. At the diagnostic checkpoint the worker sent export requests
+immediately after `tabs.update` and accepted success without validating the
+destination post identity. The subsequent identity guards are verified by a
+delayed-navigation background test that returns successful old-document replies
+before each destination, plus a browser test rejecting stale document requests.
+The full authenticated collection still needs live post-fix confirmation.
 
 ## Verification and change history
 

@@ -18,6 +18,10 @@
 - Use deflate framing for macOS-compatible outer collection ZIP archives.
 - Show accessible progress bars while post and collection downloads are prepared
   and generated.
+- Compress outer collection ZIPs to prevent nested EPUB markers from confusing
+  macOS Archive Utility format detection.
+- Verify the loaded post identity before preparing or generating collection files
+  so worker navigation cannot export the previous chapter repeatedly.
 
 ## 1.1.1
 

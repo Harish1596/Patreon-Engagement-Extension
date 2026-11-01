@@ -55,6 +55,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
       for (const key of Object.keys(next)) if (JSON.stringify(old[key]) !== JSON.stringify(next[key])) result[key] = { oldValue: old[key], newValue: next[key] };
       for (const listener of listeners) listener(result, "local");
     };
+    globalThis.deliverExtensionMessage = deliver;
     const api = {
       runtime: {
         id: "fixture-extension",

@@ -6,14 +6,15 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.resolve(__dirname, "../../extension/background/media.js"), "utf8");
 
-function backgroundHarness() {
+function backgroundHarness({ delayedNavigation = false } = {}) {
   let listener;
   let removedListener;
   let nextTabId = 10;
   let nextTransferId = 1;
   const tabUrls = new Map();
+  const pendingUrls = new Map();
   const transfers = new Map();
-  const calls = { create: [], update: [], remove: [], workerChunks: [], progress: [] };
+  const calls = { create: [], update: [], remove: [], workerChunks: [], progress: [], staleReplies: 0 };
   const browser = {
     runtime: {
       id: "fixture-extension",
@@ -28,7 +29,10 @@ function backgroundHarness() {
       },
       async update(tabId, options) {
         calls.update.push({ tabId, ...options });
-        if (options.url) tabUrls.set(tabId, options.url);
+        if (options.url) {
+          if (delayedNavigation) pendingUrls.set(tabId, { url: options.url, attempts: 2 });
+          else tabUrls.set(tabId, options.url);
+        }
         return { id: tabId };
       },
       async sendMessage(tabId, message) {
@@ -36,15 +40,20 @@ function backgroundHarness() {
           calls.progress.push(message);
           return { reported: true };
         }
+        const pending = pendingUrls.get(tabId);
+        if (pending && ["DESCRIBE_POST_EXPORT", "BUILD_POST_EXPORT"].includes(message.type)) {
+          if (pending.attempts-- > 0) calls.staleReplies++;
+          else { tabUrls.set(tabId, pending.url); pendingUrls.delete(tabId); }
+        }
         const url = tabUrls.get(tabId) || "https://www.patreon.com/posts/open-999";
         const id = new URL(url).pathname.split("/").pop();
         if (message.type === "DESCRIBE_POST_EXPORT") {
-          return { post: { title: `Post ${id}`, origins: [] } };
+          return { post: { title: `Post ${id}`, origins: [], postId: id } };
         }
         if (message.type === "BUILD_POST_EXPORT") {
           const data = id === "101" ? "x".repeat(2 * 1024 * 1024 + 17) : id;
           transfers.set(message.transferId, data);
-          return { file: { title: `Post ${id}`, extension: "md", encoding: "text", length: data.length } };
+          return { file: { title: `Post ${id}`, extension: "md", encoding: "text", length: data.length, postId: id } };
         }
         if (message.type === "GET_POST_EXPORT_CHUNK") {
           const source = transfers.get(message.transferId);
@@ -120,4 +129,20 @@ test("collection export chunks payloads and closes each phase's reusable worker"
   assert.deepEqual(calls.update.map(call => call.url), [...urls.slice(1), ...urls.slice(1)]);
   assert.deepEqual(calls.remove, calls.create.map(call => call.id));
   assert.equal((await send({ type: "FINISH_COLLECTION_EXPORT", token })).finished, true);
+});
+
+test("collection worker rejects successful old-document replies until each destination loads", async () => {
+  const { calls, send } = backgroundHarness({ delayedNavigation: true });
+  const token = "22222222-2222-4222-8222-222222222222";
+  const urls = [101, 102, 103].map(id => `https://www.patreon.com/posts/${id}`);
+  assert.equal((await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls })).count, 3);
+  const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
+  assert.deepEqual(Array.from(built.files, file => file.title), ["Post 101", "Post 102", "Post 103"]);
+  for (const index of [1, 2]) {
+    const chunk = await send({ type: "GET_COLLECTION_EXPORT_CHUNK", token, index, offset: 0 });
+    assert.equal(chunk.data, String(101 + index));
+  }
+  assert.equal(calls.staleReplies, 8);
+  assert.equal((await send({ type: "FINISH_COLLECTION_EXPORT", token })).finished, true);
+  assert.deepEqual(calls.remove, calls.create.map(call => call.id));
 });

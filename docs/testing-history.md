@@ -763,3 +763,33 @@ This checkpoint records diagnosis only. No runtime fix was applied. Tests and
 fixtures remained outside the repository; no account payload, post text, private
 URLs, or original archive was committed. Current commands/results and evidence
 limits are recorded in TESTING.md.
+
+### Collection compression and post identity fixes — November 1, 2026
+
+The outer collection ZIP now uses real browser DEFLATE compression instead of
+uncompressed stored blocks. The shared ZIP writer records compressed and original
+lengths; individual EPUB containers remain stored ZIPs with their required first
+`mimetype` entry. Compression runs asynchronously during the packaging progress
+stage. A browser regression downloads a compressed ZIP containing a synthetic
+1.2 MB EPUB, independently inflates its bytes, verifies its nested structure and
+contents, and passes Info-ZIP, macOS format detection, and `ditto` extraction.
+Archive Utility also extracted this browser-generated ZIP, and `cmp` confirmed
+the extracted EPUB exactly matches the independent extraction.
+
+Preflight and build requests now carry the requested numeric post ID. Content
+scripts require that ID to match both the immutable initial document identity
+and current URL and require a completed document. They verify identity again
+after asynchronous media preparation, before publishing a file transfer. The
+background independently checks returned IDs and retries successful responses
+from the old page. A stale registered tab falls back to the navigation worker.
+
+The delayed-navigation worker regression supplies two old-document responses at
+each transition during preparation and generation, verifies eight rejected stale
+replies, distinct output titles and matching transferred bodies, and checks worker
+cleanup. A browser test rejects incorrect IDs and a new SPA URL still showing the
+previous document. The final matrix passed 45 Chrome tests plus one expected skip,
+all 46 Brave tests, all 17 tooling tests, and syntax checks for 32 JavaScript files.
+The Brave installed-extension case includes distinct post contents in a real
+compressed collection download. Current authenticated Patreon collection export
+remains pending user confirmation; the older repeated-post archives must be
+downloaded again after reloading the extension and page.

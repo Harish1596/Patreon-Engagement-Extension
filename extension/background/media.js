@@ -90,7 +90,9 @@
     for (let attempt = 0; attempt < attempts; attempt++) {
       try {
         const result = await call(api.tabs, "sendMessage", tabId, message);
-        if (result && !result.error) return result;
+        const identityMatches = !message.expectedPostId
+          || (result?.post || result?.file)?.postId === message.expectedPostId;
+        if (result && !result.error && identityMatches) return result;
         lastError = new Error(result?.error || "The post is not ready for export.");
       } catch (error) { lastError = error; }
       await delay(250);
@@ -148,7 +150,8 @@
       let result;
       let usedTabId;
       const transferId = crypto.randomUUID();
-      const request = { type: "BUILD_POST_EXPORT", format, transferId };
+      const expectedPostId = /(?:\/|-)(\d+)\/?$/.exec(new URL(post.url).pathname)[1];
+      const request = { type: "BUILD_POST_EXPORT", format, transferId, expectedPostId };
       if (post.tabId) {
         try {
           result = await askPost(post.tabId, request);
@@ -191,14 +194,20 @@
       await reportCollectionProgress(session, message.token, "prepare", 0, urls.length);
       for (let index = 0; index < urls.length; index++) {
         const url = urls[index];
+        const expectedPostId = /(?:\/|-)(\d+)\/?$/.exec(new URL(url).pathname)[1];
+        const request = { type: "DESCRIBE_POST_EXPORT", expectedPostId };
         const existing = [...knownPosts].find(([, postUrl]) => postUrl === url);
         try {
-          const result = existing
-            ? await askPost(existing[0], { type: "DESCRIBE_POST_EXPORT" })
-            : await askWorkerPost(session, url, { type: "DESCRIBE_POST_EXPORT" });
+          let result;
+          let tabId = null;
+          if (existing) {
+            try { result = await askPost(existing[0], request); tabId = existing[0]; }
+            catch { /* A previously registered tab may have navigated elsewhere. */ }
+          }
+          if (!result) result = await askWorkerPost(session, url, request);
           if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
           session.posts.push({
-            tabId: existing ? existing[0] : null,
+            tabId,
             url,
             title: result.post.title,
             origins: result.post.origins

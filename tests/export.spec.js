@@ -6,6 +6,22 @@ const downloadDialog = (page) => page.getByRole("dialog", { name: "Download post
 const formats = (page) => page.frameLocator('iframe[title="Post export formats"]');
 const formatButton = (page, name) => formats(page).getByRole("button", { name, exact: true });
 
+test("collection requests cannot export a previous document during post navigation", async ({ page }) => {
+  await setup(page);
+  const result = await page.evaluate(async () => {
+    const wrong = await deliverExtensionMessage({ type: "DESCRIBE_POST_EXPORT", expectedPostId: "124" });
+    const right = await deliverExtensionMessage({ type: "DESCRIBE_POST_EXPORT", expectedPostId: "123" });
+    history.pushState({}, "", "/posts/124");
+    const stale = await deliverExtensionMessage({ type: "BUILD_POST_EXPORT", expectedPostId: "124",
+      format: "markdown", transferId: "11111111-1111-4111-8111-111111111111" });
+    return { wrong, right, stale };
+  });
+  expect(result.wrong.error).toContain("not finished loading");
+  expect(result.right.post.postId).toBe("123");
+  expect(result.stale.error).toContain("not finished loading");
+  expect(result.stale.file).toBeUndefined();
+});
+
 async function downloadBytes(download) {
   const stream = await download.createReadStream();
   const chunks = [];

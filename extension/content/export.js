@@ -16,6 +16,21 @@
   const portableTransfers = new Map();
   const MAX_TRANSFER_CHARS = 1024 * 1024;
   const MAX_EXPORT_IMAGE_BYTES = 100 * 1024 * 1024;
+  // This immutable identity distinguishes the old document during tabs.update.
+  const documentPostId = postId(location.href);
+
+  function postId(value) {
+    try { return /\/(?:[^/]+-)?(\d+)\/?$/.exec(new URL(value).pathname)?.[1] || ""; }
+    catch { return ""; }
+  }
+
+  function requirePost(expectedPostId) {
+    if (typeof expectedPostId !== "string" || !expectedPostId
+      || documentPostId !== expectedPostId || postId(location.href) !== expectedPostId
+      || document.readyState !== "complete") {
+      throw new Error("The requested post has not finished loading.");
+    }
+  }
 
   const utf8 = (value) => new TextEncoder().encode(value);
   const escapeText = (value) => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -256,27 +271,6 @@
     return bytes;
   }
 
-  function deflateStored(bytes) {
-    const blocks = Math.max(1, Math.ceil(bytes.length / 0xffff));
-    const output = new Uint8Array(bytes.length + blocks * 5);
-    let sourceOffset = 0;
-    let outputOffset = 0;
-    do {
-      const size = Math.min(0xffff, bytes.length - sourceOffset);
-      const final = sourceOffset + size === bytes.length;
-      const complement = (~size) & 0xffff;
-      output[outputOffset++] = final ? 1 : 0;
-      output[outputOffset++] = size & 0xff;
-      output[outputOffset++] = size >>> 8;
-      output[outputOffset++] = complement & 0xff;
-      output[outputOffset++] = complement >>> 8;
-      output.set(bytes.subarray(sourceOffset, sourceOffset + size), outputOffset);
-      sourceOffset += size;
-      outputOffset += size;
-    } while (sourceOffset < bytes.length);
-    return output;
-  }
-
   function crc32(bytes) {
     let crc = 0xffffffff;
     for (const byte of bytes) {
@@ -286,7 +280,7 @@
     return (crc ^ 0xffffffff) >>> 0;
   }
 
-  function makeZip(entries, type = "application/epub+zip", deflate = false) {
+  function makeZip(entries, type = "application/epub+zip") {
     const parts = [];
     const central = [];
     let offset = 0;
@@ -294,8 +288,8 @@
     for (const entry of entries) {
       const name = utf8(entry.name);
       const data = typeof entry.data === "string" ? utf8(entry.data) : entry.data;
-      const payload = deflate ? deflateStored(data) : data;
-      const method = deflate ? 8 : 0;
+      const payload = entry.compressedData || data;
+      const method = entry.compressedData ? 8 : 0;
       const crc = crc32(data);
       const local = zipHeader(payload.length, data.length, crc, name.length, offset, timestamp, method, false);
       parts.push(local, name, payload);
@@ -309,6 +303,17 @@
     view.setUint16(8, entries.length, true); view.setUint16(10, entries.length, true);
     view.setUint32(12, centralSize, true); view.setUint32(16, offset, true);
     return new Blob([...parts, ...central, end], { type });
+  }
+
+  async function makeCollectionZip(entries) {
+    const compressed = [];
+    for (const entry of entries) {
+      const stream = new Blob([entry.data]).stream().pipeThrough(new CompressionStream("deflate"));
+      const wrapped = new Uint8Array(await new Response(stream).arrayBuffer());
+      // ZIP stores raw DEFLATE, without the zlib header and Adler-32 trailer.
+      compressed.push({ ...entry, compressedData: wrapped.subarray(2, wrapped.length - 4) });
+    }
+    return makeZip(compressed, "application/zip");
   }
 
   function makeEpub(post) {
@@ -514,18 +519,25 @@
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
     if (message.type === "DESCRIBE_POST_EXPORT") {
-      try { respond({ post: describePost() }); }
+      try {
+        requirePost(message.expectedPostId);
+        respond({ post: { ...describePost(), postId: documentPostId } });
+      }
       catch (error) { respond({ error: error.message || "The post is not ready for export." }); }
       return;
     }
     if (message.type === "BUILD_POST_EXPORT") {
+      try { requirePost(message.expectedPostId); }
+      catch (error) { respond({ error: error.message }); return; }
       if (typeof message.transferId !== "string" || !/^[0-9a-f-]{36}$/i.test(message.transferId)) {
         respond({ error: "The post export transfer is invalid." });
         return;
       }
       buildPortableFile(message.format).then((file) => {
+        requirePost(message.expectedPostId);
         portableTransfers.set(message.transferId, file);
         respond({ file: {
+          postId: documentPostId,
           title: file.title,
           extension: file.extension,
           encoding: file.encoding,
@@ -585,5 +597,5 @@
   }, true);
   window.addEventListener("resize", position);
   window.addEventListener("scroll", position, { passive: true, capture: true });
-  globalThis.PatreonExporter = Object.freeze({ reconcile, makeZip, saveBlob, fileStem });
+  globalThis.PatreonExporter = Object.freeze({ reconcile, makeZip, makeCollectionZip, saveBlob, fileStem });
 })();

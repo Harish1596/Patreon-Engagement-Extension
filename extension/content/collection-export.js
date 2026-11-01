@@ -1,7 +1,7 @@
 /* Collection export: packages one EPUB or Markdown file per accessible post. */
 (() => {
   const { api, call } = globalThis.PatreonExtension;
-  const { makeZip, saveBlob, fileStem } = globalThis.PatreonExporter;
+  const { makeCollectionZip, saveBlob, fileStem } = globalThis.PatreonExporter;
   const POST_PATH = /^(?:\/posts\/\d+|\/[^/]+\/posts\/(?:[^/]+-)?\d+)\/?$/;
   let host;
   let shadow;
@@ -317,7 +317,7 @@
       }
       report("Packaging collection ZIP…");
       setProgress("Packaging collection ZIP");
-      saveBlob(makeZip(entries, "application/zip", true), `${fileStem(collectionTitle())}.zip`);
+      saveBlob(await makeCollectionZip(entries), `${fileStem(collectionTitle())}.zip`);
       const finished = await call(api.runtime, "sendMessage", {
         type: "FINISH_COLLECTION_EXPORT", token: requestToken
       });

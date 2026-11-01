@@ -164,15 +164,17 @@ and navigates that same tab through every post in sequence. Focus returns to the
 collection if Chromium requires the worker to be activated. The preflight worker
 closes as soon as preparation finishes; a fresh single worker used for the chosen
 format closes as soon as file generation finishes. Cancellation and failures also
-close the active worker. Image
+close the active worker. Before exporting each post, the extension waits for the
+requested document to finish loading and verifies its post ID, preventing an old
+page from being exported again while the worker navigates. Image
 permissions use the same exact-origin prompt as individual post export. PDF is
 not included in this first separate-file implementation because browser-native
 Save as PDF cannot be placed into a ZIP without a dedicated PDF generator.
 
 Generated EPUB and Markdown data crosses extension boundaries in bounded chunks,
 then the collection page assembles the ZIP locally. No message contains a complete
-large post or the complete collection payload. The outer ZIP uses standard deflate
-framing for macOS archive compatibility without altering nested EPUB files.
+large post or the complete collection payload. The outer ZIP uses actual DEFLATE
+compression for macOS archive compatibility without altering nested EPUB files.
 
 Post pages are recognized locally using this pathname structure:
 
