@@ -776,6 +776,17 @@ packaging. Discovery and packaging are indeterminate when no trustworthy total i
 available; preparation, generation, and page-side file receipt report completed
 post counts against the validated total. Completion and error states hide the bar
 while retaining the live status message.
+The extension-owned Cancel action stays available during discovery, preparation,
+generation, chunk receipt, and packaging. It aborts extension API discovery,
+stops further Load more polling/clicks, cancels pending worker requests and tagged
+media fetches, closes only the extension's worker, and removes prepared/transfer
+state. The UI shows Cancelling until cleanup acknowledges, then Cancelled and
+Start again. Completed discovery can be reused, while incomplete discovery is
+retried from the start. Late replies, cancelled transfer IDs, and late worker
+creation cannot restart work or save a ZIP. Existing user-opened post tabs are
+preserved. Cancel is hidden after ZIP handoff and does not undo a browser download
+or abort a Patreon-owned Load more request already started by its native button.
+
 The separate-file option creates one ZIP named from the collection heading. It
 first finds the current page's observed same-origin `/api/posts` request for the
 route's collection ID, removes its cursor, and follows validated next links or

@@ -14,6 +14,8 @@
   let open = false;
   let busy = false;
   const portableTransfers = new Map();
+  const portableBuilds = new Map();
+  const cancelledPortableBuilds = new Set();
   const MAX_TRANSFER_CHARS = 1024 * 1024;
   const MAX_EXPORT_IMAGE_BYTES = 100 * 1024 * 1024;
   // This immutable identity distinguishes the old document during tabs.update.
@@ -77,18 +79,19 @@
     return ({ "image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg", "image/avif": "avif" })[type] || "img";
   }
 
-  async function fetchImage(url) {
+  async function fetchImage(url, transferId) {
     if (url.startsWith("data:")) {
       const { type, bytes } = dataUrlBytes(url);
       return { type, bytes, dataUrl: url };
     }
-    const result = await call(api.runtime, "sendMessage", { type: "FETCH_POST_EXPORT_IMAGE", url });
+    const result = await call(api.runtime, "sendMessage", { type: "FETCH_POST_EXPORT_IMAGE", url, transferId });
     if (!result?.dataUrl) throw new Error(result?.error || "Unable to read an inline post image.");
     const decoded = dataUrlBytes(result.dataUrl);
     return { type: result.type || decoded.type, bytes: decoded.bytes, dataUrl: result.dataUrl };
   }
 
-  async function prepare() {
+  async function prepare({ signal, transferId } = {}) {
+    signal?.throwIfAborted();
     const post = findPost();
     if (!post) throw new Error("The current post could not be found.");
     const titles = [...post.scope.querySelectorAll(TITLE)].filter(post.belongs);
@@ -114,10 +117,12 @@
       sources.push(source);
     });
     const unique = new Map();
-    for (const source of sources) if (!unique.has(source)) unique.set(source, fetchImage(source));
+    for (const source of sources) if (!unique.has(source)) unique.set(source, fetchImage(source, transferId));
+    const resolved = new Map(await Promise.all([...unique].map(async ([source, asset]) => [source, await asset])));
+    signal?.throwIfAborted();
     const assets = [];
     for (let index = 0; index < sources.length; index++) {
-      const asset = await unique.get(sources[index]);
+      const asset = resolved.get(sources[index]);
       assets.push({ ...asset, path: `images/image-${index + 1}.${imageExtension(asset.type)}` });
     }
     if (assets.reduce((total, asset) => total + asset.bytes.length, 0) > MAX_EXPORT_IMAGE_BYTES) {
@@ -271,12 +276,26 @@
     return bytes;
   }
 
-  function crc32(bytes) {
-    let crc = 0xffffffff;
+  function updateCrc32(crc, bytes) {
     for (const byte of bytes) {
       crc ^= byte;
       for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
     }
+    return crc;
+  }
+
+  function crc32(bytes) {
+    return (updateCrc32(0xffffffff, bytes) ^ 0xffffffff) >>> 0;
+  }
+
+  async function collectionCrc32(bytes, signal) {
+    let crc = 0xffffffff;
+    for (let offset = 0; offset < bytes.length; offset += 1024 * 1024) {
+      signal?.throwIfAborted();
+      crc = updateCrc32(crc, bytes.subarray(offset, offset + 1024 * 1024));
+      if (offset + 1024 * 1024 < bytes.length) await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    signal?.throwIfAborted();
     return (crc ^ 0xffffffff) >>> 0;
   }
 
@@ -290,7 +309,7 @@
       const data = typeof entry.data === "string" ? utf8(entry.data) : entry.data;
       const payload = entry.compressedData || data;
       const method = entry.compressedData ? 8 : 0;
-      const crc = crc32(data);
+      const crc = entry.crc ?? crc32(data);
       const local = zipHeader(payload.length, data.length, crc, name.length, offset, timestamp, method, false);
       parts.push(local, name, payload);
       central.push(zipHeader(payload.length, data.length, crc, name.length, offset, timestamp, method, true), name);
@@ -305,14 +324,18 @@
     return new Blob([...parts, ...central, end], { type });
   }
 
-  async function makeCollectionZip(entries) {
+  async function makeCollectionZip(entries, signal) {
     const compressed = [];
     for (const entry of entries) {
-      const stream = new Blob([entry.data]).stream().pipeThrough(new CompressionStream("deflate"));
+      signal?.throwIfAborted();
+      const data = typeof entry.data === "string" ? utf8(entry.data) : entry.data;
+      const stream = new Blob([data]).stream().pipeThrough(new CompressionStream("deflate"), { signal });
       const wrapped = new Uint8Array(await new Response(stream).arrayBuffer());
       // ZIP stores raw DEFLATE, without the zlib header and Adler-32 trailer.
-      compressed.push({ ...entry, compressedData: wrapped.subarray(2, wrapped.length - 4) });
+      const crc = await collectionCrc32(data, signal);
+      compressed.push({ ...entry, data, crc, compressedData: wrapped.subarray(2, wrapped.length - 4) });
     }
+    signal?.throwIfAborted();
     return makeZip(compressed, "application/zip");
   }
 
@@ -337,9 +360,9 @@
     return `**Creator:** ${post.author}\n\n**Download time:** ${post.downloadedAt}\n\n**Source:** [${post.sourceUrl}](${post.sourceUrl})\n\n---\n\n# ${post.title}\n\n${renderMarkdown(post.body, post.assets).trim()}\n`;
   }
 
-  async function buildPortableFile(format) {
+  async function buildPortableFile(format, options) {
     if (!["epub", "markdown"].includes(format)) throw new Error("The collection export format is invalid.");
-    const post = await prepare();
+    const post = await prepare(options);
     if (format === "markdown") {
       return { title: post.title, extension: "md", encoding: "text", data: markdownFor(post) };
     }
@@ -533,7 +556,11 @@
         respond({ error: "The post export transfer is invalid." });
         return;
       }
-      buildPortableFile(message.format).then((file) => {
+      if (cancelledPortableBuilds.has(message.transferId)) { respond({ error: "The export was cancelled." }); return; }
+      const controller = new AbortController();
+      portableBuilds.set(message.transferId, controller);
+      buildPortableFile(message.format, { signal: controller.signal, transferId: message.transferId }).then((file) => {
+        controller.signal.throwIfAborted();
         requirePost(message.expectedPostId);
         portableTransfers.set(message.transferId, file);
         respond({ file: {
@@ -544,8 +571,16 @@
           length: file.data.length
         } });
       })
-        .catch((error) => respond({ error: error.message || "The post could not be exported." }));
+        .catch((error) => respond({ error: error.message || "The post could not be exported." }))
+        .finally(() => portableBuilds.delete(message.transferId));
       return true;
+    }
+    if (message.type === "CANCEL_POST_EXPORT") {
+      cancelledPortableBuilds.add(message.transferId);
+      portableBuilds.get(message.transferId)?.abort();
+      portableTransfers.delete(message.transferId);
+      respond({ cancelled: true });
+      return;
     }
     if (message.type === "GET_POST_EXPORT_CHUNK") {
       const file = portableTransfers.get(message.transferId);

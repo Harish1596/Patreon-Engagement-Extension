@@ -29,6 +29,29 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Active collection cancellation, November 1, 2026: **all 21 targeted Chrome
+collection/post export tests, 22 targeted Brave collection/post/installed tests,
+and 27 tooling tests passed**; syntax checks cover 33 JavaScript files. Browser
+regressions cancel API discovery (observing request abort without a Load more
+fallback), stalled preparation, generation, chunk receipt, cached-session recovery,
+and delayed compression. They verify no late ZIP or status replacement occurs and
+Start again can prepare/export after cancellation. A post regression cancels
+generation in an existing tab while media is pending and rejects a late reuse of
+the cancelled transfer ID without closing that tab.
+
+Background cases verify cancellation while preflight has not yet finished,
+worker closure before a stalled reply resolves, pending media fetch abort,
+rejection of late media requests, saved-session cleanup, owner checks, and closure
+of a worker whose creation completes after cancellation. ZIP CRC calculation now
+yields between 1 MiB chunks so cancellation remains available during packaging.
+Commands: `npm test -- tests/collection-export.spec.js tests/export.spec.js --reporter=dot`,
+`npm run test:brave -- tests/collection-export.spec.js tests/export.spec.js tests/installed.spec.js --reporter=dot`,
+`npm run test:tooling`, and `npm run check`. Tests use synthetic pages and
+intercepted media; authenticated live cancellation remains pending confirmation.
+Cancellation applies before handing the finished ZIP to the browser and does not
+control already-started browser downloads or Patreon's own in-flight Load more
+request. No full browser-suite rerun was performed for this change.
+
 Idle collection sessions, November 1, 2026: **all 8 targeted Chrome collection
 tests, 9 targeted Brave collection/installed tests, and 24 tooling tests passed**;
 syntax checks cover 33 JavaScript files. The installed Brave test terminates the

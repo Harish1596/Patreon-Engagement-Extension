@@ -13,9 +13,67 @@
   let busy = false;
   let route = "";
   let discoveryCache = null;
+  let activeOperation = null;
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const observedApiRequests = [];
   const MAX_TRANSFER_CHARS = 1024 * 1024;
+
+  function beginOperation() {
+    const operation = { controller: new AbortController(), handedOff: false };
+    activeOperation = operation;
+    const restart = shadow?.querySelector(".restart");
+    if (restart) restart.hidden = true;
+    return operation;
+  }
+
+  function checkOperation(operation) {
+    operation.controller.signal.throwIfAborted();
+    if (activeOperation !== operation) throw new DOMException("The operation was cancelled.", "AbortError");
+  }
+
+  function waitFor(promise, signal) {
+    return new Promise((resolve, reject) => {
+      const abort = () => reject(new DOMException("The operation was cancelled.", "AbortError"));
+      if (signal.aborted) { Promise.resolve(promise).catch(() => {}); abort(); return; }
+      signal.addEventListener("abort", abort, { once: true });
+      Promise.resolve(promise).then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    });
+  }
+
+  async function cancelOperation() {
+    const operation = activeOperation;
+    if (!busy || !operation || operation.handedOff) return;
+    const ownerHost = host;
+    operation.controller.abort();
+    activeOperation = null;
+    const token = requestToken;
+    requestToken = "";
+    chooser.src = "about:blank";
+    report("Cancelling…");
+    setProgress("Cancelling");
+    shadow.querySelector(".cancel").disabled = true;
+    let failed = false;
+    if (token) {
+      try {
+        const result = await call(api.runtime, "sendMessage", { type: "CANCEL_COLLECTION_EXPORT", token });
+        failed = !result?.cancelled;
+      } catch { failed = true; }
+    }
+    if (host !== ownerHost || !host?.isConnected || activeOperation) return;
+    report(failed ? "Cancellation could not be confirmed. Close this collection tab to stop its worker."
+      : "Cancelled. You can start again.", failed ? "error" : "");
+    setProgress();
+    setBusy(false);
+    shadow.querySelector(".restart").hidden = failed;
+  }
+
+  function showPreparationError(error) {
+    if (error.name === "AbortError") return;
+    report(error.message || "The collection could not be prepared.", "error");
+    setProgress();
+    activeOperation = null;
+    setBusy(false);
+  }
 
   function rememberApiRequest(value) {
     try {
@@ -111,7 +169,7 @@
     return url;
   }
 
-  async function apiPostUrls() {
+  async function apiPostUrls(signal) {
     const template = collectionApiTemplate();
     if (!template) return null;
     const collectionId = routeCollectionId();
@@ -121,16 +179,19 @@
     let expectedTotal = null;
     let pageUrl = template;
     for (let page = 0; page < 100; page++) {
+      signal.throwIfAborted();
       report(`Reading collection pages… ${seen.size} found.`);
       const fields = new Set((pageUrl.searchParams.get("fields[post]") || "").split(",").filter(Boolean));
       fields.add("current_user_can_view");
       pageUrl.searchParams.set("fields[post]", [...fields].join(","));
       const response = await fetch(pageUrl.href, {
         credentials: "include",
+        signal,
         headers: { Accept: "application/json" }
       });
       if (!response.ok) throw new Error(`Patreon collection request failed (${response.status}).`);
       const payload = await response.json();
+      signal.throwIfAborted();
       if (!Array.isArray(payload?.data)) throw new Error("Patreon returned an invalid collection page.");
       const total = Number(payload?.meta?.pagination?.total);
       if (Number.isSafeInteger(total) && total >= 0) {
@@ -169,9 +230,10 @@
     return button.disabled || button.getAttribute("aria-disabled") === "true";
   }
 
-  async function waitForLoadMoreReady() {
+  async function waitForLoadMoreReady(signal) {
     let missingChecks = 0;
     for (let attempt = 0; attempt < 150; attempt++) {
+      signal.throwIfAborted();
       const button = loadMoreButton();
       if (button) {
         missingChecks = 0;
@@ -179,27 +241,27 @@
       } else if (++missingChecks >= 10) {
         return null;
       }
-      await delay(100);
+      await waitFor(delay(100), signal);
     }
     throw new Error("Patreon did not finish enabling Load more.");
   }
 
-  async function waitForNextBatch(before) {
+  async function waitForNextBatch(before, signal) {
     for (let attempt = 0; attempt < 150; attempt++) {
-      await delay(100);
+      await waitFor(delay(100), signal);
       if (postUrls().length > before) return true;
     }
     throw new Error("Patreon did not load the next group of collection posts.");
   }
 
-  async function loadAllPostLinks() {
+  async function loadAllPostLinks(signal) {
     for (let page = 0; page < 100; page++) {
-      const button = await waitForLoadMoreReady();
+      const button = await waitForLoadMoreReady(signal);
       if (!button) return;
       const before = postUrls().length;
       report(`Loading all posts from this collection… ${before} found.`);
       button.click();
-      await waitForNextBatch(before);
+      await waitForNextBatch(before, signal);
     }
     throw new Error("This collection has too many pages to prepare safely.");
   }
@@ -235,6 +297,8 @@
     if (close) close.disabled = value;
     const refresh = shadow?.querySelector(".refresh");
     if (refresh) refresh.disabled = value;
+    const cancel = shadow?.querySelector(".cancel");
+    if (cancel) { cancel.hidden = !value || activeOperation?.handedOff; cancel.disabled = false; }
   }
 
   function loadChooser() {
@@ -249,7 +313,9 @@
     }).catch(() => {});
   }
 
-  async function prepareSession(prefix = "", refresh = false) {
+  async function prepareSession(prefix = "", refresh = false, operation = beginOperation()) {
+    checkOperation(operation);
+    const signal = operation.controller.signal;
     const preparationRoute = route;
     setBusy(true);
     setProgress("Finding collection posts");
@@ -257,17 +323,19 @@
     if (refresh || (discoveryCache && discoveryCache.expires <= Date.now())) {
       discoveryCache = null;
       await discardPreparation();
+      checkOperation(operation);
     }
     let discovered = discoveryCache?.discovered;
     if (!discovered) {
       chooser.src = "about:blank";
-      try { discovered = await apiPostUrls(); }
-      catch { discovered = null; }
+      try { discovered = await apiPostUrls(signal); }
+      catch { signal.throwIfAborted(); discovered = null; }
       if (!discovered) {
-        await loadAllPostLinks();
+        await loadAllPostLinks(signal);
         discovered = { urls: postUrls(), locked: 0 };
       }
       if (route !== preparationRoute || !host?.isConnected) return;
+      checkOperation(operation);
       discoveryCache = { discovered, expires: Date.now() + COLLECTION_CACHE_MS };
     }
     const { urls, locked } = discovered;
@@ -278,30 +346,34 @@
     let result;
     if (requestToken) {
       try {
-        const existing = await call(api.runtime, "sendMessage", {
+        const existing = await waitFor(call(api.runtime, "sendMessage", {
           type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
-        });
+        }), signal);
         if (Array.isArray(existing?.origins)) result = existing;
       } catch { /* The service worker may have restarted or expired the session. */ }
+      checkOperation(operation);
       if (!result) await discardPreparation();
     }
     if (route !== preparationRoute || !host?.isConnected) return;
+    checkOperation(operation);
     if (!result) {
       chooser.src = "about:blank";
       requestToken = crypto.randomUUID();
       setProgress("Preparing posts", 0, urls.length);
-      result = await call(api.runtime, "sendMessage", {
+      result = await waitFor(call(api.runtime, "sendMessage", {
         type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls
-      });
+      }), signal);
       if (!result?.registered) throw new Error(result?.error || "The collection could not be prepared.");
     }
     if (route !== preparationRoute || !host?.isConnected) return;
+    checkOperation(operation);
     loadChooser();
     const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
     const lockedMessage = locked ? ` ${locked} locked ${locked === 1 ? "post was" : "posts were"} skipped.` : "";
     report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${lockedMessage}${skipped}`, prefix ? "success" : "");
     setProgress();
     setBusy(false);
+    activeOperation = null;
   }
 
   function decodeFile(file, index, total) {
@@ -316,7 +388,7 @@
     return { name: `${number} - ${fileStem(file.title)}.${file.extension}`, data };
   }
 
-  async function receiveFile(token, metadata, index) {
+  async function receiveFile(token, metadata, index, signal) {
     if (!metadata || typeof metadata.title !== "string"
       || !["md", "epub"].includes(metadata.extension)
       || !["text", "base64"].includes(metadata.encoding)
@@ -326,9 +398,10 @@
     const chunks = [];
     let offset = 0;
     while (offset < metadata.length) {
-      const result = await call(api.runtime, "sendMessage", {
+      signal.throwIfAborted();
+      const result = await waitFor(call(api.runtime, "sendMessage", {
         type: "GET_COLLECTION_EXPORT_CHUNK", token, index, offset
-      });
+      }), signal);
       if (typeof result?.data !== "string" || !result.data.length
         || result.data.length > MAX_TRANSFER_CHARS) {
         throw new Error(result?.error || "The collection returned an invalid file chunk.");
@@ -344,31 +417,39 @@
 
   async function run(format) {
     if (busy) return;
+    const operation = beginOperation();
+    const signal = operation.controller.signal;
     setBusy(true);
     setProgress(`Building ${format === "epub" ? "EPUB" : "Markdown"} files`);
     report(`Building ${format === "epub" ? "EPUB" : "Markdown"} files…`);
     try {
-      const result = await call(api.runtime, "sendMessage", {
+      const result = await waitFor(call(api.runtime, "sendMessage", {
         type: "BUILD_COLLECTION_EXPORT", token: requestToken, format
-      });
+      }), signal);
+      checkOperation(operation);
       if (!result?.files?.length) throw new Error(result?.error || "The collection did not produce any files.");
       const entries = [];
       for (let index = 0; index < result.files.length; index++) {
         report(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files… ${index + 1} of ${result.files.length}.`);
         setProgress(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files`, index, result.files.length);
-        const file = await receiveFile(requestToken, result.files[index], index);
+        const file = await receiveFile(requestToken, result.files[index], index, signal);
         entries.push(decodeFile(file, index, result.files.length));
         setProgress(`Receiving ${format === "epub" ? "EPUB" : "Markdown"} files`, index + 1, result.files.length);
       }
       report("Packaging collection ZIP…");
       setProgress("Packaging collection ZIP");
-      saveBlob(await makeCollectionZip(entries), `${fileStem(collectionTitle())}.zip`);
+      const archive = await makeCollectionZip(entries, signal);
+      checkOperation(operation);
+      operation.handedOff = true;
+      setBusy(true);
+      saveBlob(archive, `${fileStem(collectionTitle())}.zip`);
       const finished = await call(api.runtime, "sendMessage", {
         type: "FINISH_COLLECTION_EXPORT", token: requestToken
       });
       if (!finished?.finished) throw new Error(finished?.error || "The collection transfer could not be completed.");
-      await prepareSession(`${format === "epub" ? "EPUB" : "Markdown"} ZIP download started.`);
+      await prepareSession(`${format === "epub" ? "EPUB" : "Markdown"} ZIP download started.`, false, operation);
     } catch (error) {
+      if (signal.aborted || activeOperation !== operation) return;
       if (requestToken) call(api.runtime, "sendMessage", {
         type: "CANCEL_COLLECTION_EXPORT", token: requestToken
       }).catch(() => {});
@@ -377,6 +458,7 @@
       report(error.message || "The collection could not be exported.", "error");
       setProgress();
       setBusy(false);
+      activeOperation = null;
     }
   }
 
@@ -414,29 +496,30 @@
     const refresh = element("button", { type: "button", class: "close refresh" }, "Refresh collection");
     refresh.addEventListener("click", () => {
       if (busy) return;
-      prepareSession("", true).catch(error => {
-        report(error.message || "The collection could not be refreshed.", "error");
-        setProgress();
-        setBusy(false);
-      });
+      prepareSession("", true).catch(showPreparationError);
     });
-    dialog.append(refresh);
+    const controls = element("div", { class: "controls" });
+    style.textContent += ".controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}";
+    const cancel = element("button", { type: "button", class: "close cancel", hidden: "" }, "Cancel");
+    cancel.addEventListener("click", cancelOperation);
+    const restart = element("button", { type: "button", class: "close restart", hidden: "" }, "Start again");
+    restart.addEventListener("click", () => prepareSession().catch(showPreparationError));
+    controls.append(refresh, cancel, restart);
+    dialog.append(controls);
     trigger.addEventListener("click", () => {
       if (open) return close(true);
       open = true;
       dialog.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
-      prepareSession().catch(error => {
-        report(error.message || "The collection could not be prepared.", "error");
-        setProgress();
-        setBusy(false);
-      });
+      prepareSession().catch(showPreparationError);
     });
     shadow.append(style, trigger, dialog);
     document.documentElement.append(host);
   }
 
   function remove() {
+    activeOperation?.controller.abort();
+    activeOperation = null;
     if (requestToken) call(api.runtime, "sendMessage", {
       type: "CANCEL_COLLECTION_EXPORT", token: requestToken
     }).catch(() => {});

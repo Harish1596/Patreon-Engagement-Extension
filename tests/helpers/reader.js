@@ -65,6 +65,11 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
         getURL: (name) => `https://fixture-extension.invalid/${name.replace(/^\//, "")}`,
         onMessage: { addListener: (fn) => messages.push(fn) },
         sendMessage: async (message) => {
+          if (globalThis.collectionMessageHolds?.includes(message.type)) {
+            globalThis.collectionHeldType = message.type;
+            await new Promise(resolve => { globalThis.releaseCollectionMessage = resolve; });
+            globalThis.collectionLateReplyReleased = true;
+          }
           if (message.type === "REGISTER_POST_EXPORT") {
             globalThis.requestedExportOrigins = message.origins;
             return { registered: true };

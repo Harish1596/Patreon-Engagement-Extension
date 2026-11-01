@@ -9,6 +9,22 @@
   const MAX_TRANSFER_CHARS = 1024 * 1024;
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const COLLECTION_SESSION_PREFIX = "collection-export:";
+  const mediaRequests = new Map();
+  const cancelledMediaTransfers = new Set();
+
+  function checkCancelled(session) {
+    if (session?.controller?.signal.aborted) throw new Error("The collection export was cancelled.");
+  }
+
+  function cancellable(promise, signal) {
+    if (!signal) return promise;
+    return new Promise((resolve, reject) => {
+      const abort = () => reject(new Error("The collection export was cancelled."));
+      if (signal.aborted) { Promise.resolve(promise).catch(() => {}); abort(); return; }
+      signal.addEventListener("abort", abort, { once: true });
+      Promise.resolve(promise).then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    });
+  }
 
   function call(target, method, ...args) {
     if (globalThis.browser?.runtime) return target[method](...args);
@@ -41,12 +57,15 @@
   }
 
   async function persistCollection(token, session) {
+    checkCancelled(session);
     // Session storage survives worker suspension, but is cleared with the browser
     // session. Never put post bodies, file transfers, or media URLs here.
     const { ownerTabId, ownerWindowId, posts, skipped, expires } = session;
     await call(api.storage.session, "set", {
       [COLLECTION_SESSION_PREFIX + token]: { version: 1, ownerTabId, ownerWindowId, posts, skipped, expires }
     });
+    if (session.controller?.signal.aborted) await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
+    checkCancelled(session);
   }
 
   async function restoreCollections() {
@@ -83,7 +102,17 @@
   async function discardCollection(token) {
     const session = collections.get(token);
     collections.delete(token);
-    if (session) await closeWorker(session);
+    if (session) {
+      session.controller?.abort();
+      const active = session.activePost;
+      if (active) {
+        cancelledMediaTransfers.add(`${active.tabId}:${active.transferId}`);
+        for (const controller of mediaRequests.get(`${active.tabId}:${active.transferId}`) || []) controller.abort();
+        call(api.tabs, "sendMessage", active.tabId, { type: "CANCEL_POST_EXPORT", transferId: active.transferId }).catch(() => {});
+      }
+      delete session.files;
+      await closeWorker(session);
+    }
     await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
   }
 
@@ -94,40 +123,51 @@
   }
 
   async function navigateWorker(session, url) {
+    checkCancelled(session);
     if (session.workerTabId) {
       try {
         await call(api.tabs, "update", session.workerTabId, { url, active: false });
+        checkCancelled(session);
         return session.workerTabId;
       } catch {
+        checkCancelled(session);
         session.workerTabId = null;
       }
     }
     const tab = await call(api.tabs, "create", { url, active: false, windowId: session.ownerWindowId });
     session.workerTabId = tab.id;
+    if (session.controller?.signal.aborted) {
+      await closeWorker(session);
+      checkCancelled(session);
+    }
     return tab.id;
   }
 
   async function askWorkerPost(session, url, message) {
     const tabId = await navigateWorker(session, url);
-    return askPost(tabId, message);
+    if (message.transferId) session.activePost = { tabId, transferId: message.transferId };
+    return askPost(tabId, message, 60, session.controller?.signal);
   }
 
-  async function askPost(tabId, message, attempts = 60) {
+  async function askPost(tabId, message, attempts = 60, signal) {
     let lastError;
     for (let attempt = 0; attempt < attempts; attempt++) {
       try {
-        const result = await call(api.tabs, "sendMessage", tabId, message);
+        if (signal?.aborted) throw new Error("The collection export was cancelled.");
+        const result = await cancellable(call(api.tabs, "sendMessage", tabId, message), signal);
         const identityMatches = !message.expectedPostId
           || (result?.post || result?.file)?.postId === message.expectedPostId;
         if (result && !result.error && identityMatches) return result;
         lastError = new Error(result?.error || "The post is not ready for export.");
       } catch (error) { lastError = error; }
-      await delay(250);
+      if (signal?.aborted) throw new Error("The collection export was cancelled.");
+      await cancellable(delay(250), signal);
     }
     throw lastError || new Error("The post did not become ready for export.");
   }
 
   async function reportCollectionProgress(session, token, phase, current, total, format = "") {
+    checkCancelled(session);
     try {
       await call(api.tabs, "sendMessage", session.ownerTabId, {
         type: "COLLECTION_EXPORT_PROGRESS", token, phase, current, total, format
@@ -142,7 +182,7 @@
       && Number.isSafeInteger(file.length) && file.length >= 0;
   }
 
-  async function pullPostFile(tabId, transferId, metadata) {
+  async function pullPostFile(tabId, transferId, metadata, signal) {
     if (!validFileMetadata(metadata)) throw new Error("The post returned invalid export metadata.");
     const chunks = [];
     let offset = 0;
@@ -150,7 +190,7 @@
       while (offset < metadata.length) {
         const result = await askPost(tabId, {
           type: "GET_POST_EXPORT_CHUNK", transferId, offset
-        });
+        }, 60, signal);
         if (typeof result.data !== "string" || !result.data.length
           || result.data.length > MAX_TRANSFER_CHARS) {
           throw new Error("The post returned an invalid export chunk.");
@@ -181,9 +221,11 @@
       const request = { type: "BUILD_POST_EXPORT", format, transferId, expectedPostId };
       if (post.tabId) {
         try {
-          result = await askPost(post.tabId, request);
+          session.activePost = { tabId: post.tabId, transferId };
+          result = await askPost(post.tabId, request, 60, session.controller.signal);
           usedTabId = post.tabId;
         } catch {
+          checkCancelled(session);
           result = await askWorkerPost(session, post.url, request);
           usedTabId = session.workerTabId;
         }
@@ -195,7 +237,8 @@
         call(api.tabs, "sendMessage", usedTabId, { type: "RELEASE_POST_EXPORT", transferId }).catch(() => {});
         throw new Error("The collection export was cancelled.");
       }
-      files.push(await pullPostFile(usedTabId, transferId, result.file));
+      files.push(await pullPostFile(usedTabId, transferId, result.file, session.controller.signal));
+      session.activePost = null;
       await reportCollectionProgress(session, token, "build", index + 1, session.posts.length, format);
     }
     return files;
@@ -207,16 +250,19 @@
       || !urls.length || urls.length > 100 || urls.some(url => !validPostUrl(url))) {
       throw new Error("The collection supplied an invalid post list.");
     }
+    if (collections.has(message.token)) throw new Error("This collection is already prepared or being prepared.");
     cancelledCollections.delete(message.token);
-    await discardCollection(message.token);
     const session = {
       ownerTabId: sender.tab.id,
       ownerWindowId: sender.tab.windowId,
       workerTabId: null,
       posts: [],
       skipped: 0,
+      preparing: true,
+      controller: new AbortController(),
       expires: Date.now() + COLLECTION_CACHE_MS
     };
+    collections.set(message.token, session);
     try {
       await reportCollectionProgress(session, message.token, "prepare", 0, urls.length);
       for (let index = 0; index < urls.length; index++) {
@@ -228,9 +274,10 @@
           let result;
           let tabId = null;
           if (existing) {
-            try { result = await askPost(existing[0], request); tabId = existing[0]; }
+            try { result = await askPost(existing[0], request, 60, session.controller.signal); tabId = existing[0]; }
             catch { /* A previously registered tab may have navigated elsewhere. */ }
           }
+          checkCancelled(session);
           if (!result) result = await askWorkerPost(session, url, request);
           if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
           session.posts.push({
@@ -240,7 +287,7 @@
             origins: result.post.origins
           });
         } catch (error) {
-          if (cancelledCollections.has(message.token)) throw error;
+          if (session.controller.signal.aborted || cancelledCollections.has(message.token)) throw error;
           session.skipped++;
         }
         await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length);
@@ -248,9 +295,11 @@
       if (!session.posts.length) throw new Error("No accessible text posts in this collection could be prepared.");
       if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
       await closeWorker(session);
+      checkCancelled(session);
       session.expires = Date.now() + COLLECTION_CACHE_MS;
       await persistCollection(message.token, session);
-      collections.set(message.token, session);
+      checkCancelled(session);
+      session.preparing = false;
       cancelledCollections.delete(message.token);
       return {
         registered: true,
@@ -259,7 +308,7 @@
         origins: [...new Set(session.posts.flatMap(post => post.origins))]
       };
     } catch (error) {
-      await closeWorker(session);
+      if (collections.get(message.token) === session) await discardCollection(message.token);
       cancelledCollections.delete(message.token);
       throw error;
     }
@@ -267,7 +316,7 @@
 
   function collectionFor(message, sender) {
     const session = collections.get(message.token);
-    if (!session || session.ownerTabId !== sender.tab.id) return null;
+    if (!session || session.ownerTabId !== sender.tab.id || session.preparing) return null;
     if (session.expires <= Date.now()) {
       discardCollection(message.token).catch(() => {});
       return null;
@@ -391,11 +440,17 @@
         respond({ error: "The collection export request expired or is invalid. Reopen Download." });
         return;
       }
+      if (session.building) { respond({ error: "A collection export is already running." }); return; }
+      session.building = true;
+      session.controller = new AbortController();
       buildCollection(message.token, session, message.format).then(async files => {
+        checkCancelled(session);
         await closeWorker(session);
         session.files = files;
         session.expires = Date.now() + COLLECTION_CACHE_MS;
         await persistCollection(message.token, session);
+        checkCancelled(session);
+        session.building = false;
         cancelledCollections.delete(message.token);
         respond({
           files: files.map(file => ({
@@ -448,6 +503,8 @@
     }
 
     if (message.type === "CANCEL_COLLECTION_EXPORT") {
+      const session = collections.get(message.token);
+      if (session && session.ownerTabId !== sender.tab.id) { respond({ error: "This collection belongs to another tab." }); return; }
       cancelledCollections.add(message.token);
       discardCollection(message.token).then(() => respond({ cancelled: true }));
       return true;
@@ -462,9 +519,16 @@
       return;
     }
     const origin = `${parsed.origin}/*`;
+    const mediaKey = typeof message.transferId === "string" ? `${sender.tab.id}:${message.transferId}` : "";
+    if (mediaKey && cancelledMediaTransfers.has(mediaKey)) { respond({ error: "The collection export was cancelled." }); return; }
+    const controller = new AbortController();
+    if (mediaKey) {
+      if (!mediaRequests.has(mediaKey)) mediaRequests.set(mediaKey, new Set());
+      mediaRequests.get(mediaKey).add(controller);
+    }
     call(api.permissions, "contains", { origins: [origin] }).then((allowed) => {
       if (!allowed) throw new Error("Media access was not granted for this image origin.");
-      return fetch(parsed.href, { credentials: "omit", redirect: "follow" });
+      return fetch(parsed.href, { credentials: "omit", redirect: "follow", signal: controller.signal });
     }).then(async (response) => {
       if (!response.ok) throw new Error(`Image request failed (${response.status}).`);
       const finalOrigin = `${new URL(response.url).origin}/*`;
@@ -478,7 +542,12 @@
       const bytes = new Uint8Array(await response.arrayBuffer());
       if (bytes.length > MAX_IMAGE_BYTES) throw new Error("An inline image is too large to export safely.");
       respond({ dataUrl: `data:${type};base64,${base64(bytes)}`, type });
-    }).catch((error) => respond({ error: error.message || "Unable to fetch post media." }));
+    }).catch((error) => respond({ error: error.message || "Unable to fetch post media." })).finally(() => {
+      if (mediaKey) {
+        mediaRequests.get(mediaKey)?.delete(controller);
+        if (!mediaRequests.get(mediaKey)?.size) mediaRequests.delete(mediaKey);
+      }
+    });
     return true;
   }
 

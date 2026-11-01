@@ -6,7 +6,7 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.resolve(__dirname, "../../extension/background/media.js"), "utf8");
 
-function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, fastTimers = false } = {}) {
+function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, fastTimers = false, fetchMedia } = {}) {
   let listener;
   let removedListener;
   let nextTabId = 10;
@@ -16,6 +16,15 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
   const pendingUrls = new Map();
   const transfers = new Map();
   const sessionStore = {};
+  const holds = new Map();
+  function hold(type) {
+    let enter;
+    let release;
+    const entered = new Promise(resolve => { enter = resolve; });
+    const gate = new Promise(resolve => { release = resolve; });
+    holds.set(type, { enter, gate });
+    return { entered, release };
+  }
   const calls = { create: [], update: [], remove: [], workerChunks: [], progress: [], staleReplies: 0 };
   const browser = {
     runtime: {
@@ -27,6 +36,10 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
         const tab = { id: nextTabId++ };
         calls.create.push({ ...options, id: tab.id });
         tabUrls.set(tab.id, options.url);
+        if (holds.has("create")) {
+          const held = holds.get("create"); holds.delete("create");
+          held.enter(tab.id); await held.gate;
+        }
         return tab;
       },
       async update(tabId, options) {
@@ -38,6 +51,10 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
         return { id: tabId };
       },
       async sendMessage(tabId, message) {
+        if (holds.has(message.type)) {
+          const held = holds.get(message.type); holds.delete(message.type);
+          held.enter({ tabId, message }); await held.gate;
+        }
         if (message.type === "COLLECTION_EXPORT_PROGRESS") {
           calls.progress.push(message);
           return { reported: true };
@@ -87,11 +104,11 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
     } }
   };
   const restart = () => vm.runInNewContext(source, {
-    browser, URL, Map, Set, Promise, Uint8Array,
+    browser, URL, Map, Set, Promise, Uint8Array, AbortController,
     Date: class extends Date { static now() { return Date.now() + elapsed; } }, Error, Array,
     crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
     setTimeout: fastTimers ? callback => setTimeout(callback, 0) : setTimeout,
-    clearTimeout, fetch: async () => { throw new Error("Unexpected fetch"); },
+    clearTimeout, fetch: fetchMedia || (async () => { throw new Error("Unexpected fetch"); }),
     btoa: value => Buffer.from(value, "binary").toString("base64")
   });
   restart();
@@ -105,7 +122,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
       if (result !== true && result !== undefined) resolve(result);
     } catch (error) { reject(error); }
   });
-  return { calls, send, restart, sessionStore, sender, closeTab: id => browser.tabs.remove(id),
+  return { calls, send, restart, sessionStore, sender, hold, closeTab: id => browser.tabs.remove(id),
     advanceTime: minutes => { elapsed += minutes * 60_000; } };
 }
 
@@ -243,4 +260,64 @@ test("closing the owner tab removes its session even while the restarted worker 
   assert.equal(Object.keys(sessionStore).length, 0);
   restart();
   assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
+});
+
+test("cancelling preflight closes its worker before a stalled response and ignores late replies", async () => {
+  const { calls, send, hold, sessionStore, sender } = backgroundHarness();
+  const stalled = hold("DESCRIBE_POST_EXPORT");
+  const token = "88888888-8888-4888-8888-888888888888";
+  const prepared = send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
+  const { tabId } = await stalled.entered;
+  assert.ok((await send({ type: "CANCEL_COLLECTION_EXPORT", token }, { ...sender, tab: { ...sender.tab, id: 2 } })).error);
+  assert.equal((await send({ type: "CANCEL_COLLECTION_EXPORT", token })).cancelled, true);
+  assert.ok(calls.remove.includes(tabId));
+  assert.match((await prepared).error, /cancelled/);
+  stalled.release();
+  await new Promise(setImmediate);
+  assert.equal(Object.keys(sessionStore).length, 0);
+  assert.equal(calls.create.length, 1);
+});
+
+test("cancelling a build aborts media and closes the worker without waiting for generation", async () => {
+  let mediaSignal;
+  let mediaStarted;
+  const started = new Promise(resolve => { mediaStarted = resolve; });
+  const { calls, send, hold, sessionStore, sender } = backgroundHarness({ fetchMedia: (url, options) => new Promise((resolve, reject) => {
+    mediaSignal = options.signal;
+    mediaStarted();
+    options.signal.addEventListener("abort", () => reject(new Error("Media cancelled")), { once: true });
+  }) });
+  const token = "99999999-9999-4999-8999-999999999999";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
+  const stalled = hold("BUILD_POST_EXPORT");
+  const built = send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
+  const { tabId, message } = await stalled.entered;
+  const media = send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/image.png", transferId: message.transferId }, {
+    ...sender, tab: { ...sender.tab, id: tabId, url: "https://www.patreon.com/posts/101" }
+  });
+  await started;
+  assert.equal((await send({ type: "CANCEL_COLLECTION_EXPORT", token })).cancelled, true);
+  assert.ok(mediaSignal.aborted);
+  assert.match((await send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/image.png", transferId: message.transferId }, {
+    ...sender, tab: { ...sender.tab, id: tabId, url: "https://www.patreon.com/posts/101" }
+  })).error, /cancelled/);
+  assert.match((await media).error, /cancelled/i);
+  assert.match((await built).error, /cancelled/);
+  assert.ok(calls.remove.includes(tabId));
+  stalled.release();
+  await new Promise(setImmediate);
+  assert.equal(Object.keys(sessionStore).length, 0);
+});
+
+test("a worker created after cancellation is immediately closed", async () => {
+  const { send, hold, calls } = backgroundHarness();
+  const stalled = hold("create");
+  const token = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const prepared = send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
+  const tabId = await stalled.entered;
+  await send({ type: "CANCEL_COLLECTION_EXPORT", token });
+  stalled.release();
+  assert.match((await prepared).error, /cancelled/);
+  assert.ok(calls.remove.includes(tabId));
+  assert.equal(calls.create.length, 1);
 });

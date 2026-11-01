@@ -260,6 +260,115 @@ test("collection reuses discovery and preparation across downloads and refreshes
   expect(await page.evaluate(() => collectionPrepareCount)).toBe(5);
 });
 
+for (const phase of ["PREPARE_COLLECTION_EXPORT", "BUILD_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_CHUNK"]) {
+  test(`Cancel stops ${phase} and ignores late replies before restarting`, async ({ page }) => {
+    await setup(page, { content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
+      url: "https://www.patreon.com/collection/500" });
+    let downloads = 0;
+    page.on("download", () => { downloads++; });
+    if (phase === "PREPARE_COLLECTION_EXPORT") await page.evaluate(type => { globalThis.collectionMessageHolds = [type]; }, phase);
+    await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+    if (phase !== "PREPARE_COLLECTION_EXPORT") {
+      await expect(page.getByRole("status")).toContainText("1 post is ready");
+      await page.evaluate(type => { globalThis.collectionMessageHolds = [type]; }, phase);
+      await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+    }
+    await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe(phase);
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
+    await expect(page.getByRole("progressbar")).toBeHidden();
+    await page.evaluate(() => { globalThis.collectionMessageHolds = []; releaseCollectionMessage(); });
+    await expect.poll(() => page.evaluate(() => globalThis.collectionLateReplyReleased)).toBe(true);
+    await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
+    expect(downloads).toBe(0);
+    await page.getByRole("button", { name: "Start again", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("1 post is ready");
+    const pending = page.waitForEvent("download");
+    await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+    await pending;
+  });
+}
+
+test("Cancel during cached-session recovery cannot start a late preparation", async ({ page }) => {
+  await setup(page, { content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
+    url: "https://www.patreon.com/collection/500" });
+  const trigger = page.getByRole("button", { name: "Download Collection", exact: true });
+  await trigger.click();
+  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await page.getByRole("button", { name: "Close collection download", exact: true }).click();
+  await page.evaluate(() => { forgetCollectionSessions(); globalThis.collectionMessageHolds = ["CANCEL_COLLECTION_EXPORT"]; });
+  await trigger.click();
+  await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("CANCEL_COLLECTION_EXPORT");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
+  await page.evaluate(() => { globalThis.collectionMessageHolds = []; releaseCollectionMessage(); });
+  await expect.poll(() => page.evaluate(() => globalThis.collectionLateReplyReleased)).toBe(true);
+  expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
+  await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
+});
+
+test("Cancel aborts API discovery without falling back to Load more", async ({ page }) => {
+  await setup(page, { content: '<main><h1>Collection</h1><div class="fixture_loadMoreContainer"><button onclick="window.loadClicks=(window.loadClicks||0)+1">Load more</button></div></main>',
+    url: "https://www.patreon.com/collection/500" });
+  const apiBase = "https://www.patreon.com/api/posts?filter%5Bcollection_id%5D=500";
+  let release;
+  let started = false;
+  let aborted = false;
+  const held = new Promise(resolve => { release = resolve; });
+  page.on("requestfailed", request => { if (request.url().includes("/api/posts?")) aborted = true; });
+  await page.route("https://www.patreon.com/api/posts**", async route => {
+    started = true;
+    await held;
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({
+      data: [{ id: "101", type: "post" }], meta: { pagination: { total: 1 } }
+    }) }).catch(() => {});
+  });
+  await page.evaluate(url => {
+    const original = performance.getEntriesByType.bind(performance);
+    Object.defineProperty(performance, "getEntriesByType", { configurable: true,
+      value: type => type === "resource" ? [...original(type), { name: url }] : original(type) });
+  }, apiBase);
+  await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+  await expect.poll(() => started).toBe(true);
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
+  await expect.poll(() => aborted).toBe(true);
+  release();
+  expect(await page.evaluate(() => window.loadClicks || 0)).toBe(0);
+  expect(await page.evaluate(() => collectionPrepareCount)).toBe(0);
+  await page.getByRole("button", { name: "Start again", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("1 post is ready");
+});
+
+test("Cancel during compression prevents a late ZIP download", async ({ page }) => {
+  await setup(page, { content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
+    url: "https://www.patreon.com/collection/500" });
+  await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  let downloads = 0;
+  page.on("download", () => { downloads++; });
+  await page.evaluate(() => {
+    globalThis.originalCompressionStream = CompressionStream;
+    globalThis.CompressionStream = class {
+      constructor() {
+        return new TransformStream({ async transform(chunk, controller) {
+          globalThis.compressionStarted = true;
+          await new Promise(resolve => { globalThis.releaseCompression = resolve; });
+          controller.enqueue(chunk);
+        } });
+      }
+    };
+  });
+  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => globalThis.compressionStarted)).toBe(true);
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
+  await page.evaluate(() => { globalThis.CompressionStream = originalCompressionStream; releaseCompression(); });
+  await page.getByRole("button", { name: "Start again", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  expect(downloads).toBe(0);
+});
+
 test("collection panel accepts chooser errors only from its current frame and token", async ({ page }) => {
   await setup(page, { content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
     url: "https://www.patreon.com/collection/500" });

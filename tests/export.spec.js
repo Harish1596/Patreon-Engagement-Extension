@@ -29,6 +29,34 @@ async function downloadBytes(download) {
   return Buffer.concat(chunks);
 }
 
+test("cancelling a portable build prevents late media from publishing a file in an existing tab", async ({ page }) => {
+  let release;
+  let started = false;
+  const held = new Promise(resolve => { release = resolve; });
+  await page.route("https://media.example/**", async route => {
+    if (route.request().resourceType() === "fetch") { started = true; await held; }
+    await route.fulfill({ contentType: "image/png", body: Buffer.from("89504e470d0a1a0a", "hex") });
+  });
+  const content = require("./helpers/reader").fixture.replace(/data:image\/svg\+xml,[^\"]+/, "https://media.example/image.png");
+  await setup(page, { content });
+  await page.evaluate(() => {
+    globalThis.pendingPortableBuild = deliverExtensionMessage({ type: "BUILD_POST_EXPORT", format: "markdown",
+      expectedPostId: "123", transferId: "11111111-1111-4111-8111-111111111111" });
+  });
+  await expect.poll(() => started).toBe(true);
+  const cancelled = await page.evaluate(() => deliverExtensionMessage({ type: "CANCEL_POST_EXPORT",
+    transferId: "11111111-1111-4111-8111-111111111111" }));
+  expect(cancelled.cancelled).toBe(true);
+  release();
+  const result = await page.evaluate(() => pendingPortableBuild);
+  expect(result.error).toBeTruthy();
+  expect(result.file).toBeUndefined();
+  const late = await page.evaluate(() => deliverExtensionMessage({ type: "BUILD_POST_EXPORT", format: "markdown",
+    expectedPostId: "123", transferId: "11111111-1111-4111-8111-111111111111" }));
+  expect(late.error).toContain("cancelled");
+  await expect(downloadButton(page)).toBeVisible();
+});
+
 test("EPUB is a self-contained stored ZIP with post XHTML and image bytes", async ({ page }) => {
   const content = require("./helpers/reader").fixture.replace('<div class="actions">',
     '<div data-tag="post-details"><a href="/example">Example Creator</a></div><div class="actions">');

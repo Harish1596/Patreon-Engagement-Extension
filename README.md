@@ -165,6 +165,15 @@ preparation, file generation, transfer, and ZIP packaging. It reports completed
 posts against the known total during preparation, generation, and transfer;
 stages without a reliable total use an indeterminate bar.
 
+Select **Cancel** while discovery, preparation, file generation, transfer, or ZIP
+packaging is running. The extension aborts its pending requests, closes its
+temporary worker, discards the cancelled export, and offers **Start again** after
+cleanup. Already-open post tabs remain open. Completed link discovery stays
+cached, so starting again can reuse it. Cancel disappears once the finished ZIP
+has been handed to the browser; it cannot undo a browser download that has already
+started. A Patreon Load more request already triggered on the page may finish,
+but cancellation stops further pagination and export work.
+
 Before preparing files, the extension follows the current page's locally observed,
 same-origin collection pagination request until Patreon returns no next cursor.
 It validates the collection ID and reported total and does not persist the request

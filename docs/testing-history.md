@@ -905,3 +905,34 @@ boundaries, ownership, expiry, cancellation, and tab-close cleanup. The initial
 Chrome Markdown download timed out once; the isolated and full targeted reruns
 passed. Tests use synthetic Patreon responses, so a natural idle timeout on the
 authenticated live collection remains pending user confirmation.
+
+### Cancel active collection operations — November 1, 2026
+
+Added an explicit Cancel action throughout collection discovery, preparation,
+generation, file receipt, and packaging, plus Start again after confirmed cleanup.
+Discovery requests, readiness delays, message waits, tagged background media
+requests, compression streams, and checksum stages now observe cancellation.
+Checksum calculation yields between 1 MiB chunks. Cancellation invalidates the
+active UI operation and token so late responses cannot overwrite status, start a
+new preparation, or hand off an archive. Completed discovery remains cached.
+
+Preparation sessions are registered before visiting posts, allowing cancellation
+to close their worker before preflight finishes. Abortable waits release the
+operation without waiting for stalled post replies. Worker creation completing
+after cancellation immediately closes that worker. Reused user tabs receive a
+transfer cancellation message instead of being closed; late build/media requests
+for cancelled transfers are rejected. Prepared metadata and file data are removed,
+and persistence checks prevent a cancelled session being saved again.
+
+All 21 targeted Chrome collection/post cases, 22 targeted Brave collection/post/
+installed cases, 27 tooling tests, and syntax checks for 33 JavaScript files
+passed. Coverage includes API request abort without fallback, cancellation at
+preparation/build/chunk/compression stages, cancellation during cached-session
+recovery, late replies and late worker creation, media abort, existing-tab
+preservation, and restarting after cancellation. The installed Brave test still
+verifies worker-restart recovery and both export formats. These use synthetic
+pages; authenticated live cancellation remains pending confirmation.
+
+Cancellation ends at the browser download handoff. The Cancel control is hidden
+after that point. A native Patreon Load more request already in flight may finish,
+but the extension does not click further batches or continue exporting.

@@ -31,6 +31,8 @@
   readiness retries.
 - Restore prepared collection sessions after idle background-worker restarts and
   show chooser errors directly in the collection panel.
+- Add cancellation during collection discovery, preparation, generation, transfer,
+  and ZIP packaging, with worker cleanup and a Start again action.
 
 ## 1.1.1
 
