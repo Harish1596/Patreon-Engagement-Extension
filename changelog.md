@@ -27,6 +27,8 @@
 - Reuse collection discovery and preparation for repeat downloads for 15 minutes,
   with an explicit Refresh collection action.
 - Extend collection discovery and prepared-session cache lifetimes to two hours.
+- Stop collection preparation and downloads from activating tabs during slow-page
+  readiness retries.
 
 ## 1.1.1
 

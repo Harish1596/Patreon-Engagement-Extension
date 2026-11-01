@@ -71,19 +71,9 @@
     return tab.id;
   }
 
-  async function askOwnedPost(tabId, ownerTabId, message) {
-    try {
-      return await askPost(tabId, message, 8);
-    } catch {
-      await call(api.tabs, "update", tabId, { active: true });
-      await call(api.tabs, "update", ownerTabId, { active: true });
-      return askPost(tabId, message);
-    }
-  }
-
   async function askWorkerPost(session, url, message) {
     const tabId = await navigateWorker(session, url);
-    return askOwnedPost(tabId, session.ownerTabId, message);
+    return askPost(tabId, message);
   }
 
   async function askPost(tabId, message, attempts = 60) {

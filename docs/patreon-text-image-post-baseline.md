@@ -815,8 +815,11 @@ The worker prepares each linked post through its normal rendered post page. Post
 content scripts register their own tab URL with the worker, allowing an already
 open matching tab to be reused without the broad `tabs` permission. Otherwise the
 worker creates one inactive temporary Patreon tab and navigates that same tab
-through unopened posts in sequence. If Chromium defers the inactive tab, the
-worker briefly activates it and immediately returns to the collection. The tab
+through unopened posts in sequence. Since the November 1 focus fix, readiness
+checks retry in the background for up to 60 attempts at 250 ms intervals without
+activating either the worker or collection tab. The previous brief worker/owner
+activation fallback was removed because it repeatedly interrupted other tabs.
+The tab
 must finish loading the requested post before answering preflight/build requests:
 the content script compares the requested numeric post ID with its immutable
 initial document identity and current URL, and requires `readyState=complete`.

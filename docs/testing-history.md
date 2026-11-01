@@ -856,3 +856,20 @@ and expiry beyond two hours. Background tests independently check preparation
 survives 119 minutes and expires after 121 minutes. All 17 tooling tests and
 syntax checks for 32 JavaScript files passed. No live two-hour waiting test or
 full browser-suite rerun was performed for this duration adjustment.
+
+### Keep collection operations in the background — November 1, 2026
+
+The user reported being repeatedly returned to the collection after selecting
+another browser tab during preparation and downloads. The worker's short readiness
+fallback explicitly activated the worker and then the owner collection tab after
+eight failed replies, regardless of which tab the user had selected.
+
+Removed that activation fallback. Newly created/navigated workers remain inactive,
+and requests use the existing 60-attempt, 250 ms readiness/identity retry loop.
+Existing preflight skip and generation failure handling applies at timeout, with
+no focus change. Tests reproduce navigation remaining stale beyond the previous
+threshold and a complete timeout, covering preparation, generation, and cleanup.
+Both new regressions failed before the fix and pass afterward. All 19 tooling
+tests, syntax checks for 32 JavaScript files, and the installed Brave regression
+with collection Markdown followed by EPUB passed. Current live Patreon loading
+while another tab remains selected still needs user confirmation.

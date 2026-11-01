@@ -171,8 +171,9 @@ it again and continues instead of preparing a partial collection.
 
 The extension prepares linked posts locally, reusing an already-open matching
 post tab when possible. Otherwise it creates one inactive temporary Patreon tab
-and navigates that same tab through every post in sequence. Focus returns to the
-collection if Chromium requires the worker to be activated. The preflight worker
+and navigates that same tab through every post in sequence. Readiness retries
+remain in the background without activating the worker or collection tab, so you
+can use another tab while the operation runs. The preflight worker
 closes as soon as preparation finishes; a fresh single worker used for the chosen
 format closes as soon as file generation finishes. Cancellation and failures also
 close the active worker. Before exporting each post, the extension waits for the

@@ -6,7 +6,7 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.resolve(__dirname, "../../extension/background/media.js"), "utf8");
 
-function backgroundHarness({ delayedNavigation = false } = {}) {
+function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, fastTimers = false } = {}) {
   let listener;
   let removedListener;
   let nextTabId = 10;
@@ -31,7 +31,7 @@ function backgroundHarness({ delayedNavigation = false } = {}) {
       async update(tabId, options) {
         calls.update.push({ tabId, ...options });
         if (options.url) {
-          if (delayedNavigation) pendingUrls.set(tabId, { url: options.url, attempts: 2 });
+          if (delayedNavigation) pendingUrls.set(tabId, { url: options.url, attempts: navigationReplies });
           else tabUrls.set(tabId, options.url);
         }
         return { id: tabId };
@@ -84,7 +84,8 @@ function backgroundHarness({ delayedNavigation = false } = {}) {
     browser, URL, Map, Set, Promise, Uint8Array,
     Date: class extends Date { static now() { return Date.now() + elapsed; } }, Error, Array,
     crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
-    setTimeout, clearTimeout, fetch: async () => { throw new Error("Unexpected fetch"); },
+    setTimeout: fastTimers ? callback => setTimeout(callback, 0) : setTimeout,
+    clearTimeout, fetch: async () => { throw new Error("Unexpected fetch"); },
     btoa: value => Buffer.from(value, "binary").toString("base64")
   });
   const sender = {
@@ -141,6 +142,30 @@ test("collection export chunks payloads and closes each phase's reusable worker"
   assert.deepEqual(calls.remove, calls.create.map(call => call.id));
   await send({ type: "CANCEL_COLLECTION_EXPORT", token });
   assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
+});
+
+test("slow collection preparation and generation never activate worker or owner tabs", async () => {
+  const { calls, send } = backgroundHarness({ delayedNavigation: true, navigationReplies: 10, fastTimers: true });
+  const token = "33333333-3333-4333-8333-333333333333";
+  const urls = [101, 102].map(id => `https://www.patreon.com/posts/${id}`);
+  assert.equal((await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls })).count, 2);
+  const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
+  assert.deepEqual(Array.from(built.files, file => file.title), ["Post 101", "Post 102"]);
+  assert.equal(calls.staleReplies, 20);
+  assert.ok(calls.create.every(call => call.active === false));
+  assert.ok(calls.update.every(call => call.active === false && call.tabId !== 1));
+  assert.deepEqual(calls.remove, calls.create.map(call => call.id));
+});
+
+test("a collection readiness timeout reports a skip without stealing focus", async () => {
+  const { calls, send } = backgroundHarness({ delayedNavigation: true, navigationReplies: 70, fastTimers: true });
+  const token = "44444444-4444-4444-8444-444444444444";
+  const urls = [101, 102].map(id => `https://www.patreon.com/posts/${id}`);
+  const prepared = await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls });
+  assert.equal(prepared.count, 1);
+  assert.equal(prepared.skipped, 1);
+  assert.ok(calls.update.every(call => call.active === false && call.tabId !== 1));
+  assert.deepEqual(calls.remove, calls.create.map(call => call.id));
 });
 
 test("collection worker rejects successful old-document replies until each destination loads", async () => {

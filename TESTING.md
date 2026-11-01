@@ -29,6 +29,19 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Background collection focus, November 1, 2026: **all 19 tooling tests and the
+targeted installed-Brave test passed**; syntax checks cover 32 JavaScript files.
+Two regressions failed against the previous activation fallback and pass after
+its removal: one keeps navigation stale for ten replies during preparation and
+generation, beyond the old eight-attempt threshold; the other never becomes
+ready within the retry budget. Both verify that no worker or owner tab is
+activated and worker cleanup occurs; the timeout case reports its skipped post.
+The installed Brave case still downloads collection Markdown followed by EPUB.
+Commands: `npm run test:tooling`, `npm run check`, and
+`npm run test:brave -- tests/installed.spec.js --reporter=dot`. Retry unit tests
+use accelerated timers. Live Patreon loading while another tab stays selected
+remains pending confirmation; no full browser-suite rerun was performed.
+
 Two-hour collection cache, November 1, 2026: the focused cache lifecycle test
 passed in Chrome and Brave, all 17 tooling tests passed, and syntax checks cover
 32 JavaScript files. Simulated time verifies page discovery and worker preparation
