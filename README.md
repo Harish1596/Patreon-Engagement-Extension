@@ -149,11 +149,15 @@ excluded before worker preparation and reported separately as a locked post.
 Missing access flags still use normal preparation checks. A collection containing
 only locked posts shows a message without opening worker tabs.
 
-Discovered links, access flags, and preparation results are cached in memory for
+Discovered links, access flags, and preparation results are cached for
 two hours on the current collection page. Reopening the panel or downloading
 another format reuses them. Select **Refresh collection** to pick up new chapters
 or membership changes immediately. Expired discovery is refreshed on the next
-opening; navigating away or reloading clears the cache. Generated file bytes are
+opening; navigating away or reloading clears the page cache. Prepared metadata
+uses browser session storage so idle background-worker restarts do not invalidate
+the format buttons; it is removed on cancellation, owner-tab closure, or expiry,
+and browser-session storage clears when the browser session ends. Missing or
+expired sessions produce a visible panel error. Generated file bytes are
 released after each download, and post text/images are read again for each export.
 
 The collection dialog keeps an activity bar visible throughout discovery,

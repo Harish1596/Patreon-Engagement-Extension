@@ -453,6 +453,15 @@
     if (!host?.isConnected) makeUi();
   }
 
+  window.addEventListener("message", event => {
+    if (!open || event.origin !== api.runtime.getURL("").replace(/\/$/, "")
+      || event.source !== chooser?.contentWindow || event.data?.source !== "patreon-reader-collection-error"
+      || event.data.token !== requestToken || typeof event.data.error !== "string") return;
+    report(event.data.error, "error");
+    setProgress();
+    setBusy(false);
+  });
+
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
     if (message.type === "COLLECTION_EXPORT_PROGRESS") {

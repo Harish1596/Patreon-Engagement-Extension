@@ -29,6 +29,8 @@
 - Extend collection discovery and prepared-session cache lifetimes to two hours.
 - Stop collection preparation and downloads from activating tabs during slow-page
   readiness retries.
+- Restore prepared collection sessions after idle background-worker restarts and
+  show chooser errors directly in the collection panel.
 
 ## 1.1.1
 

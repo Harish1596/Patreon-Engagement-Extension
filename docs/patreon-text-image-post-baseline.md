@@ -1,6 +1,6 @@
 # Patreon post-page reference: text posts with inline images
 
-Last maintained: October 31, 2026. Current hotfix: **1.1.1** (live confirmation pending).
+Last maintained: November 1, 2026. Current hotfix: **1.1.1** (live confirmation pending).
 Post export is an unreleased development feature with synthetic verification;
 live Patreon export verification is pending.
 Feature baseline: **1.1.0**, renumbered from
@@ -844,20 +844,35 @@ is shown. A failure while building a post after successful preflight aborts the 
 rather than silently producing a newly partial result. The current implementation
 accepts at most 100 unique post links per collection request. As of November 1,
 collection discovery (links and locked counts) is retained in page memory for
-two hours; the worker retains prepared metadata for two hours after preparation
-or generation. Closing the panel preserves those caches without retaining a
+two hours; prepared metadata is saved in `storage.session` for two hours after
+preparation or generation. It is restored before collection requests are handled
+when the background worker wakes after suspension. Stored records contain only
+owner IDs, post URLs/titles, image origins, skipped counts, expiry, and a schema
+version; post bodies, generated files, and signed media URLs are not saved.
+Closing the panel preserves those caches without retaining a
 worker tab. Successful finalization releases all generated transfer files and
 retains only the prepared metadata for another format. Reopening or finishing a
 download checks the existing session before deciding whether preflight is needed.
-Lost/expired worker state repeats preparation using cached links; expired page
+Missing/expired saved state repeats preparation using cached links when the panel
+is reopened; routine worker suspension restores metadata without preflight. Expired page
 discovery is fetched again on the next opening. Refresh collection explicitly
 discards both caches and refetches. Navigation/reload clears page state, and
-navigation/cancellation/tab closure discards the background session. Post content
-and media are regenerated for each export, with no persistent caching added.
+navigation/cancellation/tab closure discards the background session. Stored
+records are removed on cancellation, owner-tab closure, or expiration; browser
+session storage ends with the browser session. Post content and media are
+regenerated for each export and are not included in this metadata cache.
+
+Chooser errors are sent directly to the owning panel through `postMessage`,
+because the failed session cannot be relied on to relay them. The panel checks
+extension origin, current chooser window, active token, and error-message type
+before displaying the error. This path handles both initial chooser setup failure
+and a later failed click without silently swallowing the message. Existing direct
+user-gesture media permission requests remain in the packaged chooser.
 
 Synthetic cache verification covers repeat format actions, panel reopening,
 refresh, discovery expiry, lost background state, route invalidation, transferred
-data release, and repeated build worker cleanup. Live authenticated cache behavior
+data release, repeated build worker cleanup, metadata restoration after real
+Brave worker-target termination, and visible missing-session errors. Live authenticated cache behavior
 remains pending confirmation. Cached chooser reuse avoids an intermediate
 `about:blank` navigation, which caused a navigation race in repeat-download tests.
 

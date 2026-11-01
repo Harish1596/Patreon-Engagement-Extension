@@ -169,6 +169,19 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     const collectionMarkdown = collection.frameLocator('iframe[title="Collection export formats"]')
       .getByRole("button", { name: "Markdown", exact: true });
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    const workerControl = await context.newCDPSession(manager);
+    async function suspendExportWorker() {
+      const { targetInfos } = await workerControl.send("Target.getTargets");
+      const target = targetInfos.find(item => item.type === "service_worker"
+        && item.url.startsWith(`chrome-extension://${extensionId}/`));
+      expect(target).toBeTruthy();
+      await workerControl.send("Target.closeTarget", { targetId: target.targetId });
+      await expect.poll(async () => {
+        const current = await workerControl.send("Target.getTargets");
+        return current.targetInfos.some(item => item.targetId === target.targetId);
+      }).toBe(false);
+    }
+    await suspendExportWorker();
     const [collectionZip] = await Promise.all([
       collection.waitForEvent("download"),
       collectionMarkdown.click()
@@ -181,6 +194,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     expect(collectionEntries[0].data.toString()).toContain("Collection body one.");
     expect(collectionEntries[1].data.toString()).toContain("Collection body two.");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    await suspendExportWorker();
     const [collectionEpub] = await Promise.all([
       collection.waitForEvent("download"),
       collection.frameLocator('iframe[title="Collection export formats"]')
@@ -195,6 +209,12 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     expect(readZip(epubEntries[1].data).find(entry => entry.name === "EPUB/post.xhtml").data.toString())
       .toContain("Collection body two.");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    await collection.frameLocator('iframe[title="Collection export formats"]').locator("body").evaluate(async () => {
+      await chrome.runtime.sendMessage({ type: "CANCEL_COLLECTION_EXPORT", token: location.hash.slice(1) });
+    });
+    await collectionMarkdown.click();
+    await expect(collection.getByRole("status")).toContainText("expired", { timeout: 10_000 });
+    await expect(collectionMarkdown).toBeEnabled();
     await collection.getByRole("button", { name: "Close collection download", exact: true }).click();
     await collection.close();
     await collectionPostOne.close();

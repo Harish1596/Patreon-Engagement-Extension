@@ -873,3 +873,35 @@ Both new regressions failed before the fix and pass afterward. All 19 tooling
 tests, syntax checks for 32 JavaScript files, and the installed Brave regression
 with collection Markdown followed by EPUB passed. Current live Patreon loading
 while another tab remains selected still needs user confirmation.
+
+### Restore collection sessions after worker suspension — November 1, 2026
+
+The user reported format buttons appearing to do nothing after the prepared
+panel sat idle. The two-hour expiration did not preserve the background Map when
+the extension service worker stopped. A click woke a new worker without that
+session, and the chooser attempted to report the error through the same missing
+session, so no status reached the owner panel.
+
+Prepared metadata now uses browser `storage.session`, with a versioned record
+per token. Startup restores valid records before handling collection messages and
+prunes expired/invalid entries. Preparation and generation await saving metadata;
+file bytes, post bodies, and signed image URLs remain transient. Cancellation and
+owner-tab closure remove saved records, including closure during restoration.
+Restored sessions enforce the owner-tab binding without letting another tab
+invalidate the owner's record.
+
+The chooser reports errors directly to its parent, which authenticates the
+extension origin, current frame, and active token. This removes reliance on a
+missing session for error reporting while preserving gesture-bound permission
+requests. Missing or expired sessions now show the existing reopen instruction.
+
+All eight targeted Chrome collection cases, nine targeted Brave collection/
+installed cases, 24 tooling tests, and syntax checks for 33 JavaScript files
+passed. The installed Brave case explicitly closes the worker target before
+Markdown and again before EPUB, then verifies correct distinct chapter contents.
+It also cancels a session while the chooser stays open and verifies a visible
+expired-session error. VM tests cover restoration without new preflight, metadata
+boundaries, ownership, expiry, cancellation, and tab-close cleanup. The initial
+Chrome Markdown download timed out once; the isolated and full targeted reruns
+passed. Tests use synthetic Patreon responses, so a natural idle timeout on the
+authenticated live collection remains pending user confirmation.

@@ -15,6 +15,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
   const tabUrls = new Map();
   const pendingUrls = new Map();
   const transfers = new Map();
+  const sessionStore = {};
   const calls = { create: [], update: [], remove: [], workerChunks: [], progress: [], staleReplies: 0 };
   const browser = {
     runtime: {
@@ -78,9 +79,14 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
       },
       onRemoved: { addListener(value) { removedListener = value; } }
     },
-    permissions: { async contains() { return true; } }
+    permissions: { async contains() { return true; } },
+    storage: { session: {
+      async get() { return structuredClone(sessionStore); },
+      async set(values) { Object.assign(sessionStore, structuredClone(values)); },
+      async remove(keys) { for (const key of Array.isArray(keys) ? keys : [keys]) delete sessionStore[key]; }
+    } }
   };
-  vm.runInNewContext(source, {
+  const restart = () => vm.runInNewContext(source, {
     browser, URL, Map, Set, Promise, Uint8Array,
     Date: class extends Date { static now() { return Date.now() + elapsed; } }, Error, Array,
     crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
@@ -88,17 +94,19 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
     clearTimeout, fetch: async () => { throw new Error("Unexpected fetch"); },
     btoa: value => Buffer.from(value, "binary").toString("base64")
   });
+  restart();
   const sender = {
     id: browser.runtime.id,
     tab: { id: 1, windowId: 2, url: "https://www.patreon.com/collection/500" }
   };
-  const send = message => new Promise((resolve, reject) => {
+  const send = (message, owner = sender) => new Promise((resolve, reject) => {
     try {
-      const result = listener(message, sender, resolve);
+      const result = listener(message, owner, resolve);
       if (result !== true && result !== undefined) resolve(result);
     } catch (error) { reject(error); }
   });
-  return { calls, send, advanceTime: minutes => { elapsed += minutes * 60_000; } };
+  return { calls, send, restart, sessionStore, sender, closeTab: id => browser.tabs.remove(id),
+    advanceTime: minutes => { elapsed += minutes * 60_000; } };
 }
 
 test("collection export chunks payloads and closes each phase's reusable worker", async () => {
@@ -183,5 +191,56 @@ test("collection worker rejects successful old-document replies until each desti
   assert.equal((await send({ type: "FINISH_COLLECTION_EXPORT", token })).finished, true);
   assert.deepEqual(calls.remove, calls.create.map(call => call.id));
   advanceTime(121);
+  assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
+});
+
+test("prepared collection survives worker restarts without repeating preflight or persisting file data", async () => {
+  const { calls, send, restart, sessionStore, sender, advanceTime } = backgroundHarness();
+  const token = "55555555-5555-4555-8555-555555555555";
+  const urls = [101, 102].map(id => `https://www.patreon.com/posts/${id}`);
+  assert.equal((await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls })).count, 2);
+  const [record] = Object.values(sessionStore);
+  assert.equal(record.posts.length, 2);
+  assert.equal(record.files, undefined);
+  assert.equal(record.workerTabId, undefined);
+  advanceTime(5);
+  restart();
+  assert.equal((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).count, 2);
+  assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token }, {
+    ...sender, tab: { ...sender.tab, id: 2 }
+  })).error);
+  assert.equal(Object.keys(sessionStore).length, 1);
+  const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
+  assert.deepEqual(Array.from(built.files, file => file.title), ["Post 101", "Post 102"]);
+  assert.equal(calls.progress.filter(item => item.phase === "prepare").length, 3);
+  assert.equal(Object.values(sessionStore)[0].files, undefined);
+  assert.equal((await send({ type: "FINISH_COLLECTION_EXPORT", token })).finished, true);
+  restart();
+  assert.equal((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).count, 2);
+  await send({ type: "CANCEL_COLLECTION_EXPORT", token });
+  assert.equal(Object.keys(sessionStore).length, 0);
+  restart();
+  assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
+});
+
+test("worker startup removes expired persisted collections", async () => {
+  const { send, restart, sessionStore, advanceTime } = backgroundHarness();
+  const token = "66666666-6666-4666-8666-666666666666";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
+  advanceTime(121);
+  restart();
+  assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
+  assert.equal(Object.keys(sessionStore).length, 0);
+});
+
+test("closing the owner tab removes its session even while the restarted worker is restoring", async () => {
+  const { send, restart, sessionStore, closeTab } = backgroundHarness();
+  const token = "77777777-7777-4777-8777-777777777777";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
+  restart();
+  await closeTab(1);
+  await new Promise(setImmediate);
+  assert.equal(Object.keys(sessionStore).length, 0);
+  restart();
   assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
 });

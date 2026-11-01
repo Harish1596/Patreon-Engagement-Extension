@@ -20,6 +20,14 @@
     for (const button of document.querySelectorAll("[data-format]")) button.disabled = !value;
   }
 
+  function reportError(error) {
+    // The worker may no longer recognize this token, so report directly to the
+    // owning panel rather than sending another request through that session.
+    parent.postMessage({ source: "patreon-reader-collection-error", token,
+      error: error.message || "Unable to start the collection export. Close and reopen Download Collection."
+    }, "https://www.patreon.com");
+  }
+
   for (const button of document.querySelectorAll("[data-format]")) {
     button.addEventListener("click", () => {
       if (busy) return;
@@ -33,10 +41,7 @@
       }).then(result => {
         if (!result?.started) throw new Error(result?.error || "The collection exporter did not start.");
       }).catch(error => {
-        call(api.runtime, "sendMessage", {
-          type: "DELIVER_COLLECTION_EXPORT", token,
-          error: error.message || "Unable to request media access."
-        }).catch(() => {});
+        reportError(error);
         enabled(true);
       });
     });
@@ -46,5 +51,5 @@
     if (!result?.origins) throw new Error(result?.error || "The collection export request expired.");
     origins = result.origins;
     enabled(true);
-  }).catch(() => enabled(false));
+  }).catch(error => { reportError(error); enabled(false); });
 })();

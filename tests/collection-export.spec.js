@@ -260,6 +260,20 @@ test("collection reuses discovery and preparation across downloads and refreshes
   expect(await page.evaluate(() => collectionPrepareCount)).toBe(5);
 });
 
+test("collection panel accepts chooser errors only from its current frame and token", async ({ page }) => {
+  await setup(page, { content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
+    url: "https://www.patreon.com/collection/500" });
+  await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  const body = page.frameLocator('iframe[title="Collection export formats"]').locator("body");
+  await body.evaluate(() => parent.postMessage({ source: "patreon-reader-collection-error",
+    token: "old-token", error: "Ignored stale error" }, "https://www.patreon.com"));
+  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await body.evaluate(() => parent.postMessage({ source: "patreon-reader-collection-error",
+    token: location.hash.slice(1), error: "The collection session expired. Reopen Download Collection." }, "https://www.patreon.com"));
+  await expect(page.getByRole("status")).toContainText("session expired");
+});
+
 test("collection controls are scoped to collection routes", async ({ page }) => {
   await setup(page);
   await expect(page.getByRole("button", { name: "Download Collection", exact: true })).toHaveCount(0);

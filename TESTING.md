@@ -29,6 +29,29 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Idle collection sessions, November 1, 2026: **all 8 targeted Chrome collection
+tests, 9 targeted Brave collection/installed tests, and 24 tooling tests passed**;
+syntax checks cover 33 JavaScript files. The installed Brave test terminates the
+actual extension service-worker target after preparation, then clicks Markdown
+in the still-open chooser. It terminates the new worker before the following EPUB
+click, verifies both restored downloads contain distinct correct chapters, then
+cancels the session and verifies the next click shows an expired-session error.
+
+Unit regressions restart the background VM against shared session storage and
+verify preparation is not repeated, post/file data is excluded from saved records,
+another tab cannot access or invalidate a restored session, expiration removes
+stored records, and owner-tab closure cleans up even during startup restoration.
+Chooser tests cover missing sessions on initial load and on a later click; the
+browser panel test rejects stale tokens and accepts the current frame's error.
+Collection handlers wait for restoration before reading session state.
+
+Commands: `npm test -- tests/collection-export.spec.js --reporter=dot`,
+`npm run test:brave -- tests/collection-export.spec.js tests/installed.spec.js --reporter=dot`,
+`npm run test:tooling`, and `npm run check`. The first Chrome run timed out on the
+Markdown download case; its isolated rerun and the full targeted rerun passed.
+The installed test uses intercepted synthetic posts; authenticated Patreon export
+after a natural idle timeout remains a separate live confirmation.
+
 Background collection focus, November 1, 2026: **all 19 tooling tests and the
 targeted installed-Brave test passed**; syntax checks cover 32 JavaScript files.
 Two regressions failed against the previous activation fallback and pass after

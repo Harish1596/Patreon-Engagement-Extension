@@ -8,6 +8,7 @@
   const cancelledCollections = new Set();
   const MAX_TRANSFER_CHARS = 1024 * 1024;
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
+  const COLLECTION_SESSION_PREFIX = "collection-export:";
 
   function call(target, method, ...args) {
     if (globalThis.browser?.runtime) return target[method](...args);
@@ -39,6 +40,40 @@
     } catch { return false; }
   }
 
+  async function persistCollection(token, session) {
+    // Session storage survives worker suspension, but is cleared with the browser
+    // session. Never put post bodies, file transfers, or media URLs here.
+    const { ownerTabId, ownerWindowId, posts, skipped, expires } = session;
+    await call(api.storage.session, "set", {
+      [COLLECTION_SESSION_PREFIX + token]: { version: 1, ownerTabId, ownerWindowId, posts, skipped, expires }
+    });
+  }
+
+  async function restoreCollections() {
+    const stored = await call(api.storage.session, "get", null);
+    const expired = [];
+    for (const [key, value] of Object.entries(stored)) {
+      if (!key.startsWith(COLLECTION_SESSION_PREFIX)) continue;
+      const token = key.slice(COLLECTION_SESSION_PREFIX.length);
+      if (!/^[0-9a-f-]{36}$/i.test(token) || value?.version !== 1
+        || !Number.isSafeInteger(value.ownerTabId) || !Number.isSafeInteger(value.ownerWindowId)
+        || !Number.isFinite(value.expires) || value.expires <= Date.now()
+        || !Number.isSafeInteger(value.skipped) || value.skipped < 0
+        || !Array.isArray(value.posts) || !value.posts.length || value.posts.length > 100
+        || !value.posts.every(post => validPostUrl(post?.url) && typeof post.title === "string"
+          && (post.tabId === null || Number.isSafeInteger(post.tabId))
+          && Array.isArray(post.origins) && post.origins.every(origin => typeof origin === "string"))) {
+        expired.push(key);
+        continue;
+      }
+      collections.set(token, { ...value, workerTabId: null });
+    }
+    if (expired.length) await call(api.storage.session, "remove", expired);
+  }
+
+  const collectionsReady = restoreCollections();
+  collectionsReady.catch(() => {}); // Request handlers surface restoration failures.
+
   async function closeTabs(tabIds) {
     if (!tabIds.length) return;
     try { await call(api.tabs, "remove", tabIds); }
@@ -49,6 +84,7 @@
     const session = collections.get(token);
     collections.delete(token);
     if (session) await closeWorker(session);
+    await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
   }
 
   async function closeWorker(session) {
@@ -213,6 +249,7 @@
       if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
       await closeWorker(session);
       session.expires = Date.now() + COLLECTION_CACHE_MS;
+      await persistCollection(message.token, session);
       collections.set(message.token, session);
       cancelledCollections.delete(message.token);
       return {
@@ -230,14 +267,15 @@
 
   function collectionFor(message, sender) {
     const session = collections.get(message.token);
-    if (!session || session.expires < Date.now() || session.ownerTabId !== sender.tab.id) {
-      discardCollection(message.token);
+    if (!session || session.ownerTabId !== sender.tab.id) return null;
+    if (session.expires <= Date.now()) {
+      discardCollection(message.token).catch(() => {});
       return null;
     }
     return session;
   }
 
-  api.runtime.onMessage.addListener((message, sender, respond) => {
+  function handleMessage(message, sender, respond) {
     if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
     let senderHost = "";
     try { senderHost = sender.tab?.url ? new URL(sender.tab.url).hostname : ""; }
@@ -357,6 +395,7 @@
         await closeWorker(session);
         session.files = files;
         session.expires = Date.now() + COLLECTION_CACHE_MS;
+        await persistCollection(message.token, session);
         cancelledCollections.delete(message.token);
         respond({
           files: files.map(file => ({
@@ -441,13 +480,26 @@
       respond({ dataUrl: `data:${type};base64,${base64(bytes)}`, type });
     }).catch((error) => respond({ error: error.message || "Unable to fetch post media." }));
     return true;
+  }
+
+  api.runtime.onMessage.addListener((message, sender, respond) => {
+    if (["PREPARE_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_REQUEST", "DELIVER_COLLECTION_EXPORT",
+      "BUILD_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_CHUNK", "FINISH_COLLECTION_EXPORT",
+      "CANCEL_COLLECTION_EXPORT"].includes(message?.type)) {
+      collectionsReady.then(() => handleMessage(message, sender, respond))
+        .catch(() => respond({ error: "Unable to restore the collection session. Close and reopen Download Collection." }));
+      return true;
+    }
+    return handleMessage(message, sender, respond);
   });
 
   api.tabs.onRemoved.addListener(tabId => {
     knownPosts.delete(tabId);
-    for (const [token, session] of collections) {
-      if (session.ownerTabId === tabId) discardCollection(token);
-      else if (session.workerTabId === tabId) session.workerTabId = null;
-    }
+    collectionsReady.then(async () => {
+      for (const [token, session] of collections) {
+        if (session.ownerTabId === tabId) await discardCollection(token);
+        else if (session.workerTabId === tabId) session.workerTabId = null;
+      }
+    }).catch(() => {});
   });
 })();
