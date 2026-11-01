@@ -22,6 +22,8 @@
   macOS Archive Utility format detection.
 - Verify the loaded post identity before preparing or generating collection files
   so worker navigation cannot export the previous chapter repeatedly.
+- Skip explicitly locked collection posts before worker preparation and report
+  their count separately from unavailable or unsupported posts.
 
 ## 1.1.1
 

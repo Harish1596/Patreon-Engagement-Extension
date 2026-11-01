@@ -793,3 +793,27 @@ The Brave installed-extension case includes distinct post contents in a real
 compressed collection download. Current authenticated Patreon collection export
 remains pending user confirmation; the older repeated-post archives must be
 downloaded again after reloading the extension and page.
+
+### Explicit locked collection skipping — November 1, 2026
+
+The user's collection increased to 75 posts and preparation reported 74 ready
+with one generic unavailable/unsupported skip. Read-only inspection in the user's
+signed-in Brave tab confirmed four API pages, 74 accessible posts, and one post
+with `attributes.current_user_can_view === false`.
+
+Discovery now requests that flag on every page and filters explicit false values
+before sending URLs to the worker. The unique total still includes locked posts
+for pagination validation and the existing safety bound. Locked counts are
+deduplicated and reported separately; absent or nonboolean flags preserve normal
+preparation. An all-locked result shows a membership message without preparing
+worker tabs or enabling export. The DOM fallback retains its existing generic
+preparation checks because no new locked-page selector was established.
+
+All six Chrome collection tests and all seven targeted Brave collection/installed
+tests passed, along with syntax checks for 32 JavaScript files. Fixtures cover
+locked posts across cursor pages, duplicate locked entries, unknown flags, full
+totals, exclusion from worker requests, and entirely locked single/multiple-post
+collections. The updated discovery function was also executed read-only in the
+live Brave tab and returned 74 accessible URLs and one locked skip. This confirms
+live discovery only; full installed export after reloading remains pending. No
+private page payload, post content, or account identifiers were committed.

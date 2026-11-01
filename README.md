@@ -144,6 +144,10 @@ EPUB or Markdown. The extension creates one ZIP named after the collection. Each
 accessible text post becomes a separate, numbered file in the order its link
 appears on the collection page; repeated links are removed. Unavailable, locked,
 or unsupported posts are skipped and reported before export.
+When Patreon's collection API explicitly marks a post as inaccessible, it is
+excluded before worker preparation and reported separately as a locked post.
+Missing access flags still use normal preparation checks. A collection containing
+only locked posts shows a message without opening worker tabs.
 
 The collection dialog keeps an activity bar visible throughout discovery,
 preparation, file generation, transfer, and ZIP packaging. It reports completed

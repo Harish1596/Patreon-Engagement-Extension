@@ -29,6 +29,27 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Locked collection posts, November 1, 2026: **all 6 targeted Chrome collection
+tests and all 7 targeted Brave collection/installed-extension tests passed**;
+syntax checks cover 32 JavaScript files. The paginated fixture verifies that
+`current_user_can_view` is requested on every page, explicit boolean `false`
+posts never reach preparation, duplicates are counted once, pagination totals
+still include locked posts, and missing or nonboolean flags retain normal
+preparation. Separate single-post and multiple-post all-locked cases verify no
+worker preparation request or format chooser is started and progress clears.
+
+Commands: `npm test -- tests/collection-export.spec.js --reporter=dot`,
+`npm run test:brave -- tests/collection-export.spec.js tests/installed.spec.js --reporter=dot`,
+and `npm run check`. No full browser-suite rerun was performed for this scoped fix.
+
+Live read-only Brave inspection found 75 collection posts across four API pages:
+74 marked accessible and one explicitly inaccessible. Running the updated
+discovery function in that same signed-in collection tab returned
+`{ready:74, locked:1}`. This verifies live access filtering, not a complete
+installed-extension export after reload. No post text, signed URLs, raw responses,
+or account data were committed. DOM-only fallback still relies on the existing
+generic preparation failures when the API access flag is unavailable.
+
 Collection archive and identity fixes, November 1, 2026: **45 Chrome cases passed
 with one expected skip, all 46 Brave cases passed, and all 17 tooling tests
 passed**; syntax checks cover 32 JavaScript files. Browser tests exercise real

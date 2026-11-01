@@ -108,7 +108,7 @@ test("collection EPUB ZIP compresses nested EPUBs without confusing macOS format
   }
 });
 
-test("collection export follows local API cursors without clicking Load more", async ({ page }) => {
+test("collection export follows API cursors and excludes only explicitly locked posts", async ({ page }) => {
   const content = `<!doctype html><html><head><title>API collection | Patreon</title></head><body><main>
     <h1>API collection</h1>
     <div><a class="IhO0fW_gridCard" href="/posts/101?collection=500">First</a></div>
@@ -118,16 +118,24 @@ test("collection export follows local API cursors without clicking Load more", a
   await setup(page, { content, url: "https://www.patreon.com/collection/500" });
   const apiBase = "https://www.patreon.com/api/posts?filter%5Bcampaign_id%5D=900&filter%5Bcollection_id%5D=500&sort=collection_order";
   await page.route("https://www.patreon.com/api/posts**", async route => {
-    const cursor = new URL(route.request().url()).searchParams.get("page[cursor]");
-    const data = cursor ? [{ id: "103", type: "post" }] : [
-      { id: "101", type: "post" }, { id: "102", type: "post" }
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.get("fields[post]").split(",")).toContain("current_user_can_view");
+    const cursor = query.get("page[cursor]");
+    const data = cursor ? [
+      { id: "103", type: "post", attributes: { current_user_can_view: "false" } },
+      { id: "104", type: "post", attributes: { current_user_can_view: false } },
+      { id: "105", type: "post", attributes: { current_user_can_view: false } }
+    ] : [
+      { id: "101", type: "post", attributes: { current_user_can_view: true } },
+      { id: "104", type: "post", attributes: { current_user_can_view: false } },
+      { id: "102", type: "post" }
     ];
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
         data,
         links: { next: cursor ? null : `${apiBase}&page%5Bcursor%5D=next-page` },
-        meta: { pagination: { total: 3, cursors: { next: cursor ? null : "next-page" } } }
+        meta: { pagination: { total: 5, cursors: { next: cursor ? null : "next-page" } } }
       })
     });
   });
@@ -140,7 +148,7 @@ test("collection export follows local API cursors without clicking Load more", a
   }, apiBase);
 
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("3 posts are ready");
+  await expect(page.getByRole("status")).toHaveText("3 posts are ready. 2 locked posts were skipped.");
   expect(await page.evaluate(() => requestedCollectionUrls)).toEqual([
     "https://www.patreon.com/posts/101",
     "https://www.patreon.com/posts/102",
@@ -148,6 +156,34 @@ test("collection export follows local API cursors without clicking Load more", a
   ]);
   expect(await page.evaluate(() => window.loadMoreClicks)).toBe(0);
 });
+
+for (const count of [1, 2]) {
+  test(`collection with ${count} locked posts stops before worker preparation`, async ({ page }) => {
+    await setup(page, { content: '<main><h1>Locked collection</h1></main>', url: "https://www.patreon.com/collection/500" });
+    const apiBase = "https://www.patreon.com/api/posts?filter%5Bcollection_id%5D=500";
+    await page.route("https://www.patreon.com/api/posts**", route => route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: Array.from({ length: count }, (_, index) => ({
+          id: String(101 + index), type: "post", attributes: { current_user_can_view: false }
+        })),
+        meta: { pagination: { total: count } }
+      })
+    }));
+    await page.evaluate(url => {
+      const original = performance.getEntriesByType.bind(performance);
+      Object.defineProperty(performance, "getEntriesByType", {
+        configurable: true,
+        value: type => type === "resource" ? [...original(type), { name: url }] : original(type)
+      });
+    }, apiBase);
+    await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("locked for your current membership");
+    await expect(page.getByRole("progressbar")).toBeHidden();
+    expect(await page.evaluate(() => globalThis.requestedCollectionUrls)).toBeUndefined();
+    await expect(page.locator('iframe[title="Collection export formats"]')).toHaveAttribute("src", "about:blank");
+  });
+}
 
 test("collection controls are scoped to collection routes", async ({ page }) => {
   await setup(page);

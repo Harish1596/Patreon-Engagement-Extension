@@ -82,6 +82,12 @@ The reference combines the following evidence:
   `meta.pagination.total` reports 74 and `meta.pagination.cursors.next` supplies
   the next cursor. The raw response, IDs, cursor, and post/media content are not
   committed.
+- **Live collection access flags, November 1, 2026:** Read-only inspection of the
+  user's signed-in Brave collection session found 75 posts across four API pages,
+  with `attributes.current_user_can_view` true for 74 and false for one. The
+  updated discovery function returned 74 preparation URLs and one locked skip.
+  This establishes access filtering on that session, not complete installed
+  export behavior after reload; no raw response or post content is retained here.
 - **User-confirmed live testing:** On October 25, 2026, the user confirmed live
   Patreon testing was completed for the entire recorded testing history. This
   broader manual confirmation supersedes earlier live-testing-pending notes;
@@ -781,6 +787,14 @@ control and reading direct `/posts/{numeric-id}` grid-card links. A temporarily
 disabled control is treated as in-progress; a stalled control produces an error
 instead of silently preparing a partial set. Both paths remove duplicates while
 preserving collection order and create numbered title-based files.
+API discovery explicitly requests `current_user_can_view` on every page and
+excludes posts only when its value is boolean `false`. Unique totals and the
+100-post bound count all discovered posts, including locked ones. Locked posts
+never reach the preparation worker and are reported separately from generic
+unavailable/unsupported failures. Missing or nonboolean flags retain normal
+preparation checks. An all-locked result stops before worker preparation with a
+membership message; it does not fall back to visiting locked pages. The DOM-only
+fallback has no new inferred lock selector and retains generic skipping behavior.
 The outer collection archive uses `application/zip`, valid DOS timestamps, and
 ZIP method-8 actual DEFLATE compression for compatibility with macOS archive detection;
 individual EPUB payloads retain `application/epub+zip` and their required stored
@@ -844,7 +858,9 @@ initiated by an extension-created tab, so that creation path remains a manual/li
 check. A full post export using the new cursor path remains pending user
 confirmation. The private endpoint can change without notice; Load more remains
 the compatibility fallback. Collections over 100 posts, alternate list markup,
-locked posts, remote images, and current live collection ordering remain unverified.
+remote images, and current live collection ordering remain unverified. November 1
+inspection verifies live API access flags and the updated discovery filter;
+locked-page DOM variants and membership changes during generation remain unverified.
 Subsequent November 1 archive inspection additionally confirms repeated content:
 74 numbered files in each available archive contain one unique title, source,
 and post body. At the diagnostic checkpoint the worker sent export requests

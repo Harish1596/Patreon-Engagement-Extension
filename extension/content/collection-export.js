@@ -114,12 +114,15 @@
     if (!template) return null;
     const collectionId = routeCollectionId();
     const campaignId = template.searchParams.get("filter[campaign_id]") || "";
-    const result = [];
     const seen = new Set();
+    const locked = new Set();
     let expectedTotal = null;
     let pageUrl = template;
     for (let page = 0; page < 100; page++) {
-      report(`Reading collection pages… ${result.length} found.`);
+      report(`Reading collection pages… ${seen.size} found.`);
+      const fields = new Set((pageUrl.searchParams.get("fields[post]") || "").split(",").filter(Boolean));
+      fields.add("current_user_can_view");
+      pageUrl.searchParams.set("fields[post]", [...fields].join(","));
       const response = await fetch(pageUrl.href, {
         credentials: "include",
         headers: { Accept: "application/json" }
@@ -137,17 +140,18 @@
       for (const item of payload.data) {
         if (item?.type !== "post" || !/^\d+$/.test(item.id)) continue;
         const url = `${location.origin}/posts/${item.id}`;
-        if (!seen.has(url)) { seen.add(url); result.push(url); }
+        seen.add(url);
+        if (item.attributes?.current_user_can_view === false) locked.add(url);
       }
-      setProgress("Finding collection posts", result.length, expectedTotal);
-      if (result.length > 100) throw new Error("This collection contains more than 100 posts.");
+      setProgress("Finding collection posts", seen.size, expectedTotal);
+      if (seen.size > 100) throw new Error("This collection contains more than 100 posts.");
       pageUrl = nextCollectionApiUrl(payload, template, collectionId, campaignId);
       if (!pageUrl) {
-        if (expectedTotal !== null && result.length !== expectedTotal) {
-          throw new Error(`Patreon returned ${result.length} of ${expectedTotal} collection posts.`);
+        if (expectedTotal !== null && seen.size !== expectedTotal) {
+          throw new Error(`Patreon returned ${seen.size} of ${expectedTotal} collection posts.`);
         }
-        if (!result.length) throw new Error("Patreon returned no collection posts.");
-        return result;
+        if (!seen.size) throw new Error("Patreon returned no collection posts.");
+        return { urls: [...seen].filter(url => !locked.has(url)), locked: locked.size };
       }
     }
     throw new Error("This collection has too many API pages to prepare safely.");
@@ -238,12 +242,16 @@
     chooser.src = "about:blank";
     setProgress("Finding collection posts");
     report(prefix || "Finding accessible posts in this collection…");
-    let urls;
-    try { urls = await apiPostUrls(); }
-    catch { urls = null; }
-    if (!urls) {
+    let discovered;
+    try { discovered = await apiPostUrls(); }
+    catch { discovered = null; }
+    if (!discovered) {
       await loadAllPostLinks();
-      urls = postUrls();
+      discovered = { urls: postUrls(), locked: 0 };
+    }
+    const { urls, locked } = discovered;
+    if (!urls.length && locked) {
+      throw new Error(`${locked === 1 ? "The only post is" : `All ${locked} posts are`} locked for your current membership. Nothing was downloaded.`);
     }
     if (!urls.length) throw new Error("No post links were found in this collection.");
     requestToken = crypto.randomUUID();
@@ -254,7 +262,8 @@
     if (!result?.registered) throw new Error(result?.error || "The collection could not be prepared.");
     loadChooser();
     const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
-    report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${skipped}`, prefix ? "success" : "");
+    const lockedMessage = locked ? ` ${locked} locked ${locked === 1 ? "post was" : "posts were"} skipped.` : "";
+    report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${lockedMessage}${skipped}`, prefix ? "success" : "");
     setProgress();
     setBusy(false);
   }
