@@ -730,3 +730,36 @@ transient user activation and block the download. The final matrix passed 43
 Chrome cases plus one expected skip, all 44 Brave cases, all 16 tooling tests,
 and syntax checks for 31 JavaScript files. No new live Patreon markup observation
 is claimed by this change.
+
+### Archive Utility root-cause investigation — November 1, 2026
+
+The user reports that the newest outer ZIP still fails in Archive Utility. The
+newest local download has 74 entries and 76,144,838 bytes. Outer directory offsets,
+declared lengths, decompression, and CRCs pass, as do the nested EPUB ZIP entries;
+macOS nevertheless classifies it as generic data. Earlier Info-ZIP/ditto success
+was insufficient to establish Archive Utility compatibility, and the previous
+method-8 fix did not resolve the actual trigger.
+
+Large synthetic EPUBs created with the current writer reproduce generic-data
+classification for both method 0 and method 8 with stored DEFLATE blocks. The
+local macOS generic ZIP magic rule excludes an early `application/epub+zip`
+marker, which appears at offset 118 in the newest outer archive. Stored blocks
+preserve that nested marker verbatim. Actual raw-DEFLATE compression, a longer
+first filename moving the marker beyond the scan window, and a same-size marker
+substitution each restore ZIP classification. Markdown controls lack this marker
+and are recognized. The actual-compression synthetic control also extracts through
+Archive Utility. A stored-block control produced no output; direct GUI error-text
+inspection was unavailable because assistive access was not granted.
+
+Separate aggregate inspection establishes that all three local collection ZIPs
+contain 74 copies of one post title/source/body, with distinct metadata making
+the complete EPUB hashes differ. Code inspection identifies the unchecked worker
+transition: `tabs.update` is followed immediately by messaging, and any successful
+old-document response is accepted without comparing the requested post identity.
+The background unit fixture switches URLs immediately and the installed-browser
+case reuses already-open posts, leaving this navigation race untested.
+
+This checkpoint records diagnosis only. No runtime fix was applied. Tests and
+fixtures remained outside the repository; no account payload, post text, private
+URLs, or original archive was committed. Current commands/results and evidence
+limits are recorded in TESTING.md.

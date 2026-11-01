@@ -785,6 +785,12 @@ The outer collection archive uses `application/zip`, valid DOS timestamps, and
 ZIP method-8 deflate stored blocks for compatibility with macOS archive detection;
 individual EPUB payloads retain `application/epub+zip` and their required stored
 `mimetype` entry.
+**November 1 investigation:** The intended macOS compatibility above is not
+achieved for large nested EPUBs. Stored DEFLATE blocks leave the nested EPUB MIME
+marker visible to macOS's early format scan, causing generic-data classification
+and the reported Archive Utility rejection. Actual compression passes the
+synthetic detection and Archive Utility extraction control. See [current
+diagnostic evidence](../TESTING.md#automated-checks).
 PDF is deliberately deferred: the current post PDF path uses Chrome's interactive
 Save as PDF UI and cannot package generated PDF bytes into a ZIP.
 
@@ -830,6 +836,12 @@ check. A full post export using the new cursor path remains pending user
 confirmation. The private endpoint can change without notice; Load more remains
 the compatibility fallback. Collections over 100 posts, alternate list markup,
 locked posts, remote images, and current live collection ordering remain unverified.
+Subsequent November 1 archive inspection additionally confirms repeated content:
+74 numbered files in each available archive contain one unique title, source,
+and post body. The worker sends export requests immediately after `tabs.update`
+and accepts success without validating the destination post identity. Correct
+per-post extraction after worker navigation remains unresolved; immediate mocked
+navigation and already-open-tab tests do not exercise this race.
 
 ## Verification and change history
 

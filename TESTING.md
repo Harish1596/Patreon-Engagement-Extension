@@ -29,6 +29,43 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Archive Utility investigation, November 1, 2026: the user reports that the new
+method-8 download is still unsupported. Metadata and checksum checks on the newest
+76,144,838-byte archive found 74 complete outer entries and valid nested EPUB ZIP
+entries. Nevertheless, `/usr/bin/file -b` reports `data`. The previous method-8
+checkpoint below did **not** establish Archive Utility compatibility.
+
+Synthetic diagnostics using the current ZIP writer reproduce this distinction:
+
+| Outer payload | macOS `file` result |
+| --- | --- |
+| Large EPUB, ZIP method 0 | `data` |
+| Large EPUB, method 8 with stored DEFLATE blocks | `data` |
+| Same EPUB, method 8 with actual zlib raw compression | ZIP archive |
+| Same stored-block EPUB, longer first filename | ZIP archive |
+| Markdown, stored or deflated | ZIP archive |
+
+The local `/usr/share/file/magic/archive` generic ZIP rule excludes
+`application/epub+zip` in its early payload search. The newest live outer archive
+exposes that nested marker at byte 118; stored DEFLATE blocks leave it readable.
+A same-size synthetic marker substitution also restores ZIP detection, isolating
+the marker from timestamps, archive size, and ZIP directory structure. Actual
+Archive Utility extraction of the compressed synthetic control produced the
+expected EPUB. The stored-block control produced no extracted output; reading its
+GUI error text was unavailable because `osascript` lacks assistive access.
+
+Checks used: `file -b`, `unzip -t`, a temporary Node diagnostic using the current
+writer and `node:zlib`, independent directory/size/CRC checks on outer and nested
+entries, and `open -a 'Archive Utility'` on synthetic controls. No runtime change
+or full browser-suite run was made for this diagnosis.
+
+Separately, aggregate inspection of all three supplied/local collection archives
+found 74 entries but only one unique post title, source URL, and post body in
+each. UUID/time metadata explains the distinct EPUB byte hashes. Worker navigation
+currently does not wait for the destination document or bind export responses to
+the requested post, so successful ZIP validation does not establish correct
+collection contents. Both runtime issues remain unresolved at this checkpoint.
+
 Download progress, November 1, 2026: **43 Chrome cases passed with the Brave-only
 installed case skipped, all 44 Brave cases passed, and all 16 tooling tests
 passed**; syntax checks cover 31 JavaScript files. The post regression holds a
