@@ -223,6 +223,13 @@ test("collection reuses discovery and preparation across downloads and refreshes
   expect(apiCalls).toBe(1);
   expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
 
+  await close.click();
+  await page.evaluate(() => { const original = Date.now; Date.now = () => original() + 119 * 60_000; });
+  await trigger.click();
+  await expect(status).toContainText("1 post is ready");
+  expect(apiCalls).toBe(1);
+  expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
+
   postCount = 2;
   await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
   await expect(status).toContainText("2 posts are ready");
@@ -237,7 +244,7 @@ test("collection reuses discovery and preparation across downloads and refreshes
   expect(await page.evaluate(() => collectionPrepareCount)).toBe(3);
 
   await close.click();
-  await page.evaluate(() => { const original = Date.now; Date.now = () => original() + 16 * 60_000; });
+  await page.evaluate(() => { const original = Date.now; Date.now = () => original() + 121 * 60_000; });
   await trigger.click();
   await expect(status).toContainText("2 posts are ready");
   expect(apiCalls).toBe(3);

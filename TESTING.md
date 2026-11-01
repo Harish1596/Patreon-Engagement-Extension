@@ -29,6 +29,16 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Two-hour collection cache, November 1, 2026: the focused cache lifecycle test
+passed in Chrome and Brave, all 17 tooling tests passed, and syntax checks cover
+32 JavaScript files. Simulated time verifies page discovery and worker preparation
+remain reusable at 119 minutes and expire after 121 minutes. Commands:
+`npm test -- --grep 'collection reuses' --reporter=dot`,
+`npm run test:brave -- --grep 'collection reuses' --reporter=dot`,
+`npm run test:tooling`, and `npm run check`. This changes the 15-minute lifetime
+recorded at the earlier checkpoint below to two hours. Cache remains in memory
+and clears on navigation/reload; a worker restart can require preparation again.
+
 Collection cache reuse, November 1, 2026: **all 7 targeted Chrome collection
 tests, all 8 targeted Brave collection/installed tests, and all 17 tooling tests
 passed**; syntax checks cover 32 JavaScript files. The browser lifecycle regression

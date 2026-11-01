@@ -845,3 +845,14 @@ repeat build without preflight, cancellation, and worker closure. This checkpoin
 uses synthetic pages; authenticated live cache reuse remains pending after reload.
 The installed Brave case additionally verifies real consecutive Markdown and EPUB
 downloads with correct distinct chapter content using the same prepared session.
+
+### Two-hour collection cache — November 1, 2026
+
+Increased both page discovery and background prepared-session lifetimes from
+15 minutes to two hours at the user's request. Existing refresh, navigation,
+reload, transfer release, and worker-restart behavior is retained. The focused
+Chrome and Brave cache lifecycle tests passed with simulated reuse at 119 minutes
+and expiry beyond two hours. Background tests independently check preparation
+survives 119 minutes and expires after 121 minutes. All 17 tooling tests and
+syntax checks for 32 JavaScript files passed. No live two-hour waiting test or
+full browser-suite rerun was performed for this duration adjustment.

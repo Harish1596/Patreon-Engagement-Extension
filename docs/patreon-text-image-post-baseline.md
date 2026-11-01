@@ -841,7 +841,7 @@ is shown. A failure while building a post after successful preflight aborts the 
 rather than silently producing a newly partial result. The current implementation
 accepts at most 100 unique post links per collection request. As of November 1,
 collection discovery (links and locked counts) is retained in page memory for
-15 minutes; the worker retains prepared metadata for 15 minutes after preparation
+two hours; the worker retains prepared metadata for two hours after preparation
 or generation. Closing the panel preserves those caches without retaining a
 worker tab. Successful finalization releases all generated transfer files and
 retains only the prepared metadata for another format. Reopening or finishing a

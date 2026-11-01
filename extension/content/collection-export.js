@@ -13,7 +13,7 @@
   let busy = false;
   let route = "";
   let discoveryCache = null;
-  const COLLECTION_CACHE_MS = 15 * 60_000;
+  const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const observedApiRequests = [];
   const MAX_TRANSFER_CHARS = 1024 * 1024;
 

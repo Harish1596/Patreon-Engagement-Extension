@@ -150,7 +150,7 @@ Missing access flags still use normal preparation checks. A collection containin
 only locked posts shows a message without opening worker tabs.
 
 Discovered links, access flags, and preparation results are cached in memory for
-15 minutes on the current collection page. Reopening the panel or downloading
+two hours on the current collection page. Reopening the panel or downloading
 another format reuses them. Select **Refresh collection** to pick up new chapters
 or membership changes immediately. Expired discovery is refreshed on the next
 opening; navigating away or reloading clears the cache. Generated file bytes are

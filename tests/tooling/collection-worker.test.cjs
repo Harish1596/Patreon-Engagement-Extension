@@ -11,6 +11,7 @@ function backgroundHarness({ delayedNavigation = false } = {}) {
   let removedListener;
   let nextTabId = 10;
   let nextTransferId = 1;
+  let elapsed = 0;
   const tabUrls = new Map();
   const pendingUrls = new Map();
   const transfers = new Map();
@@ -80,7 +81,8 @@ function backgroundHarness({ delayedNavigation = false } = {}) {
     permissions: { async contains() { return true; } }
   };
   vm.runInNewContext(source, {
-    browser, URL, Map, Set, Promise, Uint8Array, Date, Error, Array,
+    browser, URL, Map, Set, Promise, Uint8Array,
+    Date: class extends Date { static now() { return Date.now() + elapsed; } }, Error, Array,
     crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
     setTimeout, clearTimeout, fetch: async () => { throw new Error("Unexpected fetch"); },
     btoa: value => Buffer.from(value, "binary").toString("base64")
@@ -95,11 +97,11 @@ function backgroundHarness({ delayedNavigation = false } = {}) {
       if (result !== true && result !== undefined) resolve(result);
     } catch (error) { reject(error); }
   });
-  return { calls, send };
+  return { calls, send, advanceTime: minutes => { elapsed += minutes * 60_000; } };
 }
 
 test("collection export chunks payloads and closes each phase's reusable worker", async () => {
-  const { calls, send } = backgroundHarness();
+  const { calls, send, advanceTime } = backgroundHarness();
   const token = "11111111-1111-4111-8111-111111111111";
   const urls = [101, 102, 103].map(id => `https://www.patreon.com/posts/${id}`);
 
@@ -109,6 +111,8 @@ test("collection export chunks payloads and closes each phase's reusable worker"
   assert.deepEqual(calls.update.map(call => call.url), urls.slice(1));
   assert.deepEqual(calls.remove, [calls.create[0].id]);
   assert.deepEqual(calls.progress.filter(item => item.phase === "prepare").map(item => item.current), [0, 1, 2, 3]);
+  advanceTime(119);
+  assert.equal((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).count, 3);
 
   const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
   assert.equal(built.files.length, 3);
@@ -140,7 +144,7 @@ test("collection export chunks payloads and closes each phase's reusable worker"
 });
 
 test("collection worker rejects successful old-document replies until each destination loads", async () => {
-  const { calls, send } = backgroundHarness({ delayedNavigation: true });
+  const { calls, send, advanceTime } = backgroundHarness({ delayedNavigation: true });
   const token = "22222222-2222-4222-8222-222222222222";
   const urls = [101, 102, 103].map(id => `https://www.patreon.com/posts/${id}`);
   assert.equal((await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls })).count, 3);
@@ -153,4 +157,6 @@ test("collection worker rejects successful old-document replies until each desti
   assert.equal(calls.staleReplies, 8);
   assert.equal((await send({ type: "FINISH_COLLECTION_EXPORT", token })).finished, true);
   assert.deepEqual(calls.remove, calls.create.map(call => call.id));
+  advanceTime(121);
+  assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
 });

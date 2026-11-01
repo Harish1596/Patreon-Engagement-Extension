@@ -26,6 +26,7 @@
   their count separately from unavailable or unsupported posts.
 - Reuse collection discovery and preparation for repeat downloads for 15 minutes,
   with an explicit Refresh collection action.
+- Extend collection discovery and prepared-session cache lifetimes to two hours.
 
 ## 1.1.1
 

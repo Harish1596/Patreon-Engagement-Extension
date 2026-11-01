@@ -7,7 +7,7 @@
   const knownPosts = new Map();
   const cancelledCollections = new Set();
   const MAX_TRANSFER_CHARS = 1024 * 1024;
-  const COLLECTION_CACHE_MS = 15 * 60_000;
+  const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
 
   function call(target, method, ...args) {
     if (globalThis.browser?.runtime) return target[method](...args);
