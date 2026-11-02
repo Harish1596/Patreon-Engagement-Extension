@@ -722,6 +722,15 @@ payloads over 100 MiB are rejected. A denied or failed image request aborts the
 export rather than silently producing a partial offline document. Signed image
 URLs are used transiently and are not written to the generated document.
 
+**November 2 source reuse:** Individual exports retain one inert source tree and
+distinct image data URLs for two hours in page memory, up to 16 MiB. A SHA-256
+fingerprint of normalized body markup, image sources, and post metadata invalidates
+it when content changes; Reader styles are removed before fingerprinting. Download
+time is regenerated for each output. Route changes clear the entry. Larger posts
+still export but are not retained in this small memory cache. Repeated image
+sources share an asset index and EPUB image entry. EPUB decodes cached image bytes
+on demand; Markdown uses data URLs directly.
+
 PDF uses a sanitized, self-contained print view and the browser's native print
 dialog; the user selects Save as PDF. The print view uses a temporary same-tab
 iframe so it does not depend on popup permission after the extension-frame gesture.
@@ -844,6 +853,27 @@ failure, expiry detection, and collection-tab closure also clean up any active w
 The preflight gathers only exact remote-image origins before the packaged chooser
 enables its direct user-gesture permission request. After approval, each post uses
 the same sanitized extraction and embedded-media path as individual export.
+As of November 2, generation transfers a versioned, format-independent source
+snapshot: title, creator, canonical source URL, language, an inert content tree,
+and one data URL per distinct image. The collection page renders its selected
+format from that snapshot. Hydration creates only allowlisted inert elements,
+validates post identity, and does not insert the source tree into the live page.
+Download time is generated at rendering time, not retained in the source.
+The background's `post-cache.js` stores snapshots in extension-origin CacheStorage,
+keyed by collection token and post ID. Synthetic HTTPS cache keys never cause
+network requests. Entries expire two hours after insertion and share a 512 MiB
+budget with oldest-entry eviction; failures or eviction fall back to fetching.
+Only one chapter is loaded into memory for conversion at a time; the existing
+generated-file retry/ZIP buffers still scale with archive size. Source caching
+does not make ZIP packaging a streaming operation.
+Refresh, Cancel, and owner-tab closure delete the collection's sources. Worker
+startup prunes expired and orphaned entries against restored session metadata;
+expiry deletion is lazy, so disk records may remain while the browser is closed,
+but are not reused in a new browser session. Cancelled pending writes are removed
+after storage completes. Corrupt records are treated as misses. Source snapshots
+are not added to `storage.session`, do not contain signed image request URLs, and
+are never exposed as web-accessible resources. Closing the panel, successful ZIP
+handoff, and format changes preserve source reuse within the prepared session.
 Generated file metadata crosses first; file contents are then pulled in at most
 1 MiB character chunks from the post tab to the background and from the background
 to the collection page. Completed source chunks are released, the final ZIP is
@@ -882,7 +912,8 @@ discards both caches and refetches. Navigation/reload clears page state, and
 navigation/cancellation/tab closure discards the background session. Stored
 records are removed on cancellation, owner-tab closure, or expiration; browser
 session storage ends with the browser session. Post content and media are
-regenerated for each export and are not included in this metadata cache.
+rendered anew for each format from the bounded source cache described above;
+they are not included in this metadata cache. Cache misses fetch them normally.
 
 Chooser errors are sent directly to the owning panel through `postMessage`,
 because the failed session cannot be relied on to relay them. The panel checks

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Reuse format-independent chapter text and images across EPUB/Markdown exports
+  with a bounded two-hour extension disk cache and a small individual-post cache.
+- Deduplicate repeated inline images, generate fresh export timestamps, and
+  retain source-cache reuse across background-worker restarts.
 - Retain completed collection chapters after generation/transfer failures, retry
   missing posts, and retry ZIP packaging without fetching completed posts again.
 - Add local post export in PDF, EPUB, and Markdown formats.

@@ -5,6 +5,29 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = fs.readFileSync(path.resolve(__dirname, "../../extension/background/media.js"), "utf8");
+const cacheSource = fs.readFileSync(path.resolve(__dirname, "../../extension/background/post-cache.js"), "utf8");
+
+test("collection source hits survive worker restart without reopening posts and are cleared with their owner", async () => {
+  const { calls, send, restart, disk, sender, closeTab } = backgroundHarness();
+  const token = "77777777-7777-4777-8777-777777777777";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
+  const first = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  assert.equal(first.files[0].extension, "snapshot");
+  assert.equal(disk.size, 1);
+  await send({ type: "FINISH_COLLECTION_EXPORT", token });
+  const created = calls.create.length;
+  restart();
+  const cached = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  assert.equal(cached.files[0].length, first.files[0].length);
+  assert.equal(calls.create.length, created);
+  assert.ok((await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 },
+    { ...sender, tab: { ...sender.tab, id: 42 } })).error);
+  const chunk = await send({ type: "GET_COLLECTION_EXPORT_CHUNK", token, index: 0, offset: 0 });
+  assert.ok(chunk.data.length <= 1024 * 1024);
+  await closeTab(sender.tab.id);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(disk.size, 0);
+});
 
 test("indexed chapter failure keeps the session retryable across worker restart", async () => {
   let fail = true;
@@ -39,6 +62,13 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
   const pendingUrls = new Map();
   const transfers = new Map();
   const sessionStore = {};
+  const disk = new Map();
+  const cache = {
+    async keys() { return [...disk.keys()].map(url => ({ url })); },
+    async match(request) { return disk.get(request.url || request)?.clone(); },
+    async delete(request) { return disk.delete(request.url || request); },
+    async put(request, response) { disk.set(request.url || request, response.clone()); }
+  };
   const holds = new Map();
   function hold(type) {
     let enter;
@@ -94,9 +124,10 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
         }
         if (message.type === "BUILD_POST_EXPORT") {
           if (failBuild(id)) return { error: "Synthetic build failure." };
-          const data = id === "101" ? "x".repeat(2 * 1024 * 1024 + 17) : id;
+          let data = id === "101" ? "x".repeat(2 * 1024 * 1024 + 17) : id;
+          if (message.format === "snapshot") data = JSON.stringify({ version: 1, postId: id, assets: [], body: data });
           transfers.set(message.transferId, data);
-          return { file: { title: `Post ${id}`, extension: "md", encoding: "text", length: data.length, postId: id } };
+          return { file: { title: `Post ${id}`, extension: message.format === "snapshot" ? "snapshot" : "md", encoding: "text", length: data.length, postId: id } };
         }
         if (message.type === "GET_POST_EXPORT_CHUNK") {
           const source = transfers.get(message.transferId);
@@ -127,8 +158,9 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
       async remove(keys) { for (const key of Array.isArray(keys) ? keys : [keys]) delete sessionStore[key]; }
     } }
   };
-  const restart = () => vm.runInNewContext(source, {
+  const restart = () => vm.runInNewContext(cacheSource + "\n" + source, {
     browser, URL, Map, Set, Promise, Uint8Array, AbortController,
+    importScripts() {}, caches: { async open() { return cache; } }, Blob, Response,
     Date: class extends Date { static now() { return Date.now() + elapsed; } }, Error, Array,
     crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
     setTimeout: fastTimers ? callback => setTimeout(callback, 0) : setTimeout,
@@ -146,7 +178,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
       if (result !== true && result !== undefined) resolve(result);
     } catch (error) { reject(error); }
   });
-  return { calls, send, restart, sessionStore, sender, hold, closeTab: id => browser.tabs.remove(id),
+  return { calls, send, restart, sessionStore, sender, hold, disk, closeTab: id => browser.tabs.remove(id),
     advanceTime: minutes => { elapsed += minutes * 60_000; } };
 }
 

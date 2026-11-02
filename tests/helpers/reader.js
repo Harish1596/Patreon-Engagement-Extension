@@ -110,10 +110,35 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
               skipped: 0
             };
             if (result.error) return result;
-            globalThis.collectionTransferFiles = result.files;
+            const files = result.files.map((file, index) => {
+              if (message.format !== "snapshot") return file;
+              let text = file.data;
+              if (file.extension === "epub") {
+                const binary = Uint8Array.from(atob(file.data), char => char.charCodeAt(0));
+                const view = new DataView(binary.buffer);
+                for (let offset = 0; view.getUint32(offset, true) === 0x04034b50;) {
+                  const size = view.getUint32(offset + 18, true);
+                  const nameLength = view.getUint16(offset + 26, true);
+                  const start = offset + 30 + nameLength + view.getUint16(offset + 28, true);
+                  const name = new TextDecoder().decode(binary.subarray(offset + 30, offset + 30 + nameLength));
+                  if (name === "EPUB/post.xhtml") {
+                    text = new DOMParser().parseFromString(new TextDecoder().decode(binary.subarray(start, start + size)), "text/html").body.textContent;
+                    break;
+                  }
+                  offset = start + size;
+                }
+              }
+              const url = collectionSessions.get(message.token).postUrls[index] || `https://www.patreon.com/posts/${101 + index}`;
+              return { title: file.title, extension: "snapshot", encoding: "text", data: JSON.stringify({
+                version: 1, postId: new URL(url).pathname.split("/").pop(), title: file.title,
+                author: "Fixture Creator", sourceUrl: url, language: "en", assets: [],
+                body: { tag: "p", children: [text] }
+              }) };
+            });
+            globalThis.collectionTransferFiles = files;
             globalThis.collectionChunkSizes = [];
             return {
-              files: (message.index === undefined ? result.files : [result.files[message.index]])
+              files: (message.index === undefined ? files : [files[message.index]])
                 .map(({ data, ...file }) => ({ ...file, length: data.length })),
               skipped: result.skipped
             };

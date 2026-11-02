@@ -48,7 +48,8 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       let body = fs.readFileSync(path.join(__dirname, "fixtures/installed-post.html"), "utf8");
       if (postNumber) body = body
         .replace("Installed extension test", `Collection post ${postNumber}`)
-        .replace("Post content.", `Collection body ${postNumber}.`);
+        .replace("Post content.", `Collection body ${postNumber}.`)
+        .replace('</p></div>', '</p><img src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'8\' height=\'8\'%3E%3C/svg%3E"><img src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'8\' height=\'8\'%3E%3C/svg%3E"></div>');
       return route.fulfill({
         contentType: "text/html",
         // Simulate a framework removing the early-injected flag on initial load.
@@ -194,7 +195,19 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     expect(collectionEntries[0].data.toString()).toContain("Collection body one.");
     expect(collectionEntries[1].data.toString()).toContain("Collection body two.");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    const cachedSources = await popup.evaluate(async () => {
+      const cache = await caches.open("patreon-export-sources-v1");
+      const keys = await cache.keys();
+      const snapshots = await Promise.all(keys.map(async key => (await cache.match(key)).json()));
+      return { count: keys.length, assets: snapshots.map(snapshot => snapshot.assets.length) };
+    });
+    expect(cachedSources).toEqual({ count: 2, assets: [1, 1] });
+    await collectionPostOne.close();
+    await collectionPostTwo.close();
     await suspendExportWorker();
+    let openedPostTabs = 0;
+    const countPostTab = () => { openedPostTabs++; };
+    context.on("page", countPostTab);
     const [collectionEpub] = await Promise.all([
       collection.waitForEvent("download"),
       collection.frameLocator('iframe[title="Collection export formats"]')
@@ -208,7 +221,14 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       .toContain("Collection body one.");
     expect(readZip(epubEntries[1].data).find(entry => entry.name === "EPUB/post.xhtml").data.toString())
       .toContain("Collection body two.");
+    for (const entry of epubEntries) {
+      const images = readZip(entry.data).filter(file => file.name.startsWith("EPUB/images/"));
+      expect(images).toHaveLength(1);
+      expect(images[0].data.toString()).toContain("<svg");
+    }
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    context.off("page", countPostTab);
+    expect(openedPostTabs).toBe(0);
     await collection.frameLocator('iframe[title="Collection export formats"]').locator("body").evaluate(async () => {
       await chrome.runtime.sendMessage({ type: "CANCEL_COLLECTION_EXPORT", token: location.hash.slice(1) });
     });

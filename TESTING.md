@@ -29,6 +29,31 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Shared export sources, November 2, 2026: **18 Chrome collection cases and 8
+isolated Chrome post cases passed; 19 Brave collection/installed cases and 8
+isolated Brave post cases passed; 33 tooling cases passed**. Syntax checks cover
+35 JavaScript files. The installed test downloads Markdown, closes both source
+post tabs, terminates the extension worker, and downloads distinct EPUB chapters
+without opening any post tab. It inspects extension-origin CacheStorage from a
+first-party extension page; Brave blocks CacheStorage inspection from the
+third-party chooser iframe, so that frame is not used to inspect disk state.
+The new post case checks shared remote-image retrieval across formats, duplicate
+image references with one EPUB asset, fresh output time, Reader-style reuse,
+content invalidation, and expiry. It drives the existing runtime choice message
+to isolate caching from synthetic chooser click timing; the installed case still
+clicks the real packaged chooser.
+
+Tooling covers cache byte limits, preservation of already-cached chapters when a
+collection exceeds its budget, cross-collection eviction, fixed expiry, corruption,
+cancelled writes, owner cleanup, unavailable storage, and worker-restored hits.
+Source data is stored on local disk, separate from metadata-only session storage.
+The generated-file retry/ZIP buffers still grow with the requested archive;
+this feature does not provide streaming ZIP generation. Browser tests use synthetic
+pages and media, not an authenticated Patreon collection. Earlier broad runs
+encountered the existing PDF-status click flake and a synthetic post chooser click
+timeout; the isolated post suites passed. No live authenticated cache-reuse claim
+is made.
+
 Collection retry/resume, November 2, 2026: generation now requests and receives
 one chapter at a time. **18 Chrome collection tests, 7 isolated Chrome post tests,
 19 Brave collection/installed tests, and 28 tooling tests passed**; syntax checks

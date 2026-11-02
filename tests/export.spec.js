@@ -1,5 +1,6 @@
 const { test, expect } = require("@playwright/test");
 const { setup } = require("./helpers/reader");
+const { readZip } = require("./helpers/zip");
 
 const downloadButton = (page) => page.getByRole("button", { name: "Download post", exact: true });
 const downloadDialog = (page) => page.getByRole("dialog", { name: "Download post", exact: true });
@@ -172,4 +173,55 @@ test("download UI follows post rerenders and leaves unsupported routes", async (
   await page.evaluate(() => { history.pushState({}, "", "/example"); document.body.append(document.createElement("div")); });
   await expect(downloadButton(page)).toHaveCount(0);
   await expect(downloadDialog(page)).toHaveCount(0);
+});
+
+test("post formats share distinct images, refresh download time, and invalidate changed or expired content", async ({ page }) => {
+  let fetches = 0;
+  await page.route("https://media.example/**", async route => {
+    if (route.request().resourceType() === "fetch") fetches++;
+    await route.fulfill({ contentType: "image/png", body: Buffer.from("89504e470d0a1a0a", "hex") });
+  });
+  const content = require("./helpers/reader").fixture.replace(/data:image\/svg\+xml,[^\"]+/, "https://media.example/post.png?signature=private");
+  await setup(page, { content });
+  await page.locator("#post img").evaluate(image => image.after(image.cloneNode()));
+  await downloadButton(page).click();
+  async function download(format) {
+    const pending = page.waitForEvent("download");
+    await expect(formatButton(page, format)).toBeVisible();
+    const result = await page.evaluate(format => {
+      const frame = document.querySelector('[data-patreon-download-panel]').shadowRoot.querySelector("iframe");
+      return deliverExtensionMessage({ type: "POST_EXPORT_CHOICE", token: new URL(frame.src).hash.slice(1), format: format.toLowerCase() });
+    }, format);
+    expect(result.started).toBe(true);
+    const bytes = await downloadBytes(await pending);
+    await expect(downloadDialog(page).getByRole("status")).toHaveText(`${format} download started.`);
+    return bytes;
+  }
+  const markdown = (await download("Markdown")).toString();
+  expect(fetches).toBe(1);
+  expect(markdown.match(/data:image\/png;base64/g)).toHaveLength(2);
+  await page.evaluate(() => {
+    const OriginalDate = Date;
+    const future = OriginalDate.now() + 60 * 60_000;
+    globalThis.Date = class extends OriginalDate {
+      constructor(...args) { super(...(args.length ? args : [future])); }
+    };
+    document.querySelector('#post [class*="additionalStylesPostContentWrapper"]').style.fontSize = "26px";
+  });
+  const epub = readZip(await download("EPUB"));
+  expect(fetches).toBe(1);
+  expect(epub.filter(entry => entry.name.startsWith("EPUB/images/"))).toHaveLength(1);
+  const xhtml = epub.find(entry => entry.name === "EPUB/post.xhtml").data.toString();
+  expect(xhtml.match(/src="images\/image-1.png"/g)).toHaveLength(2);
+  const time = await page.evaluate(() => new Intl.DateTimeFormat(undefined, {
+    year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short"
+  }).format(new Date()));
+  expect(xhtml).toContain(time);
+  expect(xhtml).not.toContain("signature=private");
+  await page.locator("#post p").first().evaluate(node => { node.textContent = "Updated chapter text."; });
+  expect((await download("Markdown")).toString()).toContain("Updated chapter text.");
+  expect(fetches).toBe(2);
+  await page.evaluate(() => { const now = Date.now; Date.now = () => now() + 121 * 60_000; });
+  await download("EPUB");
+  expect(fetches).toBe(3);
 });

@@ -158,7 +158,21 @@ uses browser session storage so idle background-worker restarts do not invalidat
 the format buttons; it is removed on cancellation, owner-tab closure, or expiry,
 and browser-session storage clears when the browser session ends. Missing or
 expired sessions produce a visible panel error. Generated file bytes are
-released after each download, and post text/images are read again for each export.
+released after each download. Fetched chapter text and distinct inline images
+are cached once in extension-owned local disk storage for two hours. EPUB and
+Markdown are generated from that shared source, one chapter at a time, so another
+format can avoid reopening post tabs and fetching their images again. The source
+cache survives background-worker restarts and has a shared 512 MiB limit; older
+entries may be evicted to stay within it. Expired, evicted, or unavailable storage
+falls back to normal fetching. Refresh collection, Cancel, and closing the owner
+tab clear that collection's source entries. No signed image URLs are stored in
+them, and no cached data is sent to another service. Download time remains fresh
+for each output.
+
+Individual post downloads also reuse a format-independent source in page memory
+for up to two hours, limited to 16 MiB. Changes to the post content, expiry, or
+navigation invalidate it; Reader typography changes do not. Larger single-post
+sources are exported normally without being retained in that memory cache.
 
 If a chapter fails during generation or transfer, the remaining chapters continue.
 Completed files stay in collection-page memory and **Retry failed posts** fetches
@@ -167,6 +181,8 @@ If packaging fails, **Retry packaging** reuses all completed files. You can clos
 and reopen the panel without losing this progress. Reloading, navigating away,
 cancelling, refreshing the collection, or choosing another format clears it.
 This recovery does not retry posts already reported as skipped during preparation.
+Switching formats clears generated retry files while preserving reusable source
+chapters in the disk cache.
 
 The collection dialog keeps an activity bar visible throughout discovery,
 preparation, file generation, transfer, and ZIP packaging. It reports completed

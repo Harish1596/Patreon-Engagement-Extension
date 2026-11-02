@@ -1,7 +1,7 @@
 /* Collection export: packages one EPUB or Markdown file per accessible post. */
 (() => {
   const { api, call } = globalThis.PatreonExtension;
-  const { makeCollectionZip, saveBlob, fileStem } = globalThis.PatreonExporter;
+  const { makeCollectionZip, saveBlob, fileStem, fileFromSnapshot } = globalThis.PatreonExporter;
   const POST_PATH = /^(?:\/posts\/\d+|\/[^/]+\/posts\/(?:[^/]+-)?\d+)\/?$/;
   let host;
   let shadow;
@@ -408,7 +408,7 @@
 
   async function receiveFile(token, metadata, index, signal) {
     if (!metadata || typeof metadata.title !== "string"
-      || !["md", "epub"].includes(metadata.extension)
+      || !["md", "epub", "snapshot"].includes(metadata.extension)
       || !["text", "base64"].includes(metadata.encoding)
       || !Number.isSafeInteger(metadata.length) || metadata.length < 0) {
       throw new Error("The collection returned invalid file metadata.");
@@ -461,11 +461,13 @@
           report(`Building post ${index + 1} of ${checkpoint.count}…`);
           setProgress("Building posts", checkpoint.entries.filter(Boolean).length, checkpoint.count);
           const result = await waitFor(call(api.runtime, "sendMessage", {
-            type: "BUILD_COLLECTION_EXPORT", token: requestToken, format, index
+            type: "BUILD_COLLECTION_EXPORT", token: requestToken, format: "snapshot", index
           }), signal);
           checkOperation(operation);
           if (!result?.files?.length) throw new Error(result?.error || "The post did not produce a file.");
-          const file = await receiveFile(requestToken, result.files[0], index, signal);
+          let file = await receiveFile(requestToken, result.files[0], index, signal);
+          if (file.extension !== "snapshot") throw new Error("The collection returned an invalid source snapshot.");
+          file = await fileFromSnapshot(JSON.parse(file.data), format, prepared.postUrls[index]);
           checkOperation(operation);
           checkpoint.entries[index] = decodeFile(file, index, checkpoint.count);
         } catch (error) {
@@ -597,9 +599,10 @@
       if (!open || message.token !== requestToken) return;
       if (!Number.isSafeInteger(message.current) || !Number.isSafeInteger(message.total)
         || message.current < 0 || message.total < 1 || message.current > message.total) return;
+      const format = message.format === "snapshot" ? checkpoint?.format : message.format;
       const label = message.phase === "prepare"
         ? "Preparing posts"
-        : `Building ${message.format === "epub" ? "EPUB" : "Markdown"} files`;
+        : `Building ${format === "epub" ? "EPUB" : "Markdown"} files`;
       const current = message.phase === "build" && checkpoint ? checkpoint.entries.filter(Boolean).length : message.current;
       report(`${label}… ${current} of ${message.total}.`);
       setProgress(label, current, message.total);

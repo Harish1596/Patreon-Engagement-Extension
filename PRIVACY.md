@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: October 31, 2026
+Last updated: November 2, 2026
 
 Patreon Reader (the "extension") is designed to provide its single
 purpose without collecting or transmitting personal information. All processing
@@ -9,11 +9,11 @@ performed by the extension takes place locally in the user's browser.
 ## Information Processed Locally
 
 The extension processes only the information needed to hide or show Patreon's
-floating engagement bar and apply optional reading appearance preferences:
+floating engagement bar, apply optional reading appearance preferences, and
+create user-requested local exports:
 
 - It checks the pathname of pages on `https://www.patreon.com` to determine
-  whether the current page is a recognized Patreon post. The pathname is not
-  recorded or retained.
+  whether the current page is a recognized Patreon post or collection.
 - It stores the Boolean `isHidden` preference, the Boolean `readerEnabled`
   preference, and a `readerPreferences` object in local extension storage. The
   object contains the selected system-font identifier, text size, paired Post
@@ -27,12 +27,25 @@ floating engagement bar and apply optional reading appearance preferences:
   post title, displayed creator name, source URL, formatted body, links, and
   inline-image URLs in memory to create the selected PDF, EPUB, or Markdown
   output. PDF also records the local export time. It excludes comments and
-  surrounding page UI and does not retain a copy after generating the local file.
+  surrounding page UI. A small, format-independent copy may stay in page memory
+  for two hours so another format can reuse the same text and images. Changes
+  to the displayed post invalidate that copy; it is limited to 16 MiB and is
+  discarded on page navigation or reload. Download time is generated for each
+  output rather than taken from the cached copy.
 - When the user explicitly exports a collection, it reads the post links rendered
   in that collection and temporarily opens or reuses those Patreon post pages to
   create separate EPUB or Markdown files inside one local ZIP. Extension-created
-  tabs are closed after packaging or cancellation. The extension does not request
-  broad browser-history or tab-access permission.
+  tabs are closed after preparation or individual chapter generation, and on
+  cancellation. Discovered links and prepared metadata are cached for two hours;
+  prepared metadata uses local browser-session storage to survive worker restarts.
+  After a chapter is fetched for export, its sanitized text, creator, source URL,
+  and distinct inline-image data are cached in extension-owned disk storage for
+  up to two hours, allowing EPUB and Markdown to reuse one source copy without
+  reopening post tabs or retrieving images again. This shared disk cache is
+  limited to 512 MiB; older entries may be evicted when it is full. Signed image
+  request URLs are not included in source-cache records. Neither the metadata
+  nor source cache is sent to the developer or another service. The extension
+  does not request broad browser-history or tab-access permission.
 - To embed remote inline images, it asks the browser for access to the exact
   image origins used by that post. After permission is granted, the locally
   installed extension fetches those image bytes directly from the media origin.
@@ -61,9 +74,11 @@ reading and offline-export experience.
 
 ## Data Transmission and Sharing
 
-The only feature-initiated network requests are user-approved retrievals of the
-inline image URLs already displayed in the post being exported. Those requests
-go directly from the user's browser to the image origin. The extension does not
+Feature-initiated network requests retrieve collection pagination, normal Patreon
+post pages, and user-approved inline images for the requested export. They go
+directly from the user's browser to Patreon or the displayed media origin.
+Source-cache operations are local disk reads/writes; their synthetic cache keys
+do not cause network requests. The extension does not
 transmit exported post content or images to the developer, analytics services,
 or any other intermediary. No information is sold, shared, or made available
 for human review by the developer.
@@ -73,7 +88,8 @@ for human review by the developer.
 The extension uses the following access:
 
 - **Storage:** Saves engagement visibility, Reader enablement, and appearance
-  preferences locally in the browser.
+  preferences, prepared collection metadata, and reusable export sources locally
+  in the browser.
 - **Access to `https://www.patreon.com/*`:** Loads the packaged content script
   and stylesheets, identifies supported post URLs and DOM elements, hides or
   restores the floating engagement bar, adds Reader/export controls and appearance
@@ -90,6 +106,16 @@ clears the extension's stored data, or uninstalls the extension. Resetting Reade
 replaces its appearance preferences with site defaults; it preserves the Reader
 enablement and engagement visibility choices. Disabling Reader retains its
 appearance preferences.
+Collection source entries are scoped to the prepared collection session and are
+removed on Refresh collection, Cancel, or closure of its owning tab. Expired
+entries are not reused and are deleted during subsequent cache maintenance.
+On worker startup, entries without an active saved browser-session owner are
+deleted. Disk data may therefore remain while the browser is closed, but is not
+reused in a new browser session. Clearing the extension's data or uninstalling it
+also removes the cache. Closing a download panel preserves its caches so another
+format can reuse them. Completed files retained for retry remain in collection
+page memory until successful handoff, refresh, cancellation, format change, or
+page navigation/reload.
 An approved optional media-origin permission may remain in the browser's extension
 settings until the user revokes it or uninstalls the extension. The extension
 uses that access only when the user starts another export

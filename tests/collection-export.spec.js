@@ -64,8 +64,9 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
   expect(bytes.includes(Buffer.from("002 - Second post.md"))).toBe(true);
   expect(bytes.includes(Buffer.from("003 - Third post.md"))).toBe(true);
   const entries = readZip(bytes);
-  expect(entries.map(entry => entry.data.toString().split("\n")[0]))
-    .toEqual(["# First post", "# Second post", "# Third post"]);
+  for (const [index, title] of ["First post", "Second post", "Third post"].entries()) {
+    expect(entries[index].data.toString()).toContain(`# ${title}`);
+  }
   expect(await page.evaluate(() => collectionChunkSizes.every(size => size <= 1024 * 1024))).toBe(true);
 });
 
@@ -91,7 +92,9 @@ test("collection EPUB ZIP compresses nested EPUBs without confusing macOS format
   expect(entry.method).toBe(8);
   expect(entry.size).toBeLessThan(entry.data.length / 2);
   expect(bytes.subarray(30, 130).includes(Buffer.from("application/epub+zip"))).toBe(false);
-  const [mime, body] = readZip(entry.data);
+  const nestedEntries = readZip(entry.data);
+  const mime = nestedEntries[0];
+  const body = nestedEntries.find(entry => entry.name === "EPUB/post.xhtml");
   expect(mime.name).toBe("mimetype");
   expect(mime.method).toBe(0);
   expect(mime.data.toString()).toBe("application/epub+zip");
@@ -445,8 +448,9 @@ for (const failure of ["build", "chunk"]) {
     const extension = format === "EPUB" ? "epub" : "md";
     expect(entries.map(entry => entry.name)).toEqual([`001 - First post.${extension}`, `002 - Second post.${extension}`, `003 - Third post.${extension}`]);
     if (format === "EPUB") {
-      expect(entries.map(entry => readZip(entry.data)[1].data.toString()))
-        .toEqual(["<p>First post</p>", "<p>Second post</p>", "<p>Third post</p>"]);
+      for (const [index, title] of ["First post", "Second post", "Third post"].entries()) {
+        expect(readZip(entries[index].data).find(entry => entry.name === "EPUB/post.xhtml").data.toString()).toContain(`<p>${title}</p>`);
+      }
     }
     expect(await page.evaluate(() => collectionBuildIndices)).toEqual([0, 1, 2, 1]);
     expect(downloads).toBe(1);

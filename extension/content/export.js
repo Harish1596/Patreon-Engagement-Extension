@@ -18,6 +18,9 @@
   const cancelledPortableBuilds = new Set();
   const MAX_TRANSFER_CHARS = 1024 * 1024;
   const MAX_EXPORT_IMAGE_BYTES = 100 * 1024 * 1024;
+  const POST_CACHE_MS = 2 * 60 * 60_000;
+  const POST_CACHE_BYTES = 16 * 1024 * 1024;
+  let preparedCache = null;
   // This immutable identity distinguishes the old document during tabs.update.
   const documentPostId = postId(location.href);
 
@@ -116,28 +119,89 @@
       image.removeAttribute("src");
       sources.push(source);
     });
+    const language = /^[a-z0-9-]+$/i.test(document.documentElement.lang) ? document.documentElement.lang : "und";
+    const info = { title: titleNode.textContent.trim() || "Patreon post", author: authorName(post.scope),
+      sourceUrl: sourceUrl(), language };
+    let signature;
+    if (!transferId) {
+      const digest = await crypto.subtle.digest("SHA-256", utf8(JSON.stringify([info, clone.innerHTML, sources])));
+      signature = base64(new Uint8Array(digest));
+      signal?.throwIfAborted();
+      if (preparedCache?.signature === signature && preparedCache.expires > Date.now()) {
+        return hydrateSnapshot(preparedCache.snapshot);
+      }
+      preparedCache = null;
+    }
     const unique = new Map();
     for (const source of sources) if (!unique.has(source)) unique.set(source, fetchImage(source, transferId));
     const resolved = new Map(await Promise.all([...unique].map(async ([source, asset]) => [source, await asset])));
     signal?.throwIfAborted();
-    const assets = [];
-    for (let index = 0; index < sources.length; index++) {
-      const asset = resolved.get(sources[index]);
-      assets.push({ ...asset, path: `images/image-${index + 1}.${imageExtension(asset.type)}` });
-    }
-    if (assets.reduce((total, asset) => total + asset.bytes.length, 0) > MAX_EXPORT_IMAGE_BYTES) {
+    const indices = new Map();
+    const assets = [...resolved].map(([source, asset], index) => {
+      indices.set(source, index);
+      return { ...asset, path: `images/image-${index + 1}.${imageExtension(asset.type)}` };
+    });
+    clonedImages.forEach((image, index) => image.setAttribute("data-export-image", String(indices.get(sources[index]))));
+    // Markdown embeds each occurrence, even when EPUB shares the image bytes.
+    if (sources.reduce((total, source) => total + resolved.get(source).bytes.length, 0) > MAX_EXPORT_IMAGE_BYTES) {
       throw new Error("The post images are too large to package safely.");
     }
-    const language = /^[a-z0-9-]+$/i.test(document.documentElement.lang) ? document.documentElement.lang : "und";
-    return {
-      title: titleNode.textContent.trim() || "Patreon post",
-      author: authorName(post.scope),
+    const prepared = {
+      ...info,
       downloadedAt: downloadTime(),
-      sourceUrl: sourceUrl(),
       body: clone,
-      assets,
-      language
+      assets
     };
+    if (!transferId) {
+      const snapshot = snapshotFor(prepared);
+      if (JSON.stringify(snapshot).length * 2 <= POST_CACHE_BYTES) {
+        preparedCache = { signature, snapshot, expires: Date.now() + POST_CACHE_MS };
+      }
+    }
+    return prepared;
+  }
+
+  // A format-independent, inert tree with one data URL per distinct image.
+  // No source DOM, signed image URL, or duplicate decoded image bytes are kept.
+  function snapshotFor(post) {
+    function tree(node) {
+      if (node.nodeType === Node.TEXT_NODE) return node.nodeValue || "";
+      if (node.nodeType !== Node.ELEMENT_NODE) return "";
+      return { tag: node.tagName.toLowerCase(),
+        ...(node.tagName === "IMG" ? { image: Number(node.getAttribute("data-export-image")), alt: node.getAttribute("alt") || "" } : {}),
+        ...(node.tagName === "A" ? { href: safeUrl(node.getAttribute("href")) } : {}),
+        children: [...node.childNodes].map(tree) };
+    }
+    return { version: 1, postId: postId(post.sourceUrl), title: post.title, author: post.author,
+      sourceUrl: post.sourceUrl, language: post.language, body: tree(post.body),
+      assets: post.assets.map(asset => ({ type: asset.type, dataUrl: asset.dataUrl, path: asset.path })) };
+  }
+
+  function hydrateSnapshot(snapshot) {
+    if (snapshot?.version !== 1 || !Array.isArray(snapshot.assets)
+      || ![snapshot.title, snapshot.author, snapshot.sourceUrl, snapshot.language].every(value => typeof value === "string")) {
+      throw new Error("The cached post is invalid. Refresh collection to fetch it again.");
+    }
+    function node(tree, depth = 0) {
+      if (depth > 200) throw new Error("The cached post is too deeply nested.");
+      if (typeof tree === "string") return document.createTextNode(tree);
+      // Unknown elements become inert containers; never instantiate an embed,
+      // script, form, or custom element from a cached tree.
+      const allowed = /^(?:div|p|h[1-6]|strong|em|b|i|u|s|ul|ol|li|blockquote|pre|code|sub|sup|hr|figure|figcaption|br|img|a)$/;
+      const result = element(allowed.test(tree?.tag) ? tree.tag : "div");
+      if (tree?.tag === "img") {
+        result.setAttribute("data-export-image", String(tree.image));
+        result.setAttribute("alt", tree.alt || "");
+      }
+      if (tree?.tag === "a" && safeUrl(tree.href)) result.setAttribute("href", safeUrl(tree.href));
+      for (const child of tree?.children || []) result.append(node(child, depth + 1));
+      return result;
+    }
+    return { ...snapshot, downloadedAt: downloadTime(), body: node(snapshot.body),
+      assets: snapshot.assets.map(asset => ({ ...asset,
+        // Markdown uses the data URL directly; decode bytes only for EPUB.
+        get bytes() { return dataUrlBytes(asset.dataUrl).bytes; }
+      })) };
   }
 
   function currentOrigins() {
@@ -361,13 +425,25 @@
   }
 
   async function buildPortableFile(format, options) {
-    if (!["epub", "markdown"].includes(format)) throw new Error("The collection export format is invalid.");
+    if (!["epub", "markdown", "snapshot"].includes(format)) throw new Error("The collection export format is invalid.");
     const post = await prepare(options);
+    if (format === "snapshot") return { title: post.title, extension: "snapshot", encoding: "text", data: JSON.stringify(snapshotFor(post)) };
+    return portableFileFor(post, format);
+  }
+
+  async function portableFileFor(post, format) {
     if (format === "markdown") {
       return { title: post.title, extension: "md", encoding: "text", data: markdownFor(post) };
     }
     const bytes = new Uint8Array(await makeEpub(post).arrayBuffer());
     return { title: post.title, extension: "epub", encoding: "base64", data: base64(bytes) };
+  }
+
+  async function fileFromSnapshot(snapshot, format, expectedUrl) {
+    if (!["epub", "markdown"].includes(format) || snapshot?.postId !== postId(expectedUrl)) {
+      throw new Error("The cached post does not match the requested chapter.");
+    }
+    return portableFileFor(hydrateSnapshot(snapshot), format);
   }
 
   async function printPdf(post) {
@@ -523,7 +599,7 @@
   }
 
   function reconcile(isPostPage) {
-    if (route !== location.pathname) { route = location.pathname; remove(); }
+    if (route !== location.pathname) { route = location.pathname; preparedCache = null; remove(); }
     if (!isPostPage) { remove(); return; }
     const post = findPost();
     if (!post) { remove(); return; }
@@ -632,5 +708,5 @@
   }, true);
   window.addEventListener("resize", position);
   window.addEventListener("scroll", position, { passive: true, capture: true });
-  globalThis.PatreonExporter = Object.freeze({ reconcile, makeZip, makeCollectionZip, saveBlob, fileStem });
+  globalThis.PatreonExporter = Object.freeze({ reconcile, makeZip, makeCollectionZip, saveBlob, fileStem, fileFromSnapshot });
 })();

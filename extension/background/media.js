@@ -1,4 +1,5 @@
 /* Fetches post media only after the user grants the exact image origin. */
+importScripts("post-cache.js");
 (() => {
   const api = globalThis.browser?.runtime ? globalThis.browser : globalThis.chrome;
   const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
@@ -11,6 +12,7 @@
   const COLLECTION_SESSION_PREFIX = "collection-export:";
   const mediaRequests = new Map();
   const cancelledMediaTransfers = new Set();
+  const sourceCache = globalThis.PatreonPostCache.create();
 
   function checkCancelled(session) {
     if (session?.controller?.signal.aborted) throw new Error("The collection export was cancelled.");
@@ -88,6 +90,7 @@
       collections.set(token, { ...value, workerTabId: null });
     }
     if (expired.length) await call(api.storage.session, "remove", expired);
+    await sourceCache.prune(new Set(collections.keys()));
   }
 
   const collectionsReady = restoreCollections();
@@ -109,6 +112,7 @@
       await closeWorker(session);
     }
     await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
+    await sourceCache.clear(token);
   }
 
   function cancelActivePost(session) {
@@ -183,7 +187,7 @@
 
   function validFileMetadata(file) {
     return file && typeof file.title === "string"
-      && ["md", "epub"].includes(file.extension)
+      && ["md", "epub", "snapshot"].includes(file.extension)
       && ["text", "base64"].includes(file.encoding)
       && Number.isSafeInteger(file.length) && file.length >= 0;
   }
@@ -225,6 +229,15 @@
       let usedTabId;
       const transferId = crypto.randomUUID();
       const expectedPostId = /(?:\/|-)(\d+)\/?$/.exec(new URL(post.url).pathname)[1];
+      if (format === "snapshot") {
+        const cached = await sourceCache.get(token, expectedPostId);
+        checkCancelled(session);
+        if (cached) {
+          files.push(cached);
+          await reportCollectionProgress(session, token, "build", index + 1, session.posts.length, format);
+          continue;
+        }
+      }
       const request = { type: "BUILD_POST_EXPORT", format, transferId, expectedPostId };
       if (post.tabId) {
         try {
@@ -244,7 +257,11 @@
         call(api.tabs, "sendMessage", usedTabId, { type: "RELEASE_POST_EXPORT", transferId }).catch(() => {});
         throw new Error("The collection export was cancelled.");
       }
-      files.push(await pullPostFile(usedTabId, transferId, result.file, session.controller.signal));
+      const file = await pullPostFile(usedTabId, transferId, result.file, session.controller.signal);
+      checkCancelled(session);
+      if (format === "snapshot") await sourceCache.put(token, expectedPostId, file, session.controller.signal);
+      checkCancelled(session);
+      files.push(file);
       session.activePost = null;
       await reportCollectionProgress(session, token, "build", index + 1, session.posts.length, format);
     }
@@ -445,7 +462,7 @@
 
     if (message.type === "BUILD_COLLECTION_EXPORT") {
       const session = collectionFor(message, sender);
-      if (!session || !["epub", "markdown"].includes(message.format)) {
+      if (!session || !["epub", "markdown", "snapshot"].includes(message.format)) {
         respond({ error: "The collection export request expired or is invalid. Reopen Download." });
         return;
       }

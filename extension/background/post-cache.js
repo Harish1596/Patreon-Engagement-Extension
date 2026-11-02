@@ -1,0 +1,89 @@
+/* Extension-origin disk cache. Keys are synthetic; no network requests occur. */
+(() => {
+  function create({ storage = globalThis.caches, now = () => Date.now(),
+    maxBytes = 512 * 1024 * 1024, ttlMs = 2 * 60 * 60_000 } = {}) {
+    const name = "patreon-export-sources-v1";
+    let queue = Promise.resolve();
+    const key = (token, postId) => `https://patreon-export-cache.invalid/${encodeURIComponent(token)}/${postId}`;
+    // Serialize mutations, including cleanup, so concurrent collections share one
+    // disk budget and cancelled writes cannot repopulate a cleared collection.
+    function run(action, fallback) {
+      const result = queue.then(async () => action(await storage.open(name))).catch(() => fallback);
+      queue = result.then(() => {});
+      return result;
+    }
+    async function entries(cache, owners) {
+      const kept = [];
+      for (const request of await cache.keys()) {
+        const response = await cache.match(request);
+        const size = Number(response?.headers.get("x-bytes"));
+        const expires = Number(response?.headers.get("x-expires"));
+        const token = decodeURIComponent(new URL(request.url).pathname.split("/")[1]);
+        if (!Number.isSafeInteger(size) || size < 0 || !Number.isFinite(expires)
+          || expires <= now() || (owners && !owners.has(token))) {
+          await cache.delete(request);
+        } else kept.push({ request, size });
+      }
+      return kept;
+    }
+    return Object.freeze({
+      get(token, postId) {
+        return run(async cache => {
+          const url = key(token, postId);
+          const response = await cache.match(url);
+          if (!response) return null;
+          const expires = Number(response.headers.get("x-expires"));
+          if (!Number.isFinite(expires) || expires <= now()) {
+            await cache.delete(url);
+            return null;
+          }
+          const data = await response.text();
+          try {
+            const snapshot = JSON.parse(data);
+            if (snapshot.version !== 1 || snapshot.postId !== postId || !Array.isArray(snapshot.assets)) throw new Error("Invalid cache entry");
+          } catch { await cache.delete(url); return null; }
+          return { title: decodeURIComponent(response.headers.get("x-title")),
+            extension: "snapshot", encoding: "text", data };
+        }, null);
+      },
+      put(token, postId, file, signal) {
+        return run(async cache => {
+          if (signal?.aborted || file.extension !== "snapshot") return false;
+          const blob = new Blob([file.data], { type: "application/json" });
+          if (blob.size > maxBytes) return false;
+          const url = key(token, postId);
+          await cache.delete(url);
+          const existing = await entries(cache);
+          let bytes = existing.reduce((total, item) => total + item.size, 0);
+          // Keep this collection's warm prefix when its sources exceed the
+          // budget. Evicting its next chapter on every miss would turn a repeat
+          // sequential export into an entirely cold pass through the cache.
+          const evictable = existing.filter(item => decodeURIComponent(new URL(item.request.url).pathname.split("/")[1]) !== token);
+          if (bytes + blob.size - evictable.reduce((total, item) => total + item.size, 0) > maxBytes) return false;
+          for (const item of evictable) {
+            if (bytes + blob.size <= maxBytes) break;
+            await cache.delete(item.request);
+            bytes -= item.size;
+          }
+          if (signal?.aborted) return false;
+          await cache.put(url, new Response(blob, { headers: {
+            "content-type": "application/json", "x-bytes": String(blob.size),
+            "x-expires": String(now() + ttlMs), "x-title": encodeURIComponent(file.title)
+          } }));
+          if (signal?.aborted) { await cache.delete(url); return false; }
+          return true;
+        }, false);
+      },
+      clear(token) {
+        return run(async cache => {
+          const prefix = `/${encodeURIComponent(token)}/`;
+          for (const request of await cache.keys()) {
+            if (new URL(request.url).pathname.startsWith(prefix)) await cache.delete(request);
+          }
+        });
+      },
+      prune(owners) { return run(cache => entries(cache, owners)); }
+    });
+  }
+  globalThis.PatreonPostCache = Object.freeze({ create });
+})();

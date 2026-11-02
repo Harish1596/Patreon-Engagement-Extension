@@ -968,3 +968,43 @@ browser profiles ran with the required access. Authenticated live recovery has
 not been verified.
 Two focused Chrome recovery cases also passed after extending the EPUB scenario
 past discovery-cache expiry; retained files survive unchanged re-preparation.
+
+### Share text and image sources across formats — November 2, 2026
+
+Collection export now transfers an inert, versioned chapter snapshot rather than
+a pre-rendered EPUB/Markdown file. It includes one data URL per distinct inline
+image and a minimal content tree, with no source image request URLs. The worker
+stores it in extension-origin CacheStorage for two hours; the collection page
+renders each selected format locally, one chapter at a time. Download time is
+generated for each output. The shared disk budget is 512 MiB. Old entries from
+other collections can be evicted; a collection that exceeds the budget preserves
+its existing cached prefix instead of evicting its next useful chapter on every
+miss. Full/unavailable storage, expired records, and corrupt entries fall back to
+normal fetching. Cache reads do not extend retention.
+
+Refresh, Cancel, and owner-tab closure remove that collection's source records.
+Worker startup prunes expired/orphaned records against restored session metadata;
+pending cancelled writes cannot repopulate the cache. Browser-session metadata
+remains metadata-only. Disk expiry removal is lazy, including after browser
+closure; a new browser session cannot reuse sources without a saved owner.
+No host permission was added. Packaging includes the new local worker helper.
+The privacy policy documents source retention and deletion.
+
+Individual post exports also retain one source snapshot in page memory, with a
+two-hour lifetime and 16 MiB serialized-size allowance. A normalized-content
+fingerprint invalidates edits without treating Reader CSS changes as new content.
+Repeated images share one EPUB asset and cached bytes are decoded only when EPUB
+needs them; Markdown keeps its existing inline data URLs. The 100 MiB image-output
+guard still counts repeated occurrences to bound embedded Markdown output.
+Archive assembly and generated retry files remain in memory; streaming is deferred.
+
+Verification: 18 Chrome collection cases and 8 isolated Chrome post cases passed;
+19 Brave collection/installed cases and 8 isolated Brave post cases passed;
+33 tooling cases and 35-file syntax checks passed, with clean whitespace checks.
+The installed test closes source tabs and terminates the extension worker between
+Markdown and EPUB, then verifies correct chapter contents and no newly opened
+tabs. Cache policy tests cover budget/eviction, expiry, corruption, cancellation,
+owner cleanup, unavailable disk storage, and worker-restored hits. Earlier broad
+runs hit the known PDF-status flake and a synthetic chooser click timeout; the
+post-cache case now exercises the runtime message contract, while installed
+coverage retains actual chooser clicks. Authenticated live reuse is pending.
