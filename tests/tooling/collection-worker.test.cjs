@@ -5,6 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = fs.readFileSync(path.resolve(__dirname, "../../extension/background/media.js"), "utf8");
+const cryptoSource = fs.readFileSync(path.resolve(__dirname, "../../extension/background/disk-crypto.js"), "utf8");
 const cacheSource = fs.readFileSync(path.resolve(__dirname, "../../extension/background/post-cache.js"), "utf8");
 
 test("retention sweep deletes expired source files and metadata without another export request", async () => {
@@ -16,7 +17,7 @@ test("retention sweep deletes expired source files and metadata without another 
   advanceTime(121);
   await retention.sweep();
   assert.equal(disk.size, 0);
-  assert.equal(Object.keys(sessionStore).length, 0);
+  assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
 });
 
 test("collection source hits survive worker restart without reopening posts and are cleared with their owner", async () => {
@@ -180,13 +181,13 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
       async remove(keys) { for (const key of Array.isArray(keys) ? keys : [keys]) delete sessionStore[key]; }
     } }
   };
-  const restart = () => vm.runInNewContext(cacheSource + "\n" + source, {
+  const restart = () => vm.runInNewContext(cryptoSource + "\n" + cacheSource + "\n" + source, {
     browser, URL, Map, Set, Promise, Uint8Array, AbortController,
-    importScripts() {}, caches: { async open() { return cache; } }, Blob, Response,
+    TextEncoder, TextDecoder, importScripts() {}, caches: { async open() { return cache; } }, Blob, Response,
     PatreonArchives: { install() {} },
     PatreonExportRetention: { create: () => retention },
     Date: class extends Date { static now() { return Date.now() + elapsed; } }, Error, Array,
-    crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
+    crypto: { subtle: require("node:crypto").webcrypto.subtle, getRandomValues: bytes => require("node:crypto").webcrypto.getRandomValues(bytes), randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
     setTimeout: fastTimers ? callback => setTimeout(callback, 0) : setTimeout,
     clearTimeout, fetch: fetchMedia || (async () => { throw new Error("Unexpected fetch"); }),
     btoa: value => Buffer.from(value, "binary").toString("base64")
@@ -306,7 +307,7 @@ test("prepared collection survives worker restarts without repeating preflight o
   assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token }, {
     ...sender, tab: { ...sender.tab, id: 2 }
   })).error);
-  assert.equal(Object.keys(sessionStore).length, 1);
+  assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 1);
   const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown" });
   assert.deepEqual(Array.from(built.files, file => file.title), ["Post 101", "Post 102"]);
   assert.equal(calls.progress.filter(item => item.phase === "prepare").length, 3);
@@ -315,7 +316,7 @@ test("prepared collection survives worker restarts without repeating preflight o
   restart();
   assert.equal((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).count, 2);
   await send({ type: "CANCEL_COLLECTION_EXPORT", token });
-  assert.equal(Object.keys(sessionStore).length, 0);
+  assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
   restart();
   assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
 });
@@ -327,7 +328,7 @@ test("worker startup removes expired persisted collections", async () => {
   advanceTime(121);
   restart();
   assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
-  assert.equal(Object.keys(sessionStore).length, 0);
+  assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
 });
 
 test("closing the owner tab removes its session even while the restarted worker is restoring", async () => {
@@ -337,7 +338,7 @@ test("closing the owner tab removes its session even while the restarted worker 
   restart();
   await closeTab(1);
   await new Promise(setImmediate);
-  assert.equal(Object.keys(sessionStore).length, 0);
+  assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
   restart();
   assert.ok((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).error);
 });
@@ -354,7 +355,7 @@ test("cancelling preflight closes its worker before a stalled response and ignor
   assert.match((await prepared).error, /cancelled/);
   stalled.release();
   await new Promise(setImmediate);
-  assert.equal(Object.keys(sessionStore).length, 0);
+  assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
   assert.equal(calls.create.length, 1);
 });
 
@@ -386,7 +387,7 @@ test("cancelling a build aborts media and closes the worker without waiting for 
   assert.ok(calls.remove.includes(tabId));
   stalled.release();
   await new Promise(setImmediate);
-  assert.equal(Object.keys(sessionStore).length, 0);
+  assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
 });
 
 test("a worker created after cancellation is immediately closed", async () => {

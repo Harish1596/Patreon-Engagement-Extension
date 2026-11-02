@@ -1157,3 +1157,15 @@ using development-only CommonMark and checks the rendered preview for injected
 images, script effects and network attempts. This closes the nested-list bypass
 missed by the original string-only Markdown checks. No live Patreon/reader
 verification is claimed.
+
+
+## November 2, 2026 — Encrypt reusable source files
+
+Source snapshots and titles now use authenticated AES-256-GCM disk envelopes,
+with an in-memory browser-session key shared across worker restarts. Authentication
+binds each record to its owner/post cache URL. Legacy plaintext and corrupt records
+are removed rather than reused. All 46 tooling cases and an installed Brave case passed, including stored-byte
+inspection and tampering/substitution checks. Browser-session storage follows the
+[Chrome storage contract](https://developer.chrome.com/docs/extensions/reference/api/storage#session).
+This reduces exposure of leftover disk caches, not compromise of an active browser
+or OS memory/swap. Expiry cleanup and user preferences retain their own lifecycles.

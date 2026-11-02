@@ -1,7 +1,7 @@
 /* Extension-origin disk cache. Keys are synthetic; no network requests occur. */
 (() => {
   function create({ storage = globalThis.caches, now = () => Date.now(),
-    maxBytes = 512 * 1024 * 1024, ttlMs = 2 * 60 * 60_000, onChange = () => {} } = {}) {
+    maxBytes = 512 * 1024 * 1024, ttlMs = 2 * 60 * 60_000, onChange = () => {}, cipher = globalThis.PatreonDiskCrypto } = {}) {
     const name = "patreon-export-sources-v1";
     let queue = Promise.resolve();
     let deadlines = new Map();
@@ -23,7 +23,7 @@
         let token;
         try { token = decodeURIComponent(new URL(request.url).pathname.split("/")[1]); }
         catch { await cache.delete(request); continue; }
-        if (!Number.isSafeInteger(size) || size < 0 || !Number.isFinite(expires)
+        if (response?.headers.get("x-encrypted") !== "1" || !Number.isSafeInteger(size) || size < 0 || !Number.isFinite(expires)
           || expires <= now() || (owners && !owners.has(token))) {
           await cache.delete(request);
         } else { kept.push({ request, size }); observed.set(request.url, expires); }
@@ -39,25 +39,26 @@
           const response = await cache.match(url);
           if (!response) return null;
           const expires = Number(response.headers.get("x-expires"));
-          if (!Number.isFinite(expires) || expires <= now()) {
+          if (response.headers.get("x-encrypted") !== "1" || !Number.isFinite(expires) || expires <= now()) {
             await cache.delete(url);
             deadlines.delete(url);
             onChange();
             return null;
           }
-          const data = await response.text();
+          let file;
           try {
-            const snapshot = JSON.parse(data);
+            file = JSON.parse(new TextDecoder().decode(await cipher.open(new Uint8Array(await response.arrayBuffer()), url)));
+            const snapshot = JSON.parse(file.data);
             if (snapshot.version !== 1 || snapshot.postId !== postId || !Array.isArray(snapshot.assets)) throw new Error("Invalid cache entry");
           } catch { await cache.delete(url); deadlines.delete(url); onChange(); return null; }
-          return { title: decodeURIComponent(response.headers.get("x-title")),
-            extension: "snapshot", encoding: "text", data };
+          return { title: file.title, extension: "snapshot", encoding: "text", data: file.data };
         }, null);
       },
       put(token, postId, file, signal) {
         return run(async cache => {
           if (signal?.aborted || file.extension !== "snapshot") return false;
-          const blob = new Blob([file.data], { type: "application/json" });
+          if (new Blob([file.data]).size > maxBytes) return false;
+          const blob = new Blob([await cipher.seal(new TextEncoder().encode(JSON.stringify({ title: file.title, data: file.data })), key(token, postId))]);
           if (blob.size > maxBytes) return false;
           const url = key(token, postId);
           await cache.delete(url);
@@ -77,8 +78,8 @@
           if (signal?.aborted) return false;
           const expires = now() + ttlMs;
           await cache.put(url, new Response(blob, { headers: {
-            "content-type": "application/json", "x-bytes": String(blob.size),
-            "x-expires": String(expires), "x-title": encodeURIComponent(file.title)
+            "content-type": "application/octet-stream", "x-bytes": String(blob.size),
+            "x-expires": String(expires), "x-encrypted": "1"
           } }));
           if (signal?.aborted) { await cache.delete(url); return false; }
           deadlines.set(url, expires);

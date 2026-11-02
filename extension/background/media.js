@@ -1,5 +1,6 @@
 /* Fetches post media only after the user grants the exact image origin. */
-importScripts("../shared/zip.js", "retention.js", "post-cache.js", "archives.js");
+importScripts("../shared/zip.js", "retention.js", "disk-crypto.js", "post-cache.js", "archives.js");
+globalThis.PatreonDiskCrypto = globalThis.PatreonExportCrypto.create();
 globalThis.PatreonRetention = globalThis.PatreonExportRetention.create();
 globalThis.PatreonArchives.install();
 (() => {

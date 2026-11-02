@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const path = require("node:path");
+const cryptoSource = fs.readFileSync(path.resolve(__dirname, "../../extension/background/disk-crypto.js"), "utf8");
 const source = fs.readFileSync(path.resolve(__dirname, "../../extension/background/post-cache.js"), "utf8");
 
 function fixture(options = {}) {
@@ -14,9 +15,14 @@ function fixture(options = {}) {
     async delete(key) { return records.delete(key.url || key); },
     async put(key, response) { records.set(key, response.clone()); }
   };
-  const scope = { Blob, Response, URL };
-  vm.runInNewContext(source, scope);
-  return { records, cache, clock: value => { clock = value; },
+  const session = {};
+  const browser = { runtime: { id: "fixture" }, storage: { session: {
+    async get() { return { ...session }; }, async set(values) { Object.assign(session, values); }
+  } } };
+  const scope = { Blob, Response, URL, Uint8Array, TextEncoder, TextDecoder, browser, crypto: require("node:crypto").webcrypto };
+  vm.runInNewContext(cryptoSource + "\n" + source, scope);
+  scope.PatreonDiskCrypto = scope.PatreonExportCrypto.create();
+  return { records, cache, session, restartCrypto: () => { scope.PatreonDiskCrypto = scope.PatreonExportCrypto.create(); }, clock: value => { clock = value; },
     create: (extra = {}) => scope.PatreonPostCache.create({ storage: { async open() { return cache; } }, now: () => clock, ...options, ...extra }) };
 }
 
@@ -25,8 +31,10 @@ const file = (id = "1") => ({ title: `Chapter ${id}`, extension: "snapshot", enc
 
 test("source cache enforces a shared byte budget and fixed two-hour expiry", async () => {
   const one = file();
-  const { create, clock, records } = fixture({ maxBytes: new Blob([one.data]).size * 2 });
-  const cache = create();
+  const { create, clock, records } = fixture();
+  await create().put("a", "1", one);
+  const size = Number([...records.values()][0].headers.get("x-bytes"));
+  const cache = create({ maxBytes: size * 2 });
   assert.equal(await cache.put("a", "1", one), true);
   await cache.put("a", "2", file("2"));
   assert.equal(await cache.put("a", "3", file("3")), false);
@@ -89,4 +97,36 @@ test("unavailable or full disk cache is a miss, allowing normal exports to conti
   assert.equal(await cache.put("a", "1", file()), false);
   await cache.clear("a");
   await cache.prune(new Set());
+});
+
+
+test("disk sources hide text and titles, authenticate their owner, and reject legacy plaintext", async () => {
+  const { create, records, cache: disk } = fixture();
+  const cache = create();
+  await cache.put("a", "1", file());
+  const [url, response] = [...records][0];
+  const bytes = new Uint8Array(await response.clone().arrayBuffer());
+  assert.equal(new TextDecoder().decode(bytes).includes("synthetic chapter"), false);
+  assert.equal(new TextDecoder().decode(bytes).includes("Chapter 1"), false);
+  assert.equal(response.headers.get("x-title"), null);
+  await disk.put(url.replace("/a/", "/b/"), response.clone());
+  assert.equal(await cache.get("b", "1"), null);
+  assert.equal((await create().get("a", "1")).data, file().data);
+  bytes[15] ^= 1;
+  await disk.put(url, new Response(bytes, { headers: response.headers }));
+  assert.equal(await cache.get("a", "1"), null);
+  await disk.put(url, new Response(file().data, { headers: { "x-bytes": "100", "x-expires": "999999" } }));
+  assert.equal(await cache.get("a", "1"), null);
+});
+
+
+test("a worker restart restores the session key, while a lost browser-session key makes leftovers unreadable", async () => {
+  const { create, records, session, restartCrypto } = fixture();
+  await create().put("a", "1", file());
+  restartCrypto();
+  assert.equal((await create().get("a", "1")).data, file().data);
+  delete session["export-disk-key-v1"];
+  restartCrypto();
+  assert.equal(await create().get("a", "1"), null);
+  assert.equal(records.size, 0);
 });

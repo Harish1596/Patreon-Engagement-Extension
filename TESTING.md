@@ -29,6 +29,13 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Encrypted source-cache follow-up, November 2, 2026: **46 tooling cases and one installed Brave case passed**.
+Tests inspect stored bytes/headers for plaintext, round-trip encrypted sources,
+reject tampering and cross-owner substitution, remove legacy plaintext, and verify
+budget, cancellation and fixed expiry behavior. Browser-session key material is
+kept separate from durable preferences.
+
+
 Nested Markdown follow-up, November 2, 2026: **12 Chrome post/security cases
 passed**, including actual CommonMark rendering of code inside lists, nested
 lists, blockquotes and malformed headings. The synthetic preview confirms no

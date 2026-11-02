@@ -762,6 +762,16 @@ and previewed with external requests blocked to confirm code stays inert. This
 extends the earlier escaping tests with actual Markdown parsing, not live reader
 compatibility claims.
 
+**November 2 encrypted source-cache follow-up:** New disk source entries use
+AES-256-GCM with random nonces and owner/post-bound authenticated context. Titles
+and source trees/images are encrypted together; headers retain only size, expiry
+and format markers. The key is stored only in extension `storage.session`, survives
+worker suspension, and is lost when the extension/browser session ends. Legacy
+plaintext records, malformed ciphertext and authentication failures become deleted
+cache misses. This supersedes the unencrypted-source observation above. It does
+not protect against a compromised running browser, privileged memory inspection,
+OS swap/hibernation captures or files the user deliberately saves.
+
 **November 2 source reuse:** Individual exports retain one inert source tree and
 distinct image data URLs for two hours in page memory, up to 16 MiB. A SHA-256
 fingerprint of normalized body markup, image sources, and post metadata invalidates

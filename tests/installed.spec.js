@@ -202,7 +202,15 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     const cachedSources = await popup.evaluate(async () => {
       const cache = await caches.open("patreon-export-sources-v1");
       const keys = await cache.keys();
-      const snapshots = await Promise.all(keys.map(async key => (await cache.match(key)).json()));
+      const stored = await chrome.storage.session.get("export-disk-key-v1");
+      const secret = await crypto.subtle.importKey("raw", new Uint8Array(stored["export-disk-key-v1"]), "AES-GCM", false, ["decrypt"]);
+      const snapshots = await Promise.all(keys.map(async key => {
+        const response = await cache.match(key);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (new TextDecoder().decode(bytes).includes("Collection body")) throw new Error("Plaintext source on disk");
+        const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(0, 12), additionalData: new TextEncoder().encode(key.url) }, secret, bytes.subarray(12));
+        return JSON.parse(JSON.parse(new TextDecoder().decode(plain)).data);
+      }));
       return { count: keys.length, assets: snapshots.map(snapshot => snapshot.assets.length) };
     });
     expect(cachedSources).toEqual({ count: 2, assets: [1, 1] });
