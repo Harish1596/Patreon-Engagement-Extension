@@ -24,6 +24,7 @@ function harness(t) {
   let failWrite = false;
   let downloads = 0;
   let largestRead = 0;
+  const progress = [];
   function directory(location) {
     return {
       async getDirectoryHandle(name, { create = false } = {}) {
@@ -67,7 +68,7 @@ function harness(t) {
   }
   const browser = {
     runtime: { id: "fixture-extension", onMessage: { addListener(value) { listener = value; } } },
-    tabs: { async sendMessage() { return { reported: true, handedOff: true }; }, onRemoved: { addListener(value) { removed = value; } } },
+    tabs: { async sendMessage(tabId, message) { if (message.type === "COLLECTION_ARCHIVE_PROGRESS") progress.push(message); return { reported: true, handedOff: true }; }, onRemoved: { addListener(value) { removed = value; } } },
     storage: { session: {
       async get() { return structuredClone(records); },
       async set(value) { Object.assign(records, structuredClone(value)); },
@@ -87,7 +88,7 @@ function harness(t) {
   };
   const send = (action, data = {}, owner = 1) => new Promise(resolve => listener({ type: `COLLECTION_ARCHIVE_${action}`, id, ...data },
     { id: browser.runtime.id, tab: { id: owner, url: "https://www.patreon.com/collection/500" } }, resolve));
-  return { disk, records, restart, send, writers,
+  return { disk, records, restart, send, writers, progress,
     fail: value => { failWrite = value; }, advance: minutes => { elapsed += minutes * 60_000; },
     closeOwner: () => removed(1), downloadCount: () => downloads, largestRead: () => largestRead };
 }
@@ -118,7 +119,13 @@ test("disk archive resumes after worker restart and assembles independently read
   assert.match((await h.send("PACKAGE")).error, /quota/);
   assert.equal(h.downloadCount(), 0);
   h.fail(false);
-  assert.equal((await h.send("PACKAGE")).started, true);
+  h.progress.length = 0;
+  assert.equal((await h.send("PACKAGE", { operationId: transferId })).started, true);
+  assert.ok(h.progress.every(message => message.operationId === transferId));
+  assert.ok(h.progress.every((message, index) => message.bytesCopied <= message.bytesTotal
+    && (!index || message.bytesCopied >= h.progress[index - 1].bytesCopied)));
+  assert.equal(h.progress.at(-1).bytesCopied, h.progress.at(-1).bytesTotal);
+  assert.equal(h.progress.at(-1).stage, "finalize");
   const bytes = fs.readFileSync(path.join(h.disk, "patreon-archives-v1", id, "archive.zip"));
   assert.deepEqual(readZip(bytes).map(entry => entry.data.toString()), ["First chapter. ".repeat(100_000), "Second chapter."]);
   assert.ok(h.largestRead() <= 64 * 1024);

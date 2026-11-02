@@ -1053,3 +1053,32 @@ the hidden document owns the download. These are synthetic tests, not authentica
 Patreon verification or an empirical peak-memory benchmark.
 Six focused Chrome cancellation/recovery cases also passed after guarding late
 archive creation and rechecking cancellation after asynchronous checkpoint cleanup.
+
+### Show detailed collection progress — November 2, 2026
+
+Added current post/file titles, elapsed attempt time, completed/cached/failed
+counts, and byte-based compression and ZIP copy progress. Receiving/cached reading,
+formatting, compression/saving, packaging, finalization, and browser handoff have
+distinct labels. The completed-post count is separate from per-stage percentages.
+Compression stays below 100% until its disk entry is committed; ZIP copying counts
+compressed payload bytes and then enters an explicit finalization stage.
+The monotonic elapsed clock refreshes once per second and on stage/visibility
+updates, freezes when work ends, and restarts on retry. Timer updates are outside
+the live status region. The panel clamps long plain-text titles and scrolls within
+the viewport. Attempt IDs bind preparation/build and archive progress/handoff
+messages to their active operation, preventing stale updates from replacing a
+cancelled, completed, or retried attempt. No new permissions, content visits, or
+persistent timing records are introduced.
+
+Verification: 20 existing Chrome collection cases and 3 focused Chrome progress
+cases passed; 26 Brave collection/progress/streaming/installed cases and 35 tooling
+cases passed. Syntax checks cover 42 JavaScript files; whitespace checks passed.
+The focused cases hold source generation, disk commit, and packaging to verify
+title/byte/count displays, safe text rendering, invalid/late attempt rejection,
+99% before commit, cancellation freeze, and retry timer/failure resets. Background
+tests verify cached-source flags/titles and correlated monotonic copy bytes through
+finalization. Real unpacked-extension handoff, source reuse, file cleanup, and ZIP
+extraction regressions remain covered in Brave. Evidence uses synthetic pages;
+authenticated live progress and broad screen-reader/assistive testing remain
+unverified. Elapsed time covers extension work through handoff, not the subsequent
+browser download, and there is no estimated remaining-time prediction.

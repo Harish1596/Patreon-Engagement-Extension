@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Show current collection post/file titles, elapsed time, completed/cached/failed
+  counts, and byte-based compression/packaging progress with distinct stages.
+- Scope progress to individual attempts so late updates cannot replace retry or
+  cancellation state, and stop elapsed timers when work ends.
 - Stream collection ZIP assembly through extension-private temporary disk files,
   retaining chapter metadata for retry instead of all generated file contents.
 - Save disk-backed ZIPs through a hidden extension document and clean up files

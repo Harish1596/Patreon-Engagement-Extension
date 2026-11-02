@@ -73,7 +73,7 @@
       }
     })();
     ready.catch(() => {});
-    async function deliver(job) {
+    async function deliver(job, operationId) {
       if (download) return download(job, await (await (await folder(job)).getFileHandle("archive.zip")).getFile());
       job.blobOpen = true;
       try {
@@ -87,7 +87,7 @@
         const blob = await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_OPEN", id: job.id });
         if (!blob?.url?.startsWith(`blob:${api.runtime.getURL("")}`)) throw new Error(blob?.error || "The archive download could not be opened.");
         check(job);
-        const handoff = await call(api.tabs, "sendMessage", job.owner, { type: "COLLECTION_ARCHIVE_HANDOFF", id: job.id });
+        const handoff = await call(api.tabs, "sendMessage", job.owner, { type: "COLLECTION_ARCHIVE_HANDOFF", id: job.id, operationId });
         check(job);
         if (!handoff?.handedOff) throw new Error("The collection page is no longer ready to download.");
         job.downloading = true;
@@ -109,17 +109,29 @@
         throw error;
       }
     }
-    async function packageZip(job) {
+    async function packageZip(job, operationId) {
       if (job.entries.filter(Boolean).length !== job.count) throw new Error("Some archive chapters are missing.");
       const disk = await folder(job);
       const output = await (await disk.getFileHandle("archive.zip", { create: true })).createWritable();
       const central = [];
       const timestamp = dosTimestamp();
       let offset = 0;
+      let bytesCopied = 0;
+      let lastUpdate = -Infinity;
+      const bytesTotal = job.entries.reduce((sum, entry) => sum + entry.compressedSize, 0);
+      async function progress(index, current, force = false, stage = "copy") {
+        check(job);
+        const now = Date.now();
+        if (!force && now - lastUpdate < 250) return;
+        lastUpdate = now;
+        await call(api.tabs, "sendMessage", job.owner, { type: "COLLECTION_ARCHIVE_PROGRESS", id: job.id, operationId,
+          current, total: job.count, index, name: job.entries[index].name, bytesCopied, bytesTotal, stage }).catch(() => {});
+      }
       try {
         for (let index = 0; index < job.count; index++) {
           check(job);
           const entry = job.entries[index];
+          await progress(index, index, true);
           const name = new TextEncoder().encode(entry.name);
           const file = await (await disk.getFileHandle(`${index}.deflate`)).getFile();
           if (file.size !== entry.compressedSize || !uint32(offset + 30 + name.length + file.size)) throw new Error("The archive is incomplete or exceeds the 4 GiB ZIP limit.");
@@ -134,6 +146,8 @@
               const { value, done } = await reader.read();
               if (done) break;
               await output.write(value);
+              bytesCopied += value.length;
+              await progress(index, index);
             }
           } finally {
             job.controller.signal.removeEventListener("abort", abortRead);
@@ -141,7 +155,7 @@
           }
           central.push(zipHeader(file.size, entry.size, entry.crc, name.length, offset, timestamp, 8, true), name);
           offset += 30 + name.length + file.size;
-          await call(api.tabs, "sendMessage", job.owner, { type: "COLLECTION_ARCHIVE_PROGRESS", id: job.id, current: index + 1, total: job.count }).catch(() => {});
+          await progress(index, index + 1, true);
         }
         const centralSize = central.reduce((sum, bytes) => sum + bytes.length, 0);
         if (!uint32(offset + centralSize + 22)) throw new Error("The archive exceeds the 4 GiB ZIP limit.");
@@ -152,11 +166,12 @@
         view.setUint16(8, job.count, true); view.setUint16(10, job.count, true);
         view.setUint32(12, centralSize, true); view.setUint32(16, offset, true);
         await output.write(end);
+        await progress(job.count - 1, job.count, true, "finalize");
         check(job);
         await output.close();
       } catch (error) { await output.abort().catch(() => {}); throw error; }
       check(job);
-      return deliver(job);
+      return deliver(job, operationId);
     }
     async function handle(message, sender) {
       await ready;
@@ -192,7 +207,7 @@
       if (job.expires <= Date.now() && !job.downloading) { await cleanup(job); throw new Error("The temporary archive expired."); }
       return enqueue(job, async () => {
         if (job.downloading) throw new Error("This archive has already been handed to the browser.");
-        if (message.type === "COLLECTION_ARCHIVE_PACKAGE") return packageZip(job);
+        if (message.type === "COLLECTION_ARCHIVE_PACKAGE") return packageZip(job, message.operationId);
         const index = message.index;
         if (!Number.isSafeInteger(index) || index < 0 || index >= job.count) throw new Error("The archive chapter index is invalid.");
         if (message.type === "COLLECTION_ARCHIVE_BEGIN") {

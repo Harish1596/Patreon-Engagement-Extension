@@ -27,13 +27,74 @@
   }
 
   function beginOperation() {
-    const operation = { controller: new AbortController(), handedOff: false };
+    finishOperation();
+    const operation = { id: crypto.randomUUID(), controller: new AbortController(), handedOff: false,
+      startedAt: performance.now(), cached: new Set(), failed: new Set() };
     activeOperation = operation;
+    for (const name of ["current", "counts", "bytes"]) {
+      const node = shadow?.querySelector(`[data-progress-${name}]`);
+      if (node) { node.textContent = ""; node.hidden = true; }
+    }
+    const details = shadow?.querySelector(".progress-details");
+    if (details) details.hidden = false;
+    renderElapsed(operation);
+    operation.timer = setInterval(() => {
+      if (activeOperation === operation) renderElapsed(operation);
+    }, 1000);
     const restart = shadow?.querySelector(".restart");
     if (restart) restart.hidden = true;
     const retry = shadow?.querySelector(".retry");
     if (retry) retry.hidden = true;
     return operation;
+  }
+
+  function renderElapsed(operation) {
+    const seconds = Math.floor(Math.max(0, (operation.finishedAt ?? performance.now()) - operation.startedAt) / 1000);
+    const clock = seconds >= 3600
+      ? `${Math.floor(seconds / 3600)}:${String(Math.floor(seconds / 60) % 60).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`
+      : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+    const node = shadow?.querySelector("[data-progress-elapsed]");
+    if (node) node.textContent = `Elapsed: ${clock}`;
+  }
+
+  function finishOperation(operation = activeOperation) {
+    if (!operation) return;
+    clearInterval(operation.timer);
+    operation.finishedAt ??= performance.now();
+    renderElapsed(operation);
+    if (activeOperation === operation) activeOperation = null;
+  }
+
+  function detail(name, text) {
+    const node = shadow?.querySelector(`[data-progress-${name}]`);
+    if (node) { node.textContent = text; node.hidden = !text; }
+    if (activeOperation) renderElapsed(activeOperation);
+  }
+
+  function currentPost(index, total, title = "", kind = "Post") {
+    if (!Number.isSafeInteger(index) || index < 0 || index >= total) return;
+    const name = typeof title === "string" ? title.replace(/\s+/g, " ").trim().slice(0, 240) : "";
+    detail("current", `${kind} ${index + 1} of ${total}${name ? `: ${name}` : ""}`);
+  }
+
+  function counts(operation) {
+    if (!checkpoint) return;
+    detail("counts", `Completed ${checkpoint.entries.filter(Boolean).length} of ${checkpoint.count}`
+      + (operation.cached.size ? ` · ${operation.cached.size} cached` : "")
+      + (operation.failed.size ? ` · ${operation.failed.size} failed` : ""));
+  }
+
+  function bytes(value) {
+    if (value < 1024) return `${value} B`;
+    const unit = value < 1024 * 1024 ? 1024 : 1024 * 1024;
+    return `${(value / unit).toFixed(1)} ${unit === 1024 ? "KiB" : "MiB"}`;
+  }
+
+  function byteProgress(label, read, total, done = false) {
+    const percent = done ? 100 : Math.min(99, total ? Math.floor(read * 100 / total) : 0);
+    report(`${label}… ${percent}%.`);
+    setProgress(label, percent, 100);
+    shadow?.querySelector("#collection-export-progress")?.setAttribute("aria-valuetext", `${label}: ${percent}%`);
   }
 
   function checkOperation(operation) {
@@ -56,7 +117,7 @@
     const ownerHost = host;
     operation.controller.abort();
     const dropping = dropCheckpoint();
-    activeOperation = null;
+    finishOperation(operation);
     const token = requestToken;
     requestToken = "";
     chooser.src = "about:blank";
@@ -82,7 +143,7 @@
     if (error.name === "AbortError") return;
     report(error.message || "The collection could not be prepared.", "error");
     setProgress();
-    activeOperation = null;
+    finishOperation();
     setBusy(false);
   }
 
@@ -218,6 +279,7 @@
         if (item.attributes?.current_user_can_view === false) locked.add(url);
       }
       setProgress("Finding collection posts", seen.size, expectedTotal);
+      detail("counts", `Found ${seen.size}${expectedTotal === null ? "" : ` of ${expectedTotal}`} posts`);
       if (seen.size > 100) throw new Error("This collection contains more than 100 posts.");
       pageUrl = nextCollectionApiUrl(payload, template, collectionId, campaignId);
       if (!pageUrl) {
@@ -271,6 +333,7 @@
       if (!button) return;
       const before = postUrls().length;
       report(`Loading all posts from this collection… ${before} found.`);
+      detail("counts", `Found ${before} posts`);
       button.click();
       await waitForNextBatch(before, signal);
     }
@@ -373,7 +436,7 @@
       requestToken = crypto.randomUUID();
       setProgress("Preparing posts", 0, urls.length);
       result = await waitFor(call(api.runtime, "sendMessage", {
-        type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls
+        type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls, operationId: operation.id
       }), signal);
       if (!result?.registered) throw new Error(result?.error || "The collection could not be prepared.");
     }
@@ -389,7 +452,7 @@
     report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${lockedMessage}${skipped}`, prefix ? "success" : "");
     setProgress();
     setBusy(false);
-    activeOperation = null;
+    finishOperation(operation);
     if (checkpoint) showRetry();
   }
 
@@ -414,7 +477,7 @@
     return { name: `${number} - ${fileStem(file.title)}.${file.extension}`, data };
   }
 
-  async function receiveFile(token, metadata, index, signal) {
+  async function receiveFile(token, metadata, index, signal, operation) {
     if (!metadata || typeof metadata.title !== "string"
       || !["md", "epub", "snapshot"].includes(metadata.extension)
       || !["text", "base64"].includes(metadata.encoding)
@@ -423,6 +486,7 @@
     }
     const chunks = [];
     let offset = 0;
+    let updatedAt = -Infinity;
     while (offset < metadata.length) {
       signal.throwIfAborted();
       const result = await waitFor(call(api.runtime, "sendMessage", {
@@ -434,6 +498,10 @@
       }
       chunks.push(result.data);
       offset += result.data.length;
+      if (operation && activeOperation === operation && (performance.now() - updatedAt >= 250 || offset === metadata.length)) {
+        updatedAt = performance.now();
+        byteProgress(metadata.cached ? "Reading cached chapter" : "Receiving chapter", offset, metadata.length, offset === metadata.length);
+      }
       if (Boolean(result.done) !== (offset === metadata.length)) {
         throw new Error("A collection file ended at an unexpected position.");
       }
@@ -476,38 +544,54 @@
       } else {
         checkpoint.entries = staged.entries;
       }
+      counts(operation);
       for (let index = 0; index < checkpoint.count; index++) {
         if (checkpoint.entries[index]) continue;
         try {
+          currentPost(index, checkpoint.count, prepared.postTitles?.[index]);
+          detail("bytes", "");
           report(`Building post ${index + 1} of ${checkpoint.count}…`);
           setProgress("Building posts", checkpoint.entries.filter(Boolean).length, checkpoint.count);
           const result = await waitFor(call(api.runtime, "sendMessage", {
-            type: "BUILD_COLLECTION_EXPORT", token: requestToken, format: "snapshot", index
+            type: "BUILD_COLLECTION_EXPORT", token: requestToken, format: "snapshot", index, operationId: operation.id
           }), signal);
           checkOperation(operation);
           if (!result?.files?.length) throw new Error(result?.error || "The post did not produce a file.");
-          let file = await receiveFile(requestToken, result.files[0], index, signal);
+          currentPost(index, checkpoint.count, result.files[0].title);
+          if (result.files[0].cached) operation.cached.add(index);
+          counts(operation);
+          report(result.files[0].cached ? "Reading cached chapter…" : "Receiving chapter…");
+          let file = await receiveFile(requestToken, result.files[0], index, signal, operation);
           if (file.extension !== "snapshot") throw new Error("The collection returned an invalid source snapshot.");
+          report(`Formatting ${format === "epub" ? "EPUB" : "Markdown"} chapter…`);
+          setProgress("Formatting chapter");
           file = await fileFromSnapshot(JSON.parse(file.data), format, prepared.postUrls[index]);
           checkOperation(operation);
-          checkpoint.entries[index] = await archive.store(checkpoint.id, index, decodeFile(file, index, checkpoint.count), signal);
+          checkpoint.entries[index] = await archive.store(checkpoint.id, index, decodeFile(file, index, checkpoint.count), signal, progress => {
+            if (activeOperation !== operation || signal.aborted) return;
+            byteProgress("Compressing and saving chapter", progress.read, progress.total, progress.done);
+            detail("bytes", `${bytes(progress.read)} of ${bytes(progress.total)} · Compressed ${bytes(progress.stored)}`);
+          });
           checkOperation(operation);
+          counts(operation);
         } catch (error) {
           checkOperation(operation);
           checkpoint.error = `Post ${index + 1}: ${error.message || "Export failed."}`;
+          operation.failed.add(index);
+          counts(operation);
         }
       }
       if (checkpoint.entries.filter(Boolean).length !== checkpoint.count) {
         setProgress();
         setBusy(false);
-        activeOperation = null;
+        finishOperation(operation);
         loadChooser();
         showRetry();
         return;
       }
       report("Packaging collection ZIP…");
       setProgress("Packaging collection ZIP");
-      const packaged = await archive.request("PACKAGE", { id: checkpoint.id }, signal);
+      const packaged = await archive.request("PACKAGE", { id: checkpoint.id, operationId: operation.id }, signal);
       checkOperation(operation);
       if (!packaged.started) throw new Error("The collection download could not be started.");
       operation.handedOff = true;
@@ -524,7 +608,7 @@
       report(error.message || "The collection could not be exported.", "error");
       setProgress();
       setBusy(false);
-      activeOperation = null;
+      finishOperation(operation);
       loadChooser();
       if (checkpoint) { checkpoint.error = error.message; showRetry(); }
     }
@@ -561,6 +645,12 @@
       chooser,
       element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
       element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
+    const details = element("div", { class: "progress-details", hidden: "" });
+    for (const name of ["current", "counts", "bytes", "elapsed"]) {
+      details.append(element("p", { [`data-progress-${name}`]: "", ...(name === "elapsed" ? {} : { hidden: "" }) }));
+    }
+    style.textContent += ".progress-details p{margin:4px 0;font-size:12px;overflow-wrap:anywhere}.progress-details [data-progress-current]{color:inherit;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}section{max-height:calc(100vh - 98px);overflow:auto}";
+    dialog.append(details);
     const refresh = element("button", { type: "button", class: "close refresh" }, "Refresh collection");
     refresh.addEventListener("click", () => {
       if (busy) return;
@@ -589,7 +679,7 @@
 
   function remove() {
     activeOperation?.controller.abort();
-    activeOperation = null;
+    finishOperation();
     if (requestToken) call(api.runtime, "sendMessage", {
       type: "CANCEL_COLLECTION_EXPORT", token: requestToken
     }).catch(() => {});
@@ -608,42 +698,59 @@
   }
 
   window.addEventListener("message", event => {
-    if (!open || event.origin !== api.runtime.getURL("").replace(/\/$/, "")
+    if (!open || busy || event.origin !== api.runtime.getURL("").replace(/\/$/, "")
       || event.source !== chooser?.contentWindow || event.data?.source !== "patreon-reader-collection-error"
       || event.data.token !== requestToken || typeof event.data.error !== "string") return;
     report(event.data.error, "error");
     setProgress();
+    finishOperation();
     setBusy(false);
   });
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
     if (["COLLECTION_ARCHIVE_PROGRESS", "COLLECTION_ARCHIVE_HANDOFF"].includes(message.type)) {
-      if (message.id !== checkpoint?.id || !activeOperation || activeOperation.controller.signal.aborted) {
+      if (message.id !== checkpoint?.id || !activeOperation || activeOperation.controller.signal.aborted
+        || message.operationId !== activeOperation.id) {
         respond({ error: "The collection download is no longer active." }); return;
       }
       if (message.type === "COLLECTION_ARCHIVE_HANDOFF") {
         activeOperation.handedOff = true;
         setBusy(true);
+        report("Starting ZIP download…");
+        setProgress("Starting ZIP download");
         respond({ handedOff: true });
       } else {
-        report(`Packaging collection ZIP… ${message.current} of ${message.total}.`);
-        setProgress("Packaging collection ZIP", message.current, message.total);
+        if (!Number.isSafeInteger(message.current) || !Number.isSafeInteger(message.total)
+          || message.total !== checkpoint.count || message.current < 0 || message.current > message.total
+          || !Number.isSafeInteger(message.bytesCopied) || !Number.isSafeInteger(message.bytesTotal)
+          || message.bytesCopied < 0 || message.bytesTotal <= 0 || message.bytesCopied > message.bytesTotal) {
+          respond({ error: "Invalid archive progress." }); return;
+        }
+        currentPost(message.index, message.total, message.name, "File");
+        if (message.stage === "finalize") {
+          report("Finalizing ZIP…");
+          setProgress("Finalizing ZIP");
+        } else byteProgress("Packaging collection ZIP", message.bytesCopied, message.bytesTotal);
+        detail("bytes", `${bytes(message.bytesCopied)} of ${bytes(message.bytesTotal)} packaged`);
         respond({ reported: true });
       }
       return;
     }
     if (message.type === "COLLECTION_EXPORT_PROGRESS") {
-      if (!open || message.token !== requestToken) return;
+      if (!open || !busy || !activeOperation || message.token !== requestToken
+        || message.operationId !== activeOperation.id || activeOperation.controller.signal.aborted) return;
       if (!Number.isSafeInteger(message.current) || !Number.isSafeInteger(message.total)
         || message.current < 0 || message.total < 1 || message.current > message.total) return;
-      const format = message.format === "snapshot" ? checkpoint?.format : message.format;
-      const label = message.phase === "prepare"
-        ? "Preparing posts"
-        : `Building ${format === "epub" ? "EPUB" : "Markdown"} files`;
-      const current = message.phase === "build" && checkpoint ? checkpoint.entries.filter(Boolean).length : message.current;
+      if (!["prepare", "prepare-post", "build"].includes(message.phase)) return;
+      currentPost(message.index, message.total, message.title);
+      const preparing = message.phase !== "build";
+      const label = preparing ? "Preparing posts" : "Fetching chapter";
+      const current = !preparing && checkpoint ? checkpoint.entries.filter(Boolean).length : message.current;
       report(`${label}… ${current} of ${message.total}.`);
       setProgress(label, current, message.total);
+      if (preparing) detail("counts", `Checked ${message.current} of ${message.total} posts`);
+      else counts(activeOperation);
       respond({ reported: true });
       return;
     }
@@ -668,6 +775,7 @@
   document.addEventListener("keydown", event => {
     if (open && event.key === "Escape") { event.preventDefault(); close(true); }
   }, true);
+  document.addEventListener("visibilitychange", () => { if (activeOperation) renderElapsed(activeOperation); });
 
   globalThis.PatreonCollectionExporter = Object.freeze({ reconcile });
 })();

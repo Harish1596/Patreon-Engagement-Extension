@@ -177,11 +177,11 @@ globalThis.PatreonArchives.install();
     throw lastError || new Error("The post did not become ready for export.");
   }
 
-  async function reportCollectionProgress(session, token, phase, current, total, format = "") {
+  async function reportCollectionProgress(session, token, phase, current, total, format = "", detail = {}) {
     checkCancelled(session);
     try {
       await call(api.tabs, "sendMessage", session.ownerTabId, {
-        type: "COLLECTION_EXPORT_PROGRESS", token, phase, current, total, format
+        type: "COLLECTION_EXPORT_PROGRESS", token, phase, current, total, format, ...detail
       });
     } catch { /* The owner tab may have closed or navigated. */ }
   }
@@ -219,9 +219,10 @@ globalThis.PatreonArchives.install();
     }
   }
 
-  async function buildCollection(token, session, format, selectedIndex) {
+  async function buildCollection(token, session, format, selectedIndex, operationId) {
     const files = [];
-    await reportCollectionProgress(session, token, "build", 0, session.posts.length, format);
+    await reportCollectionProgress(session, token, "build", 0, session.posts.length, format,
+      { operationId, index: selectedIndex ?? 0, title: session.posts[selectedIndex ?? 0].title });
     for (let index = 0; index < session.posts.length; index++) {
       if (selectedIndex !== undefined && index !== selectedIndex) continue;
       const post = session.posts[index];
@@ -234,8 +235,8 @@ globalThis.PatreonArchives.install();
         const cached = await sourceCache.get(token, expectedPostId);
         checkCancelled(session);
         if (cached) {
-          files.push(cached);
-          await reportCollectionProgress(session, token, "build", index + 1, session.posts.length, format);
+          files.push({ ...cached, cached: true });
+          await reportCollectionProgress(session, token, "build", index + 1, session.posts.length, format, { operationId, index, title: post.title, cached: true });
           continue;
         }
       }
@@ -264,7 +265,7 @@ globalThis.PatreonArchives.install();
       checkCancelled(session);
       files.push(file);
       session.activePost = null;
-      await reportCollectionProgress(session, token, "build", index + 1, session.posts.length, format);
+      await reportCollectionProgress(session, token, "build", index + 1, session.posts.length, format, { operationId, index, title: post.title, cached: false });
     }
     return files;
   }
@@ -289,9 +290,10 @@ globalThis.PatreonArchives.install();
     };
     collections.set(message.token, session);
     try {
-      await reportCollectionProgress(session, message.token, "prepare", 0, urls.length);
+      await reportCollectionProgress(session, message.token, "prepare", 0, urls.length, "", { operationId: message.operationId });
       for (let index = 0; index < urls.length; index++) {
         const url = urls[index];
+        await reportCollectionProgress(session, message.token, "prepare-post", index, urls.length, "", { operationId: message.operationId, index });
         const expectedPostId = /(?:\/|-)(\d+)\/?$/.exec(new URL(url).pathname)[1];
         const request = { type: "DESCRIBE_POST_EXPORT", expectedPostId };
         const existing = [...knownPosts].find(([, postUrl]) => postUrl === url);
@@ -315,7 +317,8 @@ globalThis.PatreonArchives.install();
           if (session.controller.signal.aborted || cancelledCollections.has(message.token)) throw error;
           session.skipped++;
         }
-        await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length);
+        await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length, "",
+          { operationId: message.operationId, index, title: session.posts.at(-1)?.url === url ? session.posts.at(-1).title : "" });
       }
       if (!session.posts.length) throw new Error("No accessible text posts in this collection could be prepared.");
       if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
@@ -330,6 +333,7 @@ globalThis.PatreonArchives.install();
         registered: true,
         count: session.posts.length,
         postUrls: session.posts.map(post => post.url),
+        postTitles: session.posts.map(post => post.title),
         skipped: session.skipped,
         origins: [...new Set(session.posts.flatMap(post => post.origins))]
       };
@@ -441,6 +445,7 @@ globalThis.PatreonArchives.install();
         origins: [...new Set(session.posts.flatMap(post => post.origins))],
         count: session.posts.length,
         postUrls: session.posts.map(post => post.url),
+        postTitles: session.posts.map(post => post.title),
         skipped: session.skipped
       } : { error: "The collection export request expired. Reopen Download." });
       return;
@@ -474,7 +479,7 @@ globalThis.PatreonArchives.install();
       }
       session.building = true;
       session.controller = new AbortController();
-      buildCollection(message.token, session, message.format, message.index).then(async files => {
+      buildCollection(message.token, session, message.format, message.index, message.operationId).then(async files => {
         checkCancelled(session);
         await closeWorker(session);
         session.files = message.index === undefined ? files : Object.assign([], { [message.index]: files[0] });
@@ -488,7 +493,8 @@ globalThis.PatreonArchives.install();
             title: file.title,
             extension: file.extension,
             encoding: file.encoding,
-            length: file.data.length
+            length: file.data.length,
+            cached: file.cached === true
           })),
           skipped: session.skipped
         });

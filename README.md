@@ -202,6 +202,15 @@ The collection dialog keeps an activity bar visible throughout discovery,
 preparation, file generation, transfer, and ZIP packaging. It reports completed
 posts against the known total during preparation, generation, and transfer;
 stages without a reliable total use an indeterminate bar.
+The panel shows the current post/file number and title, an elapsed clock for the
+current attempt, and completed/cached/failed counts. Receiving, formatting,
+compression/saving, ZIP packaging, finalization, and browser handoff have distinct
+labels. Compression shows input and compressed bytes; packaging shows copied
+bytes against the known payload total. Percentages refer to the labelled stage,
+while the completed-post count tracks the whole collection. Compression reaches
+100% only after the chapter is saved. The elapsed clock stops on completion,
+failure, or cancellation and restarts for each retry; retained completed files
+remain counted. Browser download time after handoff is handled by the browser.
 
 Select **Cancel** while discovery, preparation, file generation, transfer, or ZIP
 packaging is running. The extension aborts its pending requests, closes its

@@ -68,6 +68,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
         sendMessage: async (message) => {
           if (globalThis.collectionMessageHolds?.includes(message.type)) {
             globalThis.collectionHeldType = message.type;
+            globalThis.collectionHeldMessage = message;
             await new Promise(resolve => { globalThis.releaseCollectionMessage = resolve; });
             globalThis.collectionLateReplyReleased = true;
           }
@@ -93,7 +94,8 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
           if (message.type === "PREPARE_COLLECTION_EXPORT") {
             globalThis.requestedCollectionUrls = message.urls;
             globalThis.collectionPrepareCount++;
-            const result = { registered: true, count: message.urls.length, postUrls: message.urls, skipped: 0, origins: [] };
+            const titles = message.urls.map((url, index) => globalThis.collectionBuildResult?.files[index]?.title || ["First post", "Second post", "Third post"][index]);
+            const result = { registered: true, count: message.urls.length, postUrls: message.urls, postTitles: titles, skipped: 0, origins: [] };
             collectionSessions.set(message.token, result);
             return result;
           }
@@ -148,7 +150,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             globalThis.collectionChunkSizes = [];
             return {
               files: (message.index === undefined ? files : [files[message.index]])
-                .map(({ data, ...file }) => ({ ...file, length: data.length })),
+                .map(({ data, ...file }) => ({ ...file, length: data.length, cached: globalThis.collectionCachedIndices?.includes(message.index) || false })),
               skipped: result.skipped
             };
           }

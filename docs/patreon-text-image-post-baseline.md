@@ -962,6 +962,39 @@ The full authenticated collection still needs live post-fix confirmation.
 
 ## Verification and change history
 
+**November 2 detailed collection progress update (intended behavior):** The
+extension-owned panel now has separate current-post/file, counts, byte-detail,
+and elapsed-time lines. Existing final ready/success/error status text remains.
+Discovery reports found counts; preflight reports checked counts and the current
+index, adding a title when available. Download work shows the prepared post title,
+receiving or cached-source reading, formatting, compression/saving, ZIP copying,
+finalization, and browser handoff as distinct stages. Completed-post counts stay
+separate from per-stage percentages. Compression reports processed input and
+written compressed bytes, stays below 100% while flushing/committing, and reaches
+100% only after the disk entry is persisted. ZIP copy progress measures compressed
+payload bytes, excluding its small headers/directory; finalization is explicit.
+
+Elapsed time uses a monotonic clock, updates once per second and on progress/
+visibility changes, and freezes on completion, failure, cancellation, or removal.
+Retries start a new elapsed clock and attempt-specific cache/failure counters,
+while retaining completed disk-entry counts. The clock measures extension work
+through handoff, not the browser's later download duration. Timer text is outside
+the live status region. Long untrusted titles use plain text and are clamped;
+the panel scrolls within the viewport. Byte progress is throttled between updates,
+with immediate stage/file boundaries. No timing/title telemetry is added to storage.
+
+Preparation/build messages and ZIP copy/handoff messages carry an ephemeral
+attempt ID. The panel verifies that ID together with the current token/archive
+ID and active operation, ignoring old or malformed updates after cancellation,
+completion, or retry. Cache-hit flags and post titles come from existing worker
+metadata, without additional page visits. The source-cache lifetime and disk ZIP
+pipeline remain as recorded below. Evidence is synthetic: focused browser tests
+cover monotonic elapsed timing, cancellation freeze, safe title rendering, stale
+IDs, byte/percentage stages, cache/failure counts, and retry resets. Background
+tests verify correlated cache-hit titles and monotonic copy bytes. The unpacked
+Brave regression verifies real handoff with correlated progress IDs. Live
+authenticated Patreon progress remains pending confirmation.
+
 **November 2 streaming collection ZIP update (intended behavior, synthetic evidence):**
 `content/archive-stream.js` consumes one generated chapter's Blob stream, computes
 CRC-32 incrementally, compresses it, strips the zlib framing with a four-byte tail,

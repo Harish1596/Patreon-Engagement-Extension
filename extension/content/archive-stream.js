@@ -22,20 +22,32 @@
     for (let offset = 0; offset < bytes.length; offset += 0x8000) binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
     return btoa(binary);
   }
-  async function store(id, index, entry, signal) {
+  async function store(id, index, entry, signal, onProgress) {
     const transferId = crypto.randomUUID();
     let reader;
     let crc = 0xffffffff;
     let size = 0;
     let compressedSize = 0;
+    const blob = new Blob([entry.data]);
+    let lastUpdate = -Infinity;
+    function notify(done = false, force = false) {
+      signal?.throwIfAborted();
+      const now = performance.now();
+      if (done || force || now - lastUpdate >= 250) {
+        lastUpdate = now;
+        onProgress?.({ read: size, total: blob.size, stored: compressedSize, done });
+      }
+    }
     try {
       await request("BEGIN", { id, index, name: entry.name, transferId }, signal);
-      const input = new Blob([entry.data]).stream().pipeThrough(new TransformStream({
+      notify();
+      const input = blob.stream().pipeThrough(new TransformStream({
         async transform(bytes, controller) {
           signal?.throwIfAborted();
           size += bytes.length;
           if (size > 0xffffffff) throw new Error("A chapter exceeds the 4 GiB ZIP limit.");
           crc = updateCrc32(crc, bytes);
+          notify();
           controller.enqueue(bytes);
           // Let Cancel run even while compressing a long, highly repetitive post.
           await new Promise(resolve => setTimeout(resolve, 0));
@@ -59,11 +71,14 @@
           const chunk = combined.subarray(offset, Math.min(end, offset + 768 * 1024));
           await request("CHUNK", { id, index, transferId, offset: compressedSize, data: base64(chunk) }, signal);
           compressedSize += chunk.length;
+          notify();
         }
         tail = combined.slice(end);
       }
       if (header || tail.length !== 4) throw new Error("Compression did not produce a complete chapter.");
+      notify(false, true);
       const result = await request("END", { id, index, transferId, size, compressedSize, crc: (crc ^ 0xffffffff) >>> 0 }, signal);
+      notify(true);
       return result.entry;
     } catch (error) {
       request("ABORT", { id, index, transferId }).catch(() => {});

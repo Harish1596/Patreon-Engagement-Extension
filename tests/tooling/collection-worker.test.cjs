@@ -11,13 +11,19 @@ test("collection source hits survive worker restart without reopening posts and 
   const { calls, send, restart, disk, sender, closeTab } = backgroundHarness();
   const token = "77777777-7777-4777-8777-777777777777";
   await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
-  const first = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  const first = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0, operationId: "first-attempt" });
   assert.equal(first.files[0].extension, "snapshot");
+  assert.equal(first.files[0].cached, false);
   assert.equal(disk.size, 1);
   await send({ type: "FINISH_COLLECTION_EXPORT", token });
   const created = calls.create.length;
   restart();
-  const cached = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  const cached = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0, operationId: "second-attempt" });
+  assert.equal(cached.files[0].cached, true);
+  const message = calls.progress.findLast(item => item.phase === "build");
+  assert.equal(message.operationId, "second-attempt");
+  assert.equal(message.title, "Post 101");
+  assert.equal(message.cached, true);
   assert.equal(cached.files[0].length, first.files[0].length);
   assert.equal(calls.create.length, created);
   assert.ok((await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 },

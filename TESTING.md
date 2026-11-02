@@ -29,6 +29,24 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Detailed collection progress, November 2, 2026: **20 existing Chrome collection
+cases plus 3 focused Chrome progress cases passed; 26 Brave collection/progress/
+streaming/installed cases and 35 tooling cases passed**. Syntax checks cover 42
+JavaScript files. New progress cases hold real workflow boundaries to inspect
+current titles, cached/failed/completed counts, compression input/output bytes,
+stage percentages, packaging payload bytes, and fresh retry counters. A virtual
+monotonic clock verifies elapsed updates and cancellation freeze. Untrusted title
+markup stays text; wrong attempt IDs and late replies cannot replace active or
+cancelled state. Compression is held before disk commit to verify it remains at
+99%. Background cases verify cache-hit metadata/title correlation and monotonic
+packaging byte totals through finalization. The installed Brave test verifies the
+real hidden-document handoff still succeeds with attempt IDs.
+
+Counts and percentages are stage-specific, not an estimated overall percentage or
+remaining-time prediction. Elapsed time ends at extension handoff; the browser
+tracks subsequent download time. These checks use synthetic pages/media; live
+authenticated Patreon progress has not been verified.
+
 Streaming collection archives, November 2, 2026: **20 Chrome collection cases and
 10 Chrome post/streaming cases passed; 23 Brave collection/streaming/installed
 cases and 8 isolated Brave post cases passed; 35 tooling cases passed**.
