@@ -24,6 +24,7 @@ function harness(t) {
   let failWrite = false;
   let downloads = 0;
   let largestRead = 0;
+  let controller;
   const progress = [];
   function directory(location) {
     return {
@@ -81,7 +82,7 @@ function harness(t) {
       Date: class extends Date { static now() { return Date.now() + elapsed; } },
       atob: value => Buffer.from(value, "base64").toString("binary") };
     vm.runInNewContext(source, scope);
-    const controller = scope.PatreonArchives.install({ root: async () => directory(disk),
+    controller = scope.PatreonArchives.install({ root: async () => directory(disk),
       download: async () => { downloads++; return { started: true }; } });
     await controller.ready;
     return scope;
@@ -89,6 +90,7 @@ function harness(t) {
   const send = (action, data = {}, owner = 1) => new Promise(resolve => listener({ type: `COLLECTION_ARCHIVE_${action}`, id, ...data },
     { id: browser.runtime.id, tab: { id: owner, url: "https://www.patreon.com/collection/500" } }, resolve));
   return { disk, records, restart, send, writers, progress,
+    sweep: () => controller.sweep(),
     fail: value => { failWrite = value; }, advance: minutes => { elapsed += minutes * 60_000; },
     closeOwner: () => removed(1), downloadCount: () => downloads, largestRead: () => largestRead };
 }
@@ -152,6 +154,23 @@ test("archive owner closure aborts partial files and startup prunes expired and 
   h.advance(121);
   await h.restart();
   assert.match((await h.send("GET")).error, /expired/);
+  assert.equal(Object.keys(h.records).length, 0);
+  assert.deepEqual(fs.readdirSync(path.join(h.disk, "patreon-archives-v1")), []);
+});
+
+test("expiry sweep removes idle archive files and an expired GET cannot renew a job", async t => {
+  const h = harness(t);
+  const scope = await h.restart();
+  await h.send("CREATE", { count: 1, filename: "Synthetic.zip" });
+  await store(h, scope, 0, "Synthetic chapter");
+  h.advance(121);
+  assert.match((await h.send("GET")).error, /expired/);
+  assert.equal(Object.keys(h.records).length, 0);
+  assert.deepEqual(fs.readdirSync(path.join(h.disk, "patreon-archives-v1")), []);
+  await h.send("CREATE", { count: 1, filename: "Synthetic.zip" });
+  await store(h, scope, 0, "Another synthetic chapter");
+  h.advance(121);
+  await h.sweep();
   assert.equal(Object.keys(h.records).length, 0);
   assert.deepEqual(fs.readdirSync(path.join(h.disk, "patreon-archives-v1")), []);
 });

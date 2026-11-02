@@ -591,7 +591,7 @@ Input tints and banner shadows are derived CSS, not extra saved preferences.
 
 | File | Responsibility |
 | --- | --- |
-| [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS/scripts, background worker, storage/downloads/offscreen permissions, and optional media-origin envelope. |
+| [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS/scripts, background worker, storage/downloads/offscreen/alarms permissions, and optional media-origin envelope. |
 | [extension.js](../extension/shared/extension.js) | Browser API adapter, validated preference schema, fixed fonts/presets, contrast and legacy-color normalization. |
 | [patreon-dom.js](../extension/content/patreon-dom.js) | Patreon selectors, post discovery, and surface/action-row selection; no preference or panel state. |
 | [content.js](../extension/content/content.js) | Supported-route detection, storage events, popup state messages, floating-bar visibility, batched reconciliation. |
@@ -702,6 +702,7 @@ to the originating Patreon tab and delivers the choice with `tabs.sendMessage`
 to the isolated content-script world. The worker rechecks permission and the Patreon sender before
 fetching those image URLs without credentials. Since the November 2 streaming-ZIP
 change, storage, downloads, and offscreen are required extension permissions.
+A subsequent November 2 retention update adds alarms for automatic expiry cleanup.
 No remote executable code, selectors, analytics, or fonts
 are fetched.
 
@@ -961,6 +962,39 @@ before each destination, plus a browser test rejecting stale document requests.
 The full authenticated collection still needs live post-fix confirmation.
 
 ## Verification and change history
+
+**November 2 export retention update (intended behavior, synthetic evidence):**
+`background/retention.js` coordinates export-only cleanup services. It schedules
+one alarm for the next source/metadata/idle-job deadline, serializes maintenance
+against new collection requests, and disarms when no deadline remains. Source
+entries keep their fixed two-hour insertion expiry; cached reads do not extend it.
+Prepared metadata and idle retry files are actively swept instead of waiting for
+another export or worker restart. Expired archive GET requests now delete/reject
+the job rather than renewing expired files. Active worker tasks are allowed to
+finish; files already backing a native download are protected until completion
+or interruption. Page discovery and individual-post memory caches have expiry
+timers too. An idle collection panel receives expiry notifications and offers
+Start again, or discards its expired retry checkpoint.
+
+Closing the last accessible normal/popup browser window clears export caches and
+blocks late requests until a window opens. Browser startup clears leftover export
+data; ordinary worker suspension/restart preserves unexpired session caches.
+Maintenance never clears `storage.local` or Reader customisations. Orphan cleanup
+on worker startup remains as a fallback. This supersedes the earlier lazy-expiry
+and post-expiry archive-renewal behavior recorded below. The new alarms permission
+supports worker wakeups. Browser sleep/scheduling can delay alarm delivery, and
+crashes or forced termination can prevent shutdown deletion; on-disk leftovers
+may remain until the next startup. This is cache housekeeping, not a guaranteed
+shutdown-time secure-erasure mechanism. See Chrome's [alarm timing](https://developer.chrome.com/docs/extensions/reference/api/alarms)
+and [asynchronous shutdown limits](https://developer.chrome.com/docs/extensions/reference/api/runtime/#event-onSuspend).
+
+Evidence: mocked lifecycle events verify last-window/startup cleanup and preference
+preservation separately from worker restarts. Real worker sweeps delete expired
+source records and OPFS retry files without a follow-up export, and reject expired
+renewal. The installed Brave test advances its worker clock and fires a native
+alarm, verifies that source images, session metadata, and an unfinished disk entry
+are removed, and compares saved customisations before/after. These synthetic checks
+do not establish guaranteed cleanup during a real OS crash or forced browser quit.
 
 **November 2 detailed collection progress update (intended behavior):** The
 extension-owned panel now has separate current-post/file, counts, byte-detail,

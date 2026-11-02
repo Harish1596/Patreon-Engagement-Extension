@@ -1,8 +1,10 @@
 /* Fetches post media only after the user grants the exact image origin. */
-importScripts("../shared/zip.js", "post-cache.js", "archives.js");
+importScripts("../shared/zip.js", "retention.js", "post-cache.js", "archives.js");
+globalThis.PatreonRetention = globalThis.PatreonExportRetention.create();
 globalThis.PatreonArchives.install();
 (() => {
   const api = globalThis.browser?.runtime ? globalThis.browser : globalThis.chrome;
+  const retention = globalThis.PatreonRetention;
   const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
   const pending = new Map();
   const collections = new Map();
@@ -13,7 +15,7 @@ globalThis.PatreonArchives.install();
   const COLLECTION_SESSION_PREFIX = "collection-export:";
   const mediaRequests = new Map();
   const cancelledMediaTransfers = new Set();
-  const sourceCache = globalThis.PatreonPostCache.create();
+  const sourceCache = globalThis.PatreonPostCache.create({ onChange: () => retention.changed() });
 
   function checkCancelled(session) {
     if (session?.controller?.signal.aborted) throw new Error("The collection export was cancelled.");
@@ -69,6 +71,7 @@ globalThis.PatreonArchives.install();
     });
     if (session.controller?.signal.aborted) await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
     checkCancelled(session);
+    retention.changed();
   }
 
   async function restoreCollections() {
@@ -96,6 +99,24 @@ globalThis.PatreonArchives.install();
 
   const collectionsReady = restoreCollections();
   collectionsReady.catch(() => {}); // Request handlers surface restoration failures.
+  retention.register({
+    ready: collectionsReady,
+    deadline: () => Math.min(sourceCache.deadline(), ...[...collections.values()].map(session => session.expires)),
+    async sweep() {
+      for (const [token, session] of collections) {
+        if (session.expires <= Date.now() && !session.preparing && !session.building) {
+          await discardCollection(token);
+          await call(api.tabs, "sendMessage", session.ownerTabId, { type: "COLLECTION_EXPORT_CACHE_EXPIRED", token }).catch(() => {});
+        }
+      }
+      await sourceCache.prune(new Set(collections.keys()));
+    },
+    async clear() {
+      for (const token of [...collections.keys()]) await discardCollection(token);
+      pending.clear();
+      await sourceCache.prune(new Set());
+    }
+  });
 
   async function closeTabs(tabIds) {
     if (!tabIds.length) return;
@@ -114,6 +135,7 @@ globalThis.PatreonArchives.install();
     }
     await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
     await sourceCache.clear(token);
+    retention.changed();
   }
 
   function cancelActivePost(session) {
@@ -600,7 +622,10 @@ globalThis.PatreonArchives.install();
     if (["PREPARE_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_REQUEST", "DELIVER_COLLECTION_EXPORT",
       "BUILD_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_CHUNK", "FINISH_COLLECTION_EXPORT",
       "CANCEL_COLLECTION_EXPORT"].includes(message?.type)) {
-      collectionsReady.then(() => handleMessage(message, sender, respond))
+      collectionsReady.then(() => retention.wait()).then(() => {
+        if (retention.isClosed()) { respond({ error: "Export caches were cleared when the last browser window closed." }); return; }
+        return handleMessage(message, sender, respond);
+      })
         .catch(() => respond({ error: "Unable to restore the collection session. Close and reopen Download Collection." }));
       return true;
     }

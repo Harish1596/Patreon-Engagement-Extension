@@ -1,7 +1,7 @@
 /* Disk-backed retry files and streaming ZIP assembly. No archive bytes enter session storage. */
 (() => {
   function install({ api = globalThis.browser?.runtime ? browser : chrome,
-    root = () => navigator.storage.getDirectory(), download } = {}) {
+    root = () => navigator.storage.getDirectory(), download, retention = globalThis.PatreonRetention } = {}) {
     const { zipHeader, dosTimestamp } = globalThis.PatreonZip;
     const jobs = new Map();
     const cancelled = new Set();
@@ -29,9 +29,11 @@
       const { id, owner, count, filename, entries, expires, downloadId } = job;
       await call(api.storage.session, "set", { [prefix + id]: { version: 1, id, owner, count, filename, entries, expires, ...(downloadId === undefined ? {} : { downloadId }) } });
       if (jobs.get(id) !== job) await call(api.storage.session, "remove", prefix + id);
+      retention?.changed();
     }
     function enqueue(job, action) {
-      const task = job.queue.then(() => { check(job); return action(); });
+      job.busy = (job.busy || 0) + 1;
+      const task = job.queue.then(() => { check(job); return action(); }).finally(() => { job.busy--; });
       job.queue = task.catch(() => {});
       return task;
     }
@@ -47,6 +49,7 @@
         await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_CLOSE", id: job.id }).catch(() => {});
         if (![...jobs.values()].some(item => item.downloading || item.blobOpen)) await api.offscreen.closeDocument();
       }
+      retention?.changed();
       return true;
     }
     const ready = (async () => {
@@ -73,6 +76,17 @@
       }
     })();
     ready.catch(() => {});
+    const sweep = async () => {
+      await ready;
+      for (const job of [...jobs.values()]) {
+        if (!job.downloading && !job.busy && job.expires <= Date.now()) {
+          await cleanup(job);
+          await call(api.tabs, "sendMessage", job.owner, { type: "COLLECTION_ARCHIVE_EXPIRED", id: job.id }).catch(() => {});
+        }
+      }
+    };
+    const clear = async () => { await ready; await Promise.all([...jobs.values()].map(job => cleanup(job))); };
+    retention?.register({ ready, deadline: () => Math.min(...[...jobs.values()].filter(job => !job.downloading).map(job => job.expires)), sweep, clear });
     async function deliver(job, operationId) {
       if (download) return download(job, await (await (await folder(job)).getFileHandle("archive.zip")).getFile());
       job.blobOpen = true;
@@ -175,6 +189,8 @@
     }
     async function handle(message, sender) {
       await ready;
+      await retention?.wait();
+      if (retention?.isClosed()) throw new Error("Export caches were cleared when the last browser window closed.");
       if (!uuid(message.id)) throw new Error("The archive ID is invalid.");
       let job = jobs.get(message.id);
       if (message.type === "COLLECTION_ARCHIVE_DROP" && !job) {
@@ -197,14 +213,13 @@
         cancelled.add(message.id);
         return { dropped: await cleanup(job) };
       }
-      // An open page still holding its checkpoint can renew existing retry files.
-      // Expired records found on worker startup are pruned instead.
+      if (job.expires <= Date.now() && !job.downloading && !job.busy) { await cleanup(job); throw new Error("The temporary archive expired."); }
+      // Access can renew a live job, but cannot revive already-expired data.
       if (message.type === "COLLECTION_ARCHIVE_GET") {
         job.expires = Date.now() + ttl;
         await persist(job);
         return { entries: job.entries };
       }
-      if (job.expires <= Date.now() && !job.downloading) { await cleanup(job); throw new Error("The temporary archive expired."); }
       return enqueue(job, async () => {
         if (job.downloading) throw new Error("This archive has already been handed to the browser.");
         if (message.type === "COLLECTION_ARCHIVE_PACKAGE") return packageZip(job, message.operationId);
@@ -266,7 +281,7 @@
       if (!["complete", "interrupted"].includes(delta.state?.current)) return;
       ready.then(() => Promise.all([...jobs.values()].filter(job => job.downloadId === delta.id).map(job => cleanup(job, true)))).catch(() => {});
     });
-    return Object.freeze({ ready });
+    return Object.freeze({ ready, sweep, clear });
   }
   globalThis.PatreonArchives = Object.freeze({ install });
 })();

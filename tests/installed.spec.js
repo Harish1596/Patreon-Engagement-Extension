@@ -238,12 +238,39 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect.poll(() => popup.evaluate(() => chrome.offscreen.hasDocument())).toBe(false);
     context.off("page", countPostTab);
     expect(openedPostTabs).toBe(0);
+    const preferencesBeforeExpiry = await popup.evaluate(() => chrome.storage.local.get(null));
+    const expiryAlarm = await popup.evaluate(() => chrome.alarms.get("patreon-export-expiry"));
+    expect(expiryAlarm.scheduledTime).toBeGreaterThan(Date.now());
+    // Leave an unfinished OPFS entry, then expire both sources and archive data
+    // in the real worker. A native alarm must clean them without another export.
     await collection.frameLocator('iframe[title="Collection export formats"]').locator("body").evaluate(async () => {
-      await chrome.runtime.sendMessage({ type: "CANCEL_COLLECTION_EXPORT", token: location.hash.slice(1) });
+      const id = crypto.randomUUID();
+      const transferId = crypto.randomUUID();
+      const created = await chrome.runtime.sendMessage({ type: "COLLECTION_ARCHIVE_CREATE", id, count: 1, filename: "Retention fixture.zip" });
+      if (!created.created) throw new Error(created.error);
+      await chrome.runtime.sendMessage({ type: "COLLECTION_ARCHIVE_BEGIN", id, index: 0, transferId, name: "Unfinished.md" });
+      await chrome.runtime.sendMessage({ type: "COLLECTION_ARCHIVE_CHUNK", id, index: 0, transferId, offset: 0, data: "eA==" });
     });
-    await collectionMarkdown.click();
-    await expect(collection.getByRole("status")).toContainText("expired", { timeout: 10_000 });
-    await expect(collectionMarkdown).toBeEnabled();
+    let liveWorker;
+    for (const candidate of context.serviceWorkers().filter(worker => worker.url().startsWith(`chrome-extension://${extensionId}/`)).reverse()) {
+      try { await candidate.evaluate(() => typeof PatreonRetention); liveWorker = candidate; break; } catch { /* Stopped worker proxy. */ }
+    }
+    expect(liveWorker).toBeTruthy();
+    await liveWorker.evaluate(() => { const now = Date.now; Date.now = () => now() + 121 * 60_000; });
+    await popup.evaluate(() => chrome.alarms.create("patreon-export-expiry", { when: Date.now() + 1000 }));
+    await expect.poll(() => popup.evaluate(async () => {
+      const cache = await caches.open("patreon-export-sources-v1");
+      const root = await navigator.storage.getDirectory();
+      const directory = await root.getDirectoryHandle("patreon-archives-v1");
+      let files = 0;
+      for await (const item of directory.values()) { void item; files++; }
+      const records = await chrome.storage.session.get(null);
+      return { sources: (await cache.keys()).length, files,
+        metadata: Object.keys(records).filter(key => key.startsWith("collection-export:") || key.startsWith("collection-archive:")).length };
+    }), { timeout: 15_000 }).toEqual({ sources: 0, files: 0, metadata: 0 });
+    expect(await popup.evaluate(() => chrome.storage.local.get(null))).toEqual(preferencesBeforeExpiry);
+    await expect(collection.getByRole("status")).toContainText("Cached collection data expired");
+    await expect(collection.getByRole("button", { name: "Start again", exact: true })).toBeVisible();
     await collection.getByRole("button", { name: "Close collection download", exact: true }).click();
     await collection.close();
     await collectionPostOne.close();

@@ -1,9 +1,10 @@
 /* Extension-origin disk cache. Keys are synthetic; no network requests occur. */
 (() => {
   function create({ storage = globalThis.caches, now = () => Date.now(),
-    maxBytes = 512 * 1024 * 1024, ttlMs = 2 * 60 * 60_000 } = {}) {
+    maxBytes = 512 * 1024 * 1024, ttlMs = 2 * 60 * 60_000, onChange = () => {} } = {}) {
     const name = "patreon-export-sources-v1";
     let queue = Promise.resolve();
+    let deadlines = new Map();
     const key = (token, postId) => `https://patreon-export-cache.invalid/${encodeURIComponent(token)}/${postId}`;
     // Serialize mutations, including cleanup, so concurrent collections share one
     // disk budget and cancelled writes cannot repopulate a cleared collection.
@@ -14,16 +15,21 @@
     }
     async function entries(cache, owners) {
       const kept = [];
+      const observed = new Map();
       for (const request of await cache.keys()) {
         const response = await cache.match(request);
         const size = Number(response?.headers.get("x-bytes"));
         const expires = Number(response?.headers.get("x-expires"));
-        const token = decodeURIComponent(new URL(request.url).pathname.split("/")[1]);
+        let token;
+        try { token = decodeURIComponent(new URL(request.url).pathname.split("/")[1]); }
+        catch { await cache.delete(request); continue; }
         if (!Number.isSafeInteger(size) || size < 0 || !Number.isFinite(expires)
           || expires <= now() || (owners && !owners.has(token))) {
           await cache.delete(request);
-        } else kept.push({ request, size });
+        } else { kept.push({ request, size }); observed.set(request.url, expires); }
       }
+      deadlines = observed;
+      onChange();
       return kept;
     }
     return Object.freeze({
@@ -35,13 +41,15 @@
           const expires = Number(response.headers.get("x-expires"));
           if (!Number.isFinite(expires) || expires <= now()) {
             await cache.delete(url);
+            deadlines.delete(url);
+            onChange();
             return null;
           }
           const data = await response.text();
           try {
             const snapshot = JSON.parse(data);
             if (snapshot.version !== 1 || snapshot.postId !== postId || !Array.isArray(snapshot.assets)) throw new Error("Invalid cache entry");
-          } catch { await cache.delete(url); return null; }
+          } catch { await cache.delete(url); deadlines.delete(url); onChange(); return null; }
           return { title: decodeURIComponent(response.headers.get("x-title")),
             extension: "snapshot", encoding: "text", data };
         }, null);
@@ -63,14 +71,18 @@
           for (const item of evictable) {
             if (bytes + blob.size <= maxBytes) break;
             await cache.delete(item.request);
+            deadlines.delete(item.request.url);
             bytes -= item.size;
           }
           if (signal?.aborted) return false;
+          const expires = now() + ttlMs;
           await cache.put(url, new Response(blob, { headers: {
             "content-type": "application/json", "x-bytes": String(blob.size),
-            "x-expires": String(now() + ttlMs), "x-title": encodeURIComponent(file.title)
+            "x-expires": String(expires), "x-title": encodeURIComponent(file.title)
           } }));
           if (signal?.aborted) { await cache.delete(url); return false; }
+          deadlines.set(url, expires);
+          onChange();
           return true;
         }, false);
       },
@@ -78,11 +90,13 @@
         return run(async cache => {
           const prefix = `/${encodeURIComponent(token)}/`;
           for (const request of await cache.keys()) {
-            if (new URL(request.url).pathname.startsWith(prefix)) await cache.delete(request);
+            if (new URL(request.url).pathname.startsWith(prefix)) { await cache.delete(request); deadlines.delete(request.url); }
           }
+          onChange();
         });
       },
-      prune(owners) { return run(cache => entries(cache, owners)); }
+      prune(owners) { return run(cache => entries(cache, owners)); },
+      deadline: () => Math.min(...deadlines.values())
     });
   }
   globalThis.PatreonPostCache = Object.freeze({ create });

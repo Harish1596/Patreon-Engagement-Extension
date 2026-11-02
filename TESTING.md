@@ -29,6 +29,26 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Export retention, November 2, 2026: **23 Chrome collection/progress cases, 8
+isolated Chrome post cases, 26 Brave collection/progress/streaming/installed cases,
+and 41 tooling cases passed**. Syntax checks cover 44 JavaScript files.
+The installed Brave test advances its worker clock, fires a native browser alarm,
+and verifies deletion of cached text/images, prepared session metadata, and an
+unfinished OPFS archive entry without another export. Saved Reader/customisation
+storage is compared before/after and remains identical. Earlier broad post checks
+hit the existing synthetic EPUB chooser timeout; the isolated post suite passed.
+
+New lifecycle tests distinguish worker restarts from browser startup, preserve live
+session caches, clean after last-window closure (but not while another window is
+open), resume requests for a new window, and disarm alarms once caches are empty.
+Concurrent cleanup/scheduling cannot leave an obsolete alarm. Worker sweeps remove
+expired source records and archive files; expired archive GET cannot revive them.
+The older retry fixture now expects expired disk files to be rebuilt, preserving
+chapter order. Tests do not claim guaranteed disk erasure during OS crashes or
+forced browser termination. Browser alarm delivery can be delayed by sleep or
+scheduling. Active task/download backing files are protected until safe cleanup;
+durable preferences and user-saved exports are outside the cleanup scope.
+
 Detailed collection progress, November 2, 2026: **20 existing Chrome collection
 cases plus 3 focused Chrome progress cases passed; 26 Brave collection/progress/
 streaming/installed cases and 35 tooling cases passed**. Syntax checks cover 42

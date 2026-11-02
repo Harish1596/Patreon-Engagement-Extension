@@ -7,6 +7,18 @@ const vm = require("node:vm");
 const source = fs.readFileSync(path.resolve(__dirname, "../../extension/background/media.js"), "utf8");
 const cacheSource = fs.readFileSync(path.resolve(__dirname, "../../extension/background/post-cache.js"), "utf8");
 
+test("retention sweep deletes expired source files and metadata without another export request", async () => {
+  const { send, disk, sessionStore, retention, advanceTime } = backgroundHarness();
+  const token = "88888888-8888-4888-8888-888888888888";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
+  await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  assert.equal(disk.size, 1);
+  advanceTime(121);
+  await retention.sweep();
+  assert.equal(disk.size, 0);
+  assert.equal(Object.keys(sessionStore).length, 0);
+});
+
 test("collection source hits survive worker restart without reopening posts and are cleared with their owner", async () => {
   const { calls, send, restart, disk, sender, closeTab } = backgroundHarness();
   const token = "77777777-7777-4777-8777-777777777777";
@@ -68,6 +80,10 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
   const pendingUrls = new Map();
   const transfers = new Map();
   const sessionStore = {};
+  const retentionServices = [];
+  const retention = { register: service => retentionServices.push(service), changed() {}, wait: async () => {}, isClosed: () => false,
+    sweep: async () => { await Promise.all(retentionServices.map(service => service.ready)); for (const service of retentionServices) await service.sweep(); },
+    clear: async () => { await Promise.all(retentionServices.map(service => service.ready)); for (const service of retentionServices) await service.clear(); } };
   const disk = new Map();
   const cache = {
     async keys() { return [...disk.keys()].map(url => ({ url })); },
@@ -168,6 +184,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
     browser, URL, Map, Set, Promise, Uint8Array, AbortController,
     importScripts() {}, caches: { async open() { return cache; } }, Blob, Response,
     PatreonArchives: { install() {} },
+    PatreonExportRetention: { create: () => retention },
     Date: class extends Date { static now() { return Date.now() + elapsed; } }, Error, Array,
     crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
     setTimeout: fastTimers ? callback => setTimeout(callback, 0) : setTimeout,
@@ -185,7 +202,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
       if (result !== true && result !== undefined) resolve(result);
     } catch (error) { reject(error); }
   });
-  return { calls, send, restart, sessionStore, sender, hold, disk, closeTab: id => browser.tabs.remove(id),
+  return { calls, send, restart, sessionStore, sender, hold, disk, retention, closeTab: id => browser.tabs.remove(id),
     advanceTime: minutes => { elapsed += minutes * 60_000; } };
 }
 

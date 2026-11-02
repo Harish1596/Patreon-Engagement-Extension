@@ -1082,3 +1082,41 @@ extraction regressions remain covered in Brave. Evidence uses synthetic pages;
 authenticated live progress and broad screen-reader/assistive testing remain
 unverified. Elapsed time covers extension work through handoff, not the subsequent
 browser download, and there is no estimated remaining-time prediction.
+
+### Clean export data on expiry and browser lifecycle events — November 2, 2026
+
+Added an export-only retention coordinator with one alarm for the nearest cache,
+metadata, or idle-archive deadline. It rechecks scheduling after concurrent
+mutations, wakes the worker for expiry cleanup, and disarms when no data remains.
+Last normal/popup window closure clears export state; browser startup purges
+leftovers, while ordinary worker restarts retain live session data. New collection
+requests wait for maintenance, and late requests after last-window cleanup cannot
+repopulate caches until another window opens. Reader preferences in storage.local
+are never cleared. The new alarms permission supports these wakeups.
+
+Source entries retain the fixed two-hour insertion lifetime. Metadata and idle
+archive jobs are swept without a new user export. Expired retry jobs now reject
+GET instead of renewing expired data; missing jobs regenerate from available
+sources. Source-page discovery and individual-post memory copies get expiry
+timers. Idle panels receive expiry notifications and show Start again rather than
+leaving stale format options. Active operations and native-download backing files
+are protected until safe cleanup. This supersedes earlier lazy cleanup and the
+checkpoint-renewal exception after expiry.
+
+Verification: 23 Chrome collection/progress cases, 8 isolated Chrome post cases,
+26 Brave collection/progress/streaming/installed cases, and 41 tooling cases passed;
+syntax checks cover 44 JavaScript files and whitespace checks passed. The installed
+Brave regression fires a native alarm after advancing the worker clock, verifies
+physical cache-record/file removal without another export, and compares saved
+customisations before/after. Lifecycle fixtures verify last-window/startup cleanup,
+worker-restart preservation, reopening, alarm removal, and concurrent rescheduling.
+Worker tests verify expired source/metadata sweeps and OPFS cleanup, including
+rejection of expired renewal. The expired retry fixture now expects regeneration
+of all expired files while preserving order. An initial post suite hit the existing
+synthetic EPUB chooser click timeout; an isolated rerun passed.
+
+Browser alarms can be delayed by scheduling or sleep. Forced quit/crash can stop
+shutdown cleanup, leaving disk data for the next startup purge; no extension can
+promise deletion after its browser process has already stopped. These synthetic
+tests do not establish forced-termination secure erasure or authenticated live
+Patreon behavior. User-saved ZIPs and durable customisations are retained.

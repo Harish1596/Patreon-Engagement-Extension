@@ -402,7 +402,7 @@ test("collection controls are scoped to collection routes", async ({ page }) => 
 });
 
 for (const failure of ["build", "chunk"]) {
-  test(`retry retains completed chapters after ${failure} failure, panel reopening, and session recovery`, async ({ page }) => {
+  test(`collection recovery after ${failure} failure preserves ordering and respects retry-file expiry`, async ({ page }) => {
     const format = failure === "chunk" ? "EPUB" : "Markdown";
     await setup(page, { content: '<main><h1>Recovery</h1><a class="fixture_gridCard" href="/posts/101">First</a><a class="fixture_gridCard" href="/posts/102">Second</a><a class="fixture_gridCard" href="/posts/103">Third</a></main>',
       url: "https://www.patreon.com/collection/500" });
@@ -452,7 +452,7 @@ for (const failure of ["build", "chunk"]) {
         expect(readZip(entries[index].data).find(entry => entry.name === "EPUB/post.xhtml").data.toString()).toContain(`<p>${title}</p>`);
       }
     }
-    expect(await page.evaluate(() => collectionBuildIndices)).toEqual([0, 1, 2, 1]);
+    expect(await page.evaluate(() => collectionBuildIndices)).toEqual(failure === "chunk" ? [0, 1, 2, 0, 1, 2] : [0, 1, 2, 1]);
     expect(downloads).toBe(1);
   });
 }

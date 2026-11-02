@@ -22,6 +22,11 @@
   const POST_CACHE_MS = 2 * 60 * 60_000;
   const POST_CACHE_BYTES = 16 * 1024 * 1024;
   let preparedCache = null;
+  let preparedCacheTimer;
+  function clearPreparedCache() {
+    clearTimeout(preparedCacheTimer);
+    preparedCache = null;
+  }
   // This immutable identity distinguishes the old document during tabs.update.
   const documentPostId = postId(location.href);
 
@@ -131,7 +136,7 @@
       if (preparedCache?.signature === signature && preparedCache.expires > Date.now()) {
         return hydrateSnapshot(preparedCache.snapshot);
       }
-      preparedCache = null;
+      clearPreparedCache();
     }
     const unique = new Map();
     for (const source of sources) if (!unique.has(source)) unique.set(source, fetchImage(source, transferId));
@@ -157,6 +162,7 @@
       const snapshot = snapshotFor(prepared);
       if (JSON.stringify(snapshot).length * 2 <= POST_CACHE_BYTES) {
         preparedCache = { signature, snapshot, expires: Date.now() + POST_CACHE_MS };
+        preparedCacheTimer = setTimeout(clearPreparedCache, POST_CACHE_MS);
       }
     }
     return prepared;
@@ -538,7 +544,7 @@
   }
 
   function reconcile(isPostPage) {
-    if (route !== location.pathname) { route = location.pathname; preparedCache = null; remove(); }
+    if (route !== location.pathname) { route = location.pathname; clearPreparedCache(); remove(); }
     if (!isPostPage) { remove(); return; }
     const post = findPost();
     if (!post) { remove(); return; }

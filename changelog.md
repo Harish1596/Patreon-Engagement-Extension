@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Automatically delete expired export sources, metadata, and idle archive files
+  using browser alarms; clear export caches on last-window closure and startup.
+- Preserve saved Reader customisations, protect files backing active downloads,
+  and prevent expired retry jobs from being revived.
 - Show current collection post/file titles, elapsed time, completed/cached/failed
   counts, and byte-based compression/packaging progress with distinct stages.
 - Scope progress to individual attempts so late updates cannot replace retry or

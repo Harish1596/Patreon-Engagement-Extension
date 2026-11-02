@@ -168,6 +168,13 @@ falls back to normal fetching. Refresh collection, Cancel, and closing the owner
 tab clear that collection's source entries. No signed image URLs are stored in
 them, and no cached data is sent to another service. Download time remains fresh
 for each output.
+Expiry cleanup runs automatically through a browser alarm, including while the
+extension worker would otherwise be idle. Closing the last normal/popup browser
+window clears export caches, and browser startup purges leftovers. Saved Reader
+customisations remain in durable local storage. Browser sleep, delayed alarms,
+or a forced quit can delay disk cleanup; expired data is not reused, and leftover
+files are cleaned on the next browser start. Files already being saved by the
+browser remain available until that download completes or is interrupted.
 
 Individual post downloads also reuse a format-independent source in page memory
 for up to two hours, limited to 16 MiB. Changes to the post content, expiry, or
@@ -196,7 +203,9 @@ files and their Blob URLs are released when the download completes or is interru
 Cancel, Refresh, format changes, and owner-tab closure remove unfinished archives.
 Retry metadata survives worker restarts for two hours after activity; missing or
 expired temporary files are rebuilt from available source-cache entries. Idle
-orphaned files are removed during subsequent worker startup.
+retry files are deleted by expiry cleanup and cannot be renewed after their
+deadline. Startup also removes orphaned files. When a visible panel's metadata
+expires, it offers **Start again** instead of keeping stale download options.
 
 The collection dialog keeps an activity bar visible throughout discovery,
 preparation, file generation, transfer, and ZIP packaging. It reports completed

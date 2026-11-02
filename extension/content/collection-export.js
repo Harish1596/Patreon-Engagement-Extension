@@ -14,11 +14,17 @@
   let busy = false;
   let route = "";
   let discoveryCache = null;
+  let discoveryTimer;
   let activeOperation = null;
   let checkpoint = null;
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const observedApiRequests = [];
   const MAX_TRANSFER_CHARS = 1024 * 1024;
+
+  function clearDiscovery() {
+    clearTimeout(discoveryTimer);
+    discoveryCache = null;
+  }
 
   function dropCheckpoint() {
     const id = checkpoint?.id;
@@ -396,7 +402,7 @@
     setProgress("Finding collection posts");
     report(prefix || "Finding accessible posts in this collection…");
     if (refresh || (discoveryCache && discoveryCache.expires <= Date.now())) {
-      discoveryCache = null;
+      clearDiscovery();
       await discardPreparation(refresh);
       checkOperation(operation);
     }
@@ -412,6 +418,8 @@
       if (route !== preparationRoute || !host?.isConnected) return;
       checkOperation(operation);
       discoveryCache = { discovered, expires: Date.now() + COLLECTION_CACHE_MS };
+      clearTimeout(discoveryTimer);
+      discoveryTimer = setTimeout(clearDiscovery, COLLECTION_CACHE_MS);
     }
     const { urls, locked } = discovered;
     if (!urls.length && locked) {
@@ -686,7 +694,7 @@
     host?.remove();
     host = shadow = trigger = dialog = chooser = undefined;
     requestToken = "";
-    discoveryCache = null;
+    clearDiscovery();
     dropCheckpoint();
     open = busy = false;
   }
@@ -709,6 +717,24 @@
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
+    if (message.type === "COLLECTION_EXPORT_CACHE_EXPIRED" && requestToken && message.token === requestToken && !busy) {
+      requestToken = "";
+      clearDiscovery();
+      chooser.src = "about:blank";
+      report("Cached collection data expired. Start again to prepare the collection.");
+      shadow.querySelector(".restart").hidden = false;
+      shadow.querySelector(".progress-details").hidden = true;
+      respond({ expired: true });
+      return;
+    }
+    if (message.type === "COLLECTION_ARCHIVE_EXPIRED" && checkpoint && message.id === checkpoint.id && !busy) {
+      checkpoint = null;
+      shadow.querySelector(".retry").hidden = true;
+      report("Temporary export files expired. Select a format or start again.");
+      shadow.querySelector(".progress-details").hidden = true;
+      respond({ expired: true });
+      return;
+    }
     if (["COLLECTION_ARCHIVE_PROGRESS", "COLLECTION_ARCHIVE_HANDOFF"].includes(message.type)) {
       if (message.id !== checkpoint?.id || !activeOperation || activeOperation.controller.signal.aborted
         || message.operationId !== activeOperation.id) {

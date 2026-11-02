@@ -101,6 +101,8 @@ The extension uses the following access:
   or retained.
 - **Offscreen:** Provides a hidden local extension document to turn a disk-backed
   archive into a Blob URL. It is closed after its active export downloads finish.
+- **Alarms:** Schedules export-data expiry cleanup even when the extension worker
+  is idle. The alarm is removed when no export data remains to expire.
 - **Access to `https://www.patreon.com/*`:** Loads the packaged content script
   and stylesheets, identifies supported post URLs and DOM elements, hides or
   restores the floating engagement bar, adds Reader/export controls and appearance
@@ -119,10 +121,15 @@ enablement and engagement visibility choices. Disabling Reader retains its
 appearance preferences.
 Collection source entries are scoped to the prepared collection session and are
 removed on Refresh collection, Cancel, or closure of its owning tab. Expired
-entries are not reused and are deleted during subsequent cache maintenance.
-On worker startup, entries without an active saved browser-session owner are
-deleted. Disk data may therefore remain while the browser is closed, but is not
-reused in a new browser session. Clearing the extension's data or uninstalling it
+entries are not reused. A browser alarm deletes expired sources, prepared metadata,
+and idle archive files without waiting for another export. Closing the last normal
+or popup browser window clears export data; browser startup purges leftovers.
+Worker startup also removes expired/orphaned records while preserving live caches
+in the same browser session. Browser sleep or delayed alarms may delay deletion.
+A forced quit, crash, or interrupted shutdown can prevent final disk cleanup, so
+files may remain while the browser is closed until startup cleanup runs; there is
+no guaranteed shutdown-time secure erasure. Saved Reader preferences are separate
+and persist normally. Clearing the extension's data or uninstalling it
 also removes the cache. Closing a download panel preserves its caches so another
 format can reuse them.
 
@@ -130,8 +137,9 @@ Completed files retained for retry stay in extension-private temporary disk
 storage. Refresh, Cancel, format changes, and owner-tab closure remove unfinished
 archives. Files already handed to the browser are held until their downloads
 complete or are interrupted, then deleted. Retry metadata expires after two hours
-of inactivity and expired/orphaned files are pruned on subsequent worker startup.
-An open page with a valid checkpoint can renew its retry files. Navigation/reload
+of inactivity. Automatic cleanup removes expired idle files, and expired jobs
+cannot be revived by reopening the panel. A live, unexpired checkpoint can extend
+its activity deadline. Startup additionally removes orphaned files. Navigation/reload
 drops that page's retry checkpoint. Source-cache records are separate from
 generated archive files and retain their original two-hour limit.
 An approved optional media-origin permission may remain in the browser's extension
