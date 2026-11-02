@@ -7,6 +7,28 @@ globalThis.PatreonArchives.install();
   const retention = globalThis.PatreonRetention;
   const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
   const pending = new Map();
+  let activeMedia = 0;
+  const mediaWaiters = [];
+  async function mediaSlot(signal) {
+    signal.throwIfAborted();
+    if (activeMedia >= 2) await new Promise((resolve, reject) => {
+      const start = () => { signal.removeEventListener("abort", abort); resolve(); };
+      const abort = () => {
+        const index = mediaWaiters.indexOf(start);
+        if (index >= 0) mediaWaiters.splice(index, 1);
+        reject(signal.reason);
+      };
+      mediaWaiters.push(start);
+      signal.addEventListener("abort", abort, { once: true });
+    });
+    else activeMedia++;
+    // A released slot is reserved for its next waiter, even before it resumes.
+    return () => {
+      const next = mediaWaiters.shift();
+      if (next) next();
+      else activeMedia--;
+    };
+  }
   const collections = new Map();
   const knownPosts = new Map();
   const cancelledCollections = new Set();
@@ -593,23 +615,54 @@ globalThis.PatreonArchives.install();
       if (!mediaRequests.has(mediaKey)) mediaRequests.set(mediaKey, new Set());
       mediaRequests.get(mediaKey).add(controller);
     }
-    call(api.permissions, "contains", { origins: [origin] }).then((allowed) => {
-      if (!allowed) throw new Error("Media access was not granted for this image origin.");
-      return fetch(parsed.href, { credentials: "omit", redirect: "follow", signal: controller.signal });
-    }).then(async (response) => {
-      if (!response.ok) throw new Error(`Image request failed (${response.status}).`);
-      const finalOrigin = `${new URL(response.url).origin}/*`;
-      if (!await call(api.permissions, "contains", { origins: [finalOrigin] })) {
-        throw new Error("The image redirected to an origin without media permission.");
-      }
-      const type = response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
-      if (!type?.startsWith("image/")) throw new Error("The media response was not an image.");
-      const declaredSize = Number(response.headers.get("content-length"));
-      if (Number.isFinite(declaredSize) && declaredSize > MAX_IMAGE_BYTES) throw new Error("An inline image is too large to export safely.");
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (bytes.length > MAX_IMAGE_BYTES) throw new Error("An inline image is too large to export safely.");
-      respond({ dataUrl: `data:${type};base64,${base64(bytes)}`, type });
-    }).catch((error) => respond({ error: error.message || "Unable to fetch post media." })).finally(() => {
+    const limit = Number.isSafeInteger(message.maxBytes) && message.maxBytes > 0
+      ? Math.min(message.maxBytes, MAX_IMAGE_BYTES) : MAX_IMAGE_BYTES;
+    const timeout = setTimeout(() => controller.abort(new Error("The image request timed out.")), 30_000);
+    (async () => {
+      const release = await mediaSlot(controller.signal);
+      try {
+        controller.signal.throwIfAborted();
+        if (!await call(api.permissions, "contains", { origins: [origin] })) {
+          throw new Error("Media access was not granted for this image origin.");
+        }
+        const response = await fetch(parsed.href, { credentials: "omit", redirect: "error", signal: controller.signal });
+        if (!response.ok) throw new Error(`Image request failed (${response.status}).`);
+        const type = response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
+        if (!type?.startsWith("image/")) throw new Error("The media response was not an image.");
+        const declaredSize = Number(response.headers.get("content-length"));
+        if (Number.isFinite(declaredSize) && declaredSize > limit) throw new Error("An inline image is too large to export safely.");
+        if (!response.body) throw new Error("The image response has no readable body.");
+        const reader = response.body.getReader();
+        const chunks = [];
+        let tail = new Uint8Array(Math.min(limit, 64 * 1024));
+        let used = 0;
+        let size = 0;
+        try {
+          while (true) {
+            controller.signal.throwIfAborted();
+            const { value, done } = await reader.read();
+            if (done) break;
+            size += value.byteLength;
+            if (size > limit) throw new Error("An inline image is too large to export safely.");
+            // Coalesce tiny network chunks so bookkeeping is bounded too.
+            let offset = 0;
+            while (offset < value.length) {
+              const count = Math.min(tail.length - used, value.length - offset);
+              tail.set(value.subarray(offset, offset + count), used);
+              used += count; offset += count;
+              if (used === tail.length) { chunks.push(tail); tail = new Uint8Array(Math.min(limit, 64 * 1024)); used = 0; }
+            }
+          }
+        } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+        if (used) chunks.push(tail.subarray(0, used));
+        const bytes = new Uint8Array(size);
+        let offset = 0;
+        for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+        respond({ dataUrl: `data:${type};base64,${base64(bytes)}`, type });
+      } finally { release(); }
+    })().catch((error) => respond({ error: error.message || "Unable to fetch post media." })).finally(() => {
+      clearTimeout(timeout);
+      controller.abort();
       if (mediaKey) {
         mediaRequests.get(mediaKey)?.delete(controller);
         if (!mediaRequests.get(mediaKey)?.size) mediaRequests.delete(mediaKey);

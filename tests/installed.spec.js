@@ -196,8 +196,8 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     expect(collectionBytes.includes(Buffer.from("001 - Collection post one.md"))).toBe(true);
     expect(collectionBytes.includes(Buffer.from("002 - Collection post two.md"))).toBe(true);
     const collectionEntries = readZip(collectionBytes);
-    expect(collectionEntries[0].data.toString()).toContain("Collection body one.");
-    expect(collectionEntries[1].data.toString()).toContain("Collection body two.");
+    expect(collectionEntries[0].data.toString()).toContain(String.raw`Collection body one\.`);
+    expect(collectionEntries[1].data.toString()).toContain(String.raw`Collection body two\.`);
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     const cachedSources = await popup.evaluate(async () => {
       const cache = await caches.open("patreon-export-sources-v1");

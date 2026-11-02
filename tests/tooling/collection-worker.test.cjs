@@ -401,3 +401,61 @@ test("a worker created after cancellation is immediately closed", async () => {
   assert.ok(calls.remove.includes(tabId));
   assert.equal(calls.create.length, 1);
 });
+
+
+test("image streams stop at the byte budget, cancel their reader, and never buffer the whole response", async () => {
+  let reads = 0, cancelled = false, wholeRead = false;
+  const { send } = backgroundHarness({ fetchMedia: async (_url, options) => {
+    assert.equal(options.credentials, "omit");
+    assert.equal(options.redirect, "error");
+    return { ok: true, headers: { get: name => name === "content-type" ? "image/png" : null },
+      arrayBuffer() { wholeRead = true; throw Error("Whole body read"); },
+      body: { getReader: () => ({
+        async read() { reads++; return { value: new Uint8Array(3), done: false }; },
+        async cancel() { cancelled = true; }, releaseLock() {}
+      }) }
+    };
+  } });
+  const result = await send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/image.png", maxBytes: 4 });
+  assert.match(result.error, /too large/);
+  assert.equal(reads, 2);
+  assert.ok(cancelled);
+  assert.equal(wholeRead, false);
+});
+
+test("image streams return exact bytes below budget and cap simultaneous network requests", async () => {
+  let active = 0, maximum = 0;
+  const releases = [];
+  const { send } = backgroundHarness({ fetchMedia: async () => {
+    active++; maximum = Math.max(maximum, active);
+    await new Promise(resolve => releases.push(resolve));
+    let done = false;
+    return { ok: true, headers: { get: name => name === "content-type" ? "image/png" : null },
+      body: { getReader: () => ({ async read() {
+        if (done) return { done: true };
+        done = true; return { value: new Uint8Array([1, 2, 3]), done: false };
+      }, async cancel() { active--; }, releaseLock() {} }) }
+    };
+  } });
+  const requests = Array.from({ length: 4 }, () => send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/image.png", maxBytes: 3 }));
+  await new Promise(setImmediate);
+  assert.equal(releases.length, 2);
+  releases.splice(0).forEach(release => release());
+  await new Promise(setImmediate);
+  releases.splice(0).forEach(release => release());
+  const replies = await Promise.all(requests);
+  assert.equal(maximum, 2);
+  assert.ok(replies.every(reply => reply.dataUrl === "data:image/png;base64,AQID"));
+});
+
+
+test("image requests time out and abort stalled network work", async () => {
+  let signal;
+  const { send } = backgroundHarness({ fastTimers: true, fetchMedia: async (_url, options) => {
+    signal = options.signal;
+    return new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true }));
+  } });
+  const result = await send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/stalled.png" });
+  assert.match(result.error, /timed out/);
+  assert.ok(signal.aborted);
+});

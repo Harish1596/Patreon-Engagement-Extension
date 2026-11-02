@@ -143,7 +143,7 @@ test("remote post media requests only its exact origin and embeds returned bytes
   expect(markdown).toContain("# A sample post");
   expect(markdown).toContain("**Creator:** Not available");
   expect(markdown).toContain("**Download time:**");
-  expect(markdown).toContain("**Source:** [https://www.patreon.com/example/posts/test-123]");
+  expect(markdown).toContain(String.raw`**Source:** [https://www\.patreon\.com/example/posts/test\-123]`);
   expect(markdown.indexOf("**Creator:**")).toBeLessThan(markdown.indexOf("# A sample post"));
   expect(markdown).toContain("**bold**");
   expect(markdown).toContain("data:image/png;base64,iVBORw0KGgo=");
@@ -219,7 +219,7 @@ test("post formats share distinct images, refresh download time, and invalidate 
   expect(xhtml).toContain(time);
   expect(xhtml).not.toContain("signature=private");
   await page.locator("#post p").first().evaluate(node => { node.textContent = "Updated chapter text."; });
-  expect((await download("Markdown")).toString()).toContain("Updated chapter text.");
+  expect((await download("Markdown")).toString()).toContain(String.raw`Updated chapter text\.`);
   expect(fetches).toBe(2);
   await page.evaluate(() => { const now = Date.now; Date.now = () => now() + 121 * 60_000; });
   await download("EPUB");

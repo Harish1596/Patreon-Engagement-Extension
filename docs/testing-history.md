@@ -1120,3 +1120,29 @@ shutdown cleanup, leaving disk data for the next startup purge; no extension can
 promise deletion after its browser process has already stopped. These synthetic
 tests do not establish forced-termination secure erasure or authenticated live
 Patreon behavior. User-saved ZIPs and durable customisations are retained.
+
+
+## November 2, 2026 — Export security audit fixes (unreleased)
+
+Bounded media reads replace whole-response buffering. Each post fetches images
+sequentially under the remaining 100 MiB occurrence budget and the 25 MiB image
+limit; the worker permits two concurrent requests with 30-second deadlines,
+coalesces small chunks, aborts overflow and rejects redirects. Data URLs receive
+pre-decode size checks. Raster signatures must match the supported declared MIME.
+SVGs are rebuilt using a graphics-only allowlist, including restored sources;
+active content, external references, styles and document/entity declarations
+cannot pass through. Unsupported SVG effects may be removed. Markdown escapes
+literal text and metadata, encodes link delimiters, and uses code fences longer
+than original backtick runs.
+
+Verification: 36 Chrome export/security/collection/progress/streaming cases,
+11 Brave post/security cases, one installed Brave case and 44 tooling cases
+passed. Syntax covers 45 JavaScript files; whitespace checks passed. Existing
+Markdown-source assertions initially failed on the new escaping and were updated;
+EPUB text assertions were preserved. Tests reproduce the audit's output-injection,
+SVG and memory-limit cases using synthetic data, including old cached SVGs and
+raster MIME disguises. Installed Brave verifies actual extension downloads,
+cross-format source reuse, worker restart and retention cleanup. No authenticated
+Patreon or third-party reader verification is claimed. User-saved old files are
+not modified; disk caches remain unencrypted and crash-time erasure is still
+best effort. These fixes do not establish an extension-wide RAM ceiling.

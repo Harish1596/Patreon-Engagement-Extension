@@ -724,6 +724,35 @@ payloads over 100 MiB are rejected. A denied or failed image request aborts the
 export rather than silently producing a partial offline document. Signed image
 URLs are used transiently and are not written to the generated document.
 
+**November 2 export security hardening (synthetic evidence):** Media responses
+are consumed with a streaming byte counter, cancelled on overflow, and subject
+to a 30-second deadline including queue time. The worker allows two simultaneous
+image requests; each post fetches distinct images sequentially and passes its
+remaining budget, accounting for repeated Markdown image occurrences. Redirects
+are rejected rather than contacting another origin. Embedded data URLs are size
+checked before decoding, restricted to JPEG/PNG/GIF/WebP/AVIF/SVG, and raster
+signatures must match the declared type. These are payload limits, not a total
+extension RAM cap: DOM trees, base64 and encoding buffers also consume memory.
+
+SVGs are parsed as XML with document/entity declarations rejected and rebuilt
+using an explicit graphics-only element/attribute allowlist. Scripts, events,
+stylesheets, animation, links, embedded HTML and external image/reference URLs
+are removed. Local fragment paint/clip references and basic shapes/text/gradients
+are retained. Unsupported effects can change appearance. Cached images receive
+the same validation lazily on first use during each conversion; older cached
+SVGs or SVGs disguised as raster formats cannot bypass sanitization. Raster
+signatures are a format check, not full image-decoder validation.
+
+Markdown text, metadata and labels are escaped as literal content; generated
+formatting and HTTP(S) links are retained. Link delimiters are encoded, and code
+fences grow beyond any backtick run in the original code. Synthetic fixtures
+cover markup injection, code fences, active/external SVG content, cache reuse,
+MIME disguises and invalid declarations. Worker fixtures cover streaming overflow,
+reader cancellation, exact bytes, concurrency and timeout cancellation. Live
+Patreon media-host compatibility and third-party reader behavior remain unverified.
+Previously saved exports are not rewritten. Local caches remain unencrypted;
+expiry/lifecycle cleanup retains its documented best-effort crash limitations.
+
 **November 2 source reuse:** Individual exports retain one inert source tree and
 distinct image data URLs for two hours in page memory, up to 16 MiB. A SHA-256
 fingerprint of normalized body markup, image sources, and post metadata invalidates

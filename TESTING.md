@@ -29,6 +29,35 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Export security hardening, November 2, 2026: **36 Chrome export/security/
+collection/progress/streaming cases, 11 Brave post/security cases, one installed
+Brave case, and 44 tooling cases passed**. `npm run check` covers 45 JavaScript
+files; `git diff --check` passes. Reproduce with:
+
+```sh
+npx playwright test tests/export-security.spec.js tests/export.spec.js tests/collection-export.spec.js tests/archive-stream.spec.js tests/collection-progress.spec.js
+npm run test:brave -- tests/export-security.spec.js tests/export.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+Security fixtures verify literal Markdown/HTML escaping, delimiter-safe links,
+backtick-safe code, graphics-only SVG reconstruction, cached SVG sanitization,
+raster MIME disguises and rejection of XML declarations/unsupported MIME types.
+Worker fixtures verify bounded incremental reads, cancellation before reading the
+rest of an oversized response, exact output bytes, a two-request concurrency cap,
+and aborting stalled requests at the configured deadline. Network chunks are
+coalesced into bounded buffers. Existing assertions were updated to expect escaped
+Markdown source; EPUB text expectations remain unchanged. Initial broad checks
+exposed those outdated literal-source expectations before the passing runs above.
+These are synthetic tests, not authenticated live Patreon/media-host verification
+or a third-party Markdown/EPUB reader compatibility audit. SVG effects outside the
+allowlist are removed, redirected media requests fail closed, and payload limits
+are not a guarantee of total extension RAM usage. Cached data is still unencrypted;
+expiry and shutdown deletion retain their documented best-effort limitations.
+
+
 Export retention, November 2, 2026: **23 Chrome collection/progress cases, 8
 isolated Chrome post cases, 26 Brave collection/progress/streaming/installed cases,
 and 41 tooling cases passed**. Syntax checks cover 44 JavaScript files.

@@ -18,6 +18,7 @@
   const portableBuilds = new Map();
   const cancelledPortableBuilds = new Set();
   const MAX_TRANSFER_CHARS = 1024 * 1024;
+  const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
   const MAX_EXPORT_IMAGE_BYTES = 100 * 1024 * 1024;
   const POST_CACHE_MS = 2 * 60 * 60_000;
   const POST_CACHE_BYTES = 16 * 1024 * 1024;
@@ -75,28 +76,81 @@
     return node;
   }
 
-  function dataUrlBytes(value) {
+  function dataUrlBytes(value, limit = MAX_IMAGE_BYTES) {
     const match = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(value);
     if (!match) throw new Error("An embedded post image has an invalid data URL.");
+    const type = (match[1] || "application/octet-stream").toLowerCase();
+    if (!/^image\/(?:jpeg|png|gif|webp|svg\+xml|avif)$/.test(type)) throw new Error("The embedded image format is not supported.");
+    if (match[3].length > (match[2] ? Math.ceil(limit / 3) * 4 : limit * 3)) {
+      throw new Error("An inline image is too large to export safely.");
+    }
     const bytes = match[2]
       ? Uint8Array.from(atob(match[3]), char => char.charCodeAt(0))
       : new TextEncoder().encode(decodeURIComponent(match[3]));
-    return { type: (match[1] || "application/octet-stream").toLowerCase(), bytes };
+    if (bytes.length > limit) throw new Error("An inline image is too large to export safely.");
+    return { type, bytes };
+  }
+
+  function sanitizeSvg(bytes) {
+    const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    if (/<!DOCTYPE|<!ENTITY/i.test(source)) throw new Error("The SVG contains unsupported declarations.");
+    const parsed = new DOMParser().parseFromString(source, "image/svg+xml");
+    const ns = "http://www.w3.org/2000/svg";
+    if (parsed.querySelector("parsererror") || parsed.documentElement.localName !== "svg"
+      || parsed.documentElement.namespaceURI !== ns) throw new Error("The SVG image is invalid.");
+    const tags = new Set(["svg", "g", "defs", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon",
+      "text", "tspan", "title", "desc", "linearGradient", "radialGradient", "stop", "clipPath", "mask"]);
+    const attributes = new Set(["id", "viewBox", "preserveAspectRatio", "width", "height", "x", "y", "x1", "y1", "x2", "y2",
+      "cx", "cy", "r", "rx", "ry", "dx", "dy", "d", "points", "transform", "fill", "fill-rule", "fill-opacity",
+      "stroke", "stroke-width", "stroke-opacity", "stroke-linecap", "stroke-linejoin", "stroke-dasharray", "stroke-dashoffset",
+      "opacity", "offset", "stop-color", "stop-opacity", "gradientUnits", "gradientTransform", "spreadMethod", "fx", "fy",
+      "clip-path", "clip-rule", "mask", "font-size", "font-weight", "text-anchor"]);
+    const output = document.implementation.createDocument(ns, "svg", null);
+    function copy(input, target, depth = 0) {
+      if (depth > 100) throw new Error("The SVG image is too deeply nested.");
+      for (const attr of input.attributes) {
+        if (attr.namespaceURI || !attributes.has(attr.name)) continue;
+        // No CSS escapes, imports, external URLs, or active attributes survive.
+        if (/[\\<>&]/.test(attr.value) || /url\s*\(/i.test(attr.value)
+          && !/^url\(#[a-zA-Z_][\w.-]*\)$/.test(attr.value)) continue;
+        target.setAttribute(attr.name, attr.value);
+      }
+      for (const child of input.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) target.append(output.createTextNode(child.nodeValue));
+        else if (child.nodeType === Node.ELEMENT_NODE && child.namespaceURI === ns && tags.has(child.localName)) {
+          const next = output.createElementNS(ns, child.localName); target.append(next); copy(child, next, depth + 1);
+        }
+      }
+    }
+    copy(parsed.documentElement, output.documentElement);
+    return utf8(new XMLSerializer().serializeToString(output));
+  }
+
+  function safeImage(value, limit = MAX_IMAGE_BYTES) {
+    let { type, bytes } = dataUrlBytes(value, limit);
+    if (type === "image/svg+xml") bytes = sanitizeSvg(bytes);
+    else {
+      const signature = [...bytes.subarray(0, 12)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+      const valid = type === "image/png" ? signature.startsWith("89504e470d0a1a0a")
+        : type === "image/jpeg" ? signature.startsWith("ffd8ff")
+        : type === "image/gif" ? /^(474946383761|474946383961)/.test(signature)
+        : type === "image/webp" ? signature.startsWith("52494646") && signature.endsWith("57454250")
+        : signature.slice(8, 16) === "66747970" && /avif|avis/.test(new TextDecoder().decode(bytes.subarray(8, 32)));
+      if (!valid) throw new Error("The image bytes do not match their declared format.");
+    }
+    if (bytes.length > limit) throw new Error("An inline image is too large to export safely.");
+    return { type, bytes, dataUrl: `data:${type};base64,${base64(bytes)}` };
   }
 
   function imageExtension(type) {
     return ({ "image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg", "image/avif": "avif" })[type] || "img";
   }
 
-  async function fetchImage(url, transferId) {
-    if (url.startsWith("data:")) {
-      const { type, bytes } = dataUrlBytes(url);
-      return { type, bytes, dataUrl: url };
-    }
-    const result = await call(api.runtime, "sendMessage", { type: "FETCH_POST_EXPORT_IMAGE", url, transferId });
+  async function fetchImage(url, transferId, maxBytes) {
+    if (url.startsWith("data:")) return safeImage(url, maxBytes);
+    const result = await call(api.runtime, "sendMessage", { type: "FETCH_POST_EXPORT_IMAGE", url, transferId, maxBytes });
     if (!result?.dataUrl) throw new Error(result?.error || "Unable to read an inline post image.");
-    const decoded = dataUrlBytes(result.dataUrl);
-    return { type: result.type || decoded.type, bytes: decoded.bytes, dataUrl: result.dataUrl };
+    return safeImage(result.dataUrl, maxBytes);
   }
 
   async function prepare({ signal, transferId } = {}) {
@@ -138,10 +192,20 @@
       }
       clearPreparedCache();
     }
-    const unique = new Map();
-    for (const source of sources) if (!unique.has(source)) unique.set(source, fetchImage(source, transferId));
-    const resolved = new Map(await Promise.all([...unique].map(async ([source, asset]) => [source, await asset])));
-    signal?.throwIfAborted();
+    const occurrences = new Map();
+    for (const source of sources) occurrences.set(source, (occurrences.get(source) || 0) + 1);
+    const resolved = new Map();
+    let remaining = MAX_EXPORT_IMAGE_BYTES;
+    // Sequential requests bound decoded memory and stop before fetching over budget.
+    for (const [source, count] of occurrences) {
+      signal?.throwIfAborted();
+      const limit = Math.min(MAX_IMAGE_BYTES, Math.floor(remaining / count));
+      if (limit <= 0) throw new Error("The post images are too large to package safely.");
+      const asset = await fetchImage(source, transferId, limit);
+      signal?.throwIfAborted();
+      remaining -= asset.bytes.length * count;
+      resolved.set(source, asset);
+    }
     const indices = new Map();
     const assets = [...resolved].map(([source, asset], index) => {
       indices.set(source, index);
@@ -205,10 +269,15 @@
       return result;
     }
     return { ...snapshot, downloadedAt: downloadTime(), body: node(snapshot.body),
-      assets: snapshot.assets.map(asset => ({ ...asset,
-        // Markdown uses the data URL directly; decode bytes only for EPUB.
-        get bytes() { return dataUrlBytes(asset.dataUrl).bytes; }
-      })) };
+      assets: snapshot.assets.map(asset => {
+        // Validate older caches on first use, including raster MIME disguises.
+        let safe;
+        const image = () => (safe ||= safeImage(asset.dataUrl));
+        return { ...asset,
+          get dataUrl() { return image().dataUrl; },
+          get bytes() { return image().bytes; }
+        };
+      }) };
   }
 
   function currentOrigins() {
@@ -282,26 +351,33 @@
     return allowed.has(tag) ? `<${tag}>${children}</${tag}>` : children;
   }
 
+  const markdownText = value => escapeText(value).replace(/[\\`*_{}\[\]()#+.!|~\-]/g, "\\$&");
+  const markdownUrl = value => value.replace(/[<>"()\\\s]/g, char => encodeURIComponent(char).replace(/[()]/g, c => `%${c.charCodeAt(0).toString(16)}`));
+  function codeFence(value, minimum) {
+    let length = minimum;
+    for (const match of value.matchAll(/`+/g)) length = Math.max(length, match[0].length + 1);
+    return "`".repeat(length);
+  }
   function renderMarkdown(node, assets, depth = 0) {
-    if (node.nodeType === Node.TEXT_NODE) return node.nodeValue || "";
+    if (node.nodeType === Node.TEXT_NODE) return markdownText(node.nodeValue || "");
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
     const tag = node.tagName.toLowerCase();
+    if (tag === "pre") { const fence = codeFence(node.textContent, 3); return `\n${fence}\n${node.textContent}\n${fence}\n\n`; }
+    if (tag === "code") { const fence = codeFence(node.textContent, 1); return `${fence} ${node.textContent.replace(/\n/g, " ")} ${fence}`; }
     const children = [...node.childNodes].map(child => renderMarkdown(child, assets, depth + (tag === "blockquote" ? 1 : 0))).join("");
     if (tag === "img") {
       const asset = assets[Number(node.getAttribute("data-export-image"))];
-      return asset ? `\n![${(node.getAttribute("alt") || "").replaceAll("]", "\\]")}](${asset.dataUrl})\n` : "";
+      return asset ? `\n![${markdownText(node.getAttribute("alt") || "")}](${asset.dataUrl})\n` : "";
     }
     if (tag === "a") {
       const href = safeUrl(node.getAttribute("href"));
-      return href ? `[${children}](${href})` : children;
+      return href ? `[${children}](${markdownUrl(href)})` : children;
     }
     if (/^h[1-6]$/.test(tag)) return `\n${"#".repeat(Number(tag[1]))} ${children.trim()}\n\n`;
     if (tag === "p") return `\n${children.trim()}\n\n`;
     if (["strong", "b"].includes(tag)) return `**${children}**`;
     if (["em", "i"].includes(tag)) return `*${children}*`;
     if (tag === "s") return `~~${children}~~`;
-    if (tag === "code" && node.parentElement?.tagName !== "PRE") return `\`${children}\``;
-    if (tag === "pre") return `\n\`\`\`\n${node.textContent}\n\`\`\`\n\n`;
     if (tag === "br") return "  \n";
     if (tag === "li") return `\n- ${children.trim()}`;
     if (["ul", "ol"].includes(tag)) return `${children}\n\n`;
@@ -366,7 +442,7 @@
   }
 
   function markdownFor(post) {
-    return `**Creator:** ${post.author}\n\n**Download time:** ${post.downloadedAt}\n\n**Source:** [${post.sourceUrl}](${post.sourceUrl})\n\n---\n\n# ${post.title}\n\n${renderMarkdown(post.body, post.assets).trim()}\n`;
+    return `**Creator:** ${markdownText(post.author)}\n\n**Download time:** ${markdownText(post.downloadedAt)}\n\n**Source:** [${markdownText(post.sourceUrl)}](${markdownUrl(post.sourceUrl)})\n\n---\n\n# ${markdownText(post.title)}\n\n${renderMarkdown(post.body, post.assets).trim()}\n`;
   }
 
   async function buildPortableFile(format, options) {
