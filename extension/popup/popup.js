@@ -67,3 +67,39 @@ call(api.storage.local, "get", ["isHidden", "readerEnabled"]).then((stored) => {
   status.textContent = "Unable to load preferences. Reopen to retry.";
   status.dataset.tone = "error";
 });
+
+
+const forgetMedia = document.querySelector("#forget-media");
+const mediaStatus = document.querySelector("#media-status");
+let mediaBusy = false;
+async function mediaOrigins() {
+  const permissions = await call(api.permissions, "getAll");
+  // Keep the required Patreon integration grant; only revoke optional media hosts.
+  return (permissions.origins || []).filter(origin => origin.startsWith("https://") && origin !== "https://www.patreon.com/*");
+}
+async function showMediaAccess() {
+  try {
+    const origins = await mediaOrigins();
+    forgetMedia.disabled = mediaBusy || !origins.length;
+    mediaStatus.textContent = origins.length
+      ? `${origins.length} saved media ${origins.length === 1 ? "origin" : "origins"}. Forget access to require permission again.`
+      : "No saved media access.";
+  } catch {
+    forgetMedia.disabled = true;
+    mediaStatus.textContent = "Unable to check saved media access. Reopen to retry.";
+  }
+}
+forgetMedia.addEventListener("click", async () => {
+  if (mediaBusy) return;
+  mediaBusy = true; forgetMedia.disabled = true;
+  try {
+    const origins = await mediaOrigins();
+    if (origins.length && !await call(api.permissions, "remove", { origins })) throw new Error("Access was not removed");
+    mediaBusy = false;
+    await showMediaAccess();
+  } catch {
+    mediaStatus.textContent = "Unable to remove media access. Try again.";
+    forgetMedia.disabled = false;
+  } finally { mediaBusy = false; }
+});
+showMediaAccess();

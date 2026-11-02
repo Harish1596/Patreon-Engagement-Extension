@@ -29,6 +29,26 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Security audit follow-up, November 2, 2026: **41 Chrome cases, 42 Brave cases
+(including installed-extension coverage), and 50 tooling cases passed**. Syntax
+checks cover 46 JavaScript files; `git diff --check` passes. Reproduce with:
+
+```sh
+npx playwright test tests/export-security.spec.js tests/export.spec.js tests/popup.spec.js tests/collection-export.spec.js tests/archive-stream.spec.js tests/collection-progress.spec.js
+npm run test:brave -- tests/export-security.spec.js tests/export.spec.js tests/popup.spec.js tests/collection-export.spec.js tests/archive-stream.spec.js tests/collection-progress.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+The popup regression revokes only optional media origins, preserves required
+Patreon access and preferences, and reports failed removal. Native installed
+Brave checks the real permission-list API plus encryption, downloads, worker
+restart and cleanup. Markdown security tests parse the output with development-only
+CommonMark. These synthetic/installed fixtures do not establish authenticated
+Patreon compatibility or secure disk erasure after forced termination.
+
+
 Encrypted retry/archive-budget follow-up, November 2, 2026: **50 tooling cases,
 25 Chrome collection/progress/streaming cases and 3 Brave installed/streaming
 cases passed**. Syntax covers 46 JavaScript files. New cases reject tampered

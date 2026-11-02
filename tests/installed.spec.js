@@ -60,6 +60,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
     await expect(popup).toHaveTitle("Patreon Reader");
+    await expect(popup.locator("#media-status")).toHaveText("No saved media access.");
     await expect(popup.locator(".app-mark")).toHaveAttribute("src", "../icons/reader.svg");
     await expect.poll(() => popup.locator(".app-mark").evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
     const hideToggle = popup.getByRole("switch", { name: "Hide engagement bar", exact: true });

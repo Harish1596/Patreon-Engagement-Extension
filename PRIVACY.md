@@ -159,8 +159,10 @@ its activity deadline. Startup additionally removes orphaned files. Navigation/r
 drops that page's retry checkpoint. Source-cache records are separate from
 generated archive files and retain their original two-hour limit.
 An approved optional media-origin permission may remain in the browser's extension
-settings until the user revokes it or uninstalls the extension. The extension
-uses that access only when the user starts another export
+settings until the user revokes it or uninstalls the extension. The toolbar popup's
+**Forget media access** control removes saved optional media grants while preserving
+required Patreon access and saved reading preferences. This revokes network access;
+it does not delete cached content or user-saved files. The extension uses that access only when the user starts another export
 containing an image from the same origin.
 No remotely stored data exists because the extension does not operate a server
 or transmit information elsewhere.

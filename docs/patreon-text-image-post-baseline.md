@@ -789,6 +789,15 @@ failed deletion keeps accounting conservative. The source cache retains its own
 these payload limits. Tests cover concurrency, abort/retry accounting, staged-ZIP
 limits after worker restart, tampering, failed handoff cleanup and legacy purging.
 
+**November 2 permission-management follow-up:** The toolbar popup lists the count
+of saved optional HTTPS media-origin grants and offers Forget media access. It
+uses the extension permission API, excludes the required Patreon origin, and
+reports removal failures separately from preference saving. Revocation does not
+clear source caches, user-saved files or preferences; future remote-media requests
+require access again. Popup fixtures cover success/failure, retained Patreon
+access/preferences, and light/dark layout; installed Brave verifies the native
+permission list is available. No page selectors or Reader boundaries changed.
+
 **November 2 source reuse:** Individual exports retain one inert source tree and
 distinct image data URLs for two hours in page memory, up to 16 MiB. A SHA-256
 fingerprint of normalized body markup, image sources, and post metadata invalidates

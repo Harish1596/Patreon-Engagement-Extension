@@ -1189,3 +1189,19 @@ exercise concurrent quota exhaustion/recovery, restart staging limits, tampering
 legacy deletion and failed-handoff cleanup. Installed Brave verifies encrypted
 source reuse, worker restart, downloads and expiry while retaining preferences.
 No authenticated live Patreon verification is claimed.
+
+
+## November 2, 2026 — Media permission management and final audit-fix checks
+
+The toolbar popup exposes saved optional media-origin count and Forget media
+access. Removing grants preserves the required Patreon host, saved preferences,
+cached content and user-saved exports. Failure is reported without changing the
+Reader/engagement toggle flow. Future network retrieval requires media access
+again; revocation during an active export may cause remaining requests to fail.
+
+Final verification passed: 41 Chrome cases, 42 Brave cases (including the installed
+extension), 50 tooling cases, syntax checks for 46 JavaScript files and whitespace
+checks. Fixtures span nested CommonMark containment, SVG/raster safeguards, source
+and retry encryption/tampering, concurrent archive quotas, failed handoff cleanup,
+permission-removal success/failure, native downloads, worker restarts and expiry.
+No authenticated live Patreon or crash-time secure-erasure claim is made.

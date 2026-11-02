@@ -218,3 +218,9 @@ input:disabled + .slider {
     --shadow: 0 8px 28px rgb(0 0 0 / 24%);
   }
 }
+
+.media-access { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+#media-status { margin-top: 5px; overflow-wrap: anywhere; }
+#forget-media { margin-top: 9px; max-width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; }
+#forget-media:disabled { opacity: .55; cursor: default; }
+#forget-media:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

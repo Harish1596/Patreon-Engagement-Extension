@@ -177,6 +177,12 @@ or a forced quit can delay disk cleanup; expired data is not reused, and leftove
 files are cleaned on the next browser start. Files already being saved by the
 browser remain available until that download completes or is interrupted.
 
+The toolbar popup shows saved optional media-origin access. **Forget media access**
+revokes those grants while preserving required Patreon access, Reader preferences
+and already cached/exported content. A later remote-media export requests access
+again. Revoking access during a download can cause its remaining image requests
+to fail; completed cached content remains governed by the normal expiry policy.
+
 Individual post downloads also reuse a format-independent source in page memory
 for up to two hours, limited to 16 MiB. Changes to the post content, expiry, or
 navigation invalidate it; Reader typography changes do not. Larger single-post
