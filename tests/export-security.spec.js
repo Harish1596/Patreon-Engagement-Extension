@@ -86,31 +86,47 @@ test("invalid image MIME types and SVG document declarations fail without an exp
 });
 
 
-test("rendered Markdown keeps code inert in lists, nested lists, blockquotes and headings", async ({ page }) => {
-  await setup(page);
-  await page.evaluate(() => {
-    const body = document.querySelector("#post img").parentElement;
-    const payload = '<img src="https://tracker.invalid/nested" onerror="globalThis.auditExecuted=true">';
-    for (const shape of ["list", "nested-list", "quote-list", "heading"]) {
-      const pre = document.createElement("pre"); pre.textContent = payload;
-      let root = pre;
-      if (shape !== "heading") {
-        const list = document.createElement("ul"), item = document.createElement("li"); item.append(pre); list.append(item); root = list;
-        if (shape === "nested-list") { const outer = document.createElement("ul"), li = document.createElement("li"); li.append("Outer", list); outer.append(li); root = outer; }
-        if (shape === "quote-list") { const quote = document.createElement("blockquote"); quote.append(list); root = quote; }
-      } else { const heading = document.createElement("h2"); heading.append(pre); root = heading; }
-      body.append(root);
-    }
+for (const [name, newline] of [["LF", "\n"], ["CRLF", "\r\n"], ["CR", "\r"]]) {
+  test(`rendered Markdown contains nested code with ${name} endings, including cached sources`, async ({ page }) => {
+    await setup(page);
+    await page.evaluate(newline => {
+      const body = document.querySelector("#post img").parentElement;
+      const payload = '<img src="https://tracker.invalid/nested" onerror="globalThis.auditExecuted=true">';
+      for (const shape of ["list", "nested-list", "quote-list", "quote", "heading"]) {
+        const pre = document.createElement("pre");
+        pre.textContent = ["Before", payload, "```", "After"].join(newline);
+        let root = pre;
+        if (shape === "heading") { const heading = document.createElement("h2"); heading.append(pre); root = heading; }
+        else if (shape === "quote") { const quote = document.createElement("blockquote"); quote.append(pre); root = quote; }
+        else {
+          const list = document.createElement("ul"), item = document.createElement("li"); item.append(pre); list.append(item); root = list;
+          if (shape === "nested-list") { const outer = document.createElement("ul"), li = document.createElement("li"); li.append("Outer", list); outer.append(li); root = outer; }
+          if (shape === "quote-list") { const quote = document.createElement("blockquote"); quote.append(list); root = quote; }
+        }
+        body.append(root);
+      }
+      const code = document.createElement("code"); code.textContent = ["inline", payload].join(newline); body.append(code);
+      const text = document.createElement("p"); text.textContent = ["Ordinary", "text"].join(newline); body.append(text);
+    }, newline);
+    const fresh = await portable(page, "markdown");
+    const snapshot = JSON.parse((await portable(page, "snapshot")).data);
+    // Snapshot serialization preserves raw DOM line endings; conversion must not
+    // rely on cleanup having happened when an older source was cached.
+    const cached = await page.evaluate(snapshot => PatreonExporter.fileFromSnapshot(snapshot, "markdown", "https://www.patreon.com/posts/123"), snapshot);
+    const preview = await page.context().newPage();
+    let requested = false;
+    await preview.route("https://tracker.invalid/**", route => { requested = true; return route.abort(); });
+    try {
+      for (const { data } of [fresh, cached]) {
+        expect(data).not.toContain("\r");
+        expect(data).toContain("Ordinary\ntext");
+        const html = new commonmark.HtmlRenderer().render(new commonmark.Parser().parse(data));
+        expect(html).not.toContain('<img src="https://tracker.invalid/');
+        expect(html.match(/&lt;img src=/g)).toHaveLength(6);
+        await preview.setContent(html);
+        expect(await preview.evaluate(() => globalThis.auditExecuted)).toBeUndefined();
+        expect(requested).toBe(false);
+      }
+    } finally { await preview.close(); }
   });
-  const { data } = await portable(page, "markdown");
-  const html = new commonmark.HtmlRenderer().render(new commonmark.Parser().parse(data));
-  expect(html).not.toContain('<img src="https://tracker.invalid/');
-  expect(html.match(/&lt;img src=/g)).toHaveLength(4);
-  const preview = await page.context().newPage();
-  let requested = false;
-  await preview.route("https://tracker.invalid/**", route => { requested = true; return route.abort(); });
-  await preview.setContent(html);
-  expect(await preview.evaluate(() => globalThis.auditExecuted)).toBeUndefined();
-  expect(requested).toBe(false);
-  await preview.close();
-});
+}

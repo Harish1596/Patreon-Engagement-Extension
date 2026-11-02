@@ -29,6 +29,28 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Markdown newline correction, November 2, 2026: **14 Chrome post/security cases,
+15 Brave post/security/installed cases and 50 tooling cases passed**. Syntax
+checks cover 46 JavaScript files; whitespace checks pass. Focused commands:
+
+```sh
+npx playwright test tests/export-security.spec.js tests/export.spec.js
+npm run test:brave -- tests/export-security.spec.js tests/export.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+The rendered-output matrix uses LF, CRLF and bare CR in code nested inside lists,
+nested lists, blockquotes, quoted lists and headings, plus inline code and ordinary
+text. Code includes literal HTML and backticks. Both direct exports and conversion
+of raw cached snapshots are parsed with CommonMark and previewed with external
+requests blocked. Assertions verify canonical LF output, preserved ordinary text,
+HTML remaining code, no script effect and no external request. Installed Brave
+checks the real collection download/cross-format cache path. Tests are synthetic;
+live Patreon and third-party reader compatibility remain unverified.
+
+
 Security audit follow-up, November 2, 2026: **41 Chrome cases, 42 Brave cases
 (including installed-extension coverage), and 50 tooling cases passed**. Syntax
 checks cover 46 JavaScript files; `git diff --check` passes. Reproduce with:

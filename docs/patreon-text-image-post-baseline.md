@@ -762,6 +762,19 @@ and previewed with external requests blocked to confirm code stays inert. This
 extends the earlier escaping tests with actual Markdown parsing, not live reader
 compatibility claims.
 
+**November 2 newline containment correction:** The follow-up audit established
+that bare CR characters in code could bypass list/blockquote prefixes because
+those containers split only LF lines. Markdown serialization now normalizes
+CRLF and bare CR to LF before escaping text, fencing code or applying container
+prefixes. Inline-code line folding uses that same normalization. Source DOM and
+cached trees are not rewritten; restored sources are normalized when converted,
+so older caches receive the fix too. Synthetic CommonMark/preview regressions
+cover LF, CRLF and CR in lists, nested lists, blockquotes, quoted lists, headings,
+inline code and ordinary text, including embedded backtick runs. The tests check
+both fresh and cached output for absent active HTML, script effects and external
+requests. This corrects the newline gap in the earlier nested-block evidence;
+it does not establish authenticated Patreon or third-party-reader verification.
+
 **November 2 encrypted source-cache follow-up:** New disk source entries use
 AES-256-GCM with random nonces and owner/post-bound authenticated context. Titles
 and source trees/images are encrypted together; headers retain only size, expiry

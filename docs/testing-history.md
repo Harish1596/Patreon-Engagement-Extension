@@ -1205,3 +1205,23 @@ checks. Fixtures span nested CommonMark containment, SVG/raster safeguards, sour
 and retry encryption/tampering, concurrent archive quotas, failed handoff cleanup,
 permission-removal success/failure, native downloads, worker restarts and expiry.
 No authenticated live Patreon or crash-time secure-erasure claim is made.
+
+
+## November 2, 2026 — Normalize Markdown line endings before containment
+
+The follow-up audit reproduced active literal HTML from bare CR in code within
+lists and blockquotes. The previous containment fix split only LF, while Markdown
+also interprets CR as a line ending. Markdown serialization now normalizes CRLF
+and CR to LF before escaping, fencing and container prefixes, including inline
+code and conversion of previously cached raw source trees. DOM and cache formats
+are preserved. User-saved older exports are not rewritten.
+
+Verification: 14 Chrome post/security cases, 15 Brave post/security/installed cases
+and 50 tooling cases passed. Syntax covers 46 JavaScript files; whitespace checks
+passed. A CommonMark/preview matrix covers fresh and cached LF/CRLF/CR output in
+lists, nested lists, blockquotes, quoted lists, headings and inline code, with
+literal HTML, embedded backticks and ordinary text. It asserts no raw active image,
+script effect or external request and verifies normalized output. Installed Brave
+covers native downloads and encrypted source reuse after worker restart. These
+synthetic/installed checks do not establish live Patreon or third-party reader
+compatibility.

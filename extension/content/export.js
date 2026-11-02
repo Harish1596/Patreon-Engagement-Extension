@@ -351,7 +351,10 @@
     return allowed.has(tag) ? `<${tag}>${children}</${tag}>` : children;
   }
 
-  const markdownText = value => escapeText(value).replace(/[\\`*_{}\[\]()#+.!|~\-]/g, "\\$&");
+  // CommonMark treats CRLF and bare CR as line endings too. Normalize before
+  // fencing or adding list/quote prefixes, including when rendering old caches.
+  const markdownLines = value => String(value).replace(/\r\n?/g, "\n");
+  const markdownText = value => escapeText(markdownLines(value)).replace(/[\\`*_{}\[\]()#+.!|~\-]/g, "\\$&");
   const markdownUrl = value => value.replace(/[<>"()\\\s]/g, char => encodeURIComponent(char).replace(/[()]/g, c => `%${c.charCodeAt(0).toString(16)}`));
   function codeFence(value, minimum) {
     let length = minimum;
@@ -363,16 +366,21 @@
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
     const tag = node.tagName.toLowerCase();
     if (tag === "pre") {
+      const code = markdownLines(node.textContent);
       // A malformed inline/heading container must not swallow the opening fence.
       if (node.closest("h1,h2,h3,h4,h5,h6,a,strong,em,b,i,s,code")) {
-        const text = node.textContent.replace(/[\r\n]+/g, " ");
+        const text = code.replace(/\n+/g, " ");
         const fence = codeFence(text, 1);
         return `${fence} ${text} ${fence}`;
       }
-      const fence = codeFence(node.textContent, 3);
-      return `\n${fence}\n${node.textContent}\n${fence}\n\n`;
+      const fence = codeFence(code, 3);
+      return `\n${fence}\n${code}\n${fence}\n\n`;
     }
-    if (tag === "code") { const fence = codeFence(node.textContent, 1); return `${fence} ${node.textContent.replace(/\n/g, " ")} ${fence}`; }
+    if (tag === "code") {
+      const code = markdownLines(node.textContent).replace(/\n/g, " ");
+      const fence = codeFence(code, 1);
+      return `${fence} ${code} ${fence}`;
+    }
     const children = [...node.childNodes].map(child => renderMarkdown(child, assets, depth + (tag === "blockquote" ? 1 : 0))).join("");
     if (tag === "img") {
       const asset = assets[Number(node.getAttribute("data-export-image"))];
