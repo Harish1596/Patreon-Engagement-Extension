@@ -1169,3 +1169,23 @@ inspection and tampering/substitution checks. Browser-session storage follows th
 [Chrome storage contract](https://developer.chrome.com/docs/extensions/reference/api/storage#session).
 This reduces exposure of leftover disk caches, not compromise of an active browser
 or OS memory/swap. Expiry cleanup and user preferences retain their own lifecycles.
+
+
+## November 2, 2026 — Encrypt retry chapters and bound temporary archives
+
+Retry chapters use authenticated encrypted frames with transfer/offset binding.
+The ZIP writer decrypts incrementally without whole-file reads. A shared 1 GiB
+archive payload budget includes committed files, pending writes and ZIP staging;
+source caching retains its separate 512 MiB budget. Concurrent writes serialize
+budget checks; restart reconstructs disk usage, and abort/drop releases accounted
+bytes after successful cleanup. Failed packaging/handoff removes plaintext ZIPs.
+Legacy plaintext retries are purged. Native downloads temporarily require plaintext
+ZIP backing files; forced termination can interrupt cleanup, so this is not secure
+erasure or protection against a compromised running browser or OS memory capture.
+
+All 50 tooling cases, 25 Chrome collection/progress/streaming cases and 3 Brave
+installed/streaming cases passed; syntax covers 46 JavaScript files. Fixtures
+exercise concurrent quota exhaustion/recovery, restart staging limits, tampering,
+legacy deletion and failed-handoff cleanup. Installed Brave verifies encrypted
+source reuse, worker restart, downloads and expiry while retaining preferences.
+No authenticated live Patreon verification is claimed.

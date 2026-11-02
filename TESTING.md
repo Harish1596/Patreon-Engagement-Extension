@@ -29,6 +29,17 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Encrypted retry/archive-budget follow-up, November 2, 2026: **50 tooling cases,
+25 Chrome collection/progress/streaming cases and 3 Brave installed/streaming
+cases passed**. Syntax covers 46 JavaScript files. New cases reject tampered
+retry frames, purge legacy plaintext, remove plaintext ZIPs after failed handoff,
+and enforce a shared quota across concurrent jobs, pending writes and staging,
+including restoration after worker restart. The installed case verifies encrypted
+source reuse and native downloads after worker suspension. The limits count disk
+payloads, not filesystem overhead or total extension RAM. Temporary download ZIPs
+remain plaintext while needed; secure erasure after a crash is not established.
+
+
 Encrypted source-cache follow-up, November 2, 2026: **46 tooling cases and one installed Brave case passed**.
 Tests inspect stored bytes/headers for plaintext, round-trip encrypted sources,
 reject tampering and cross-owner substitution, remove legacy plaintext, and verify

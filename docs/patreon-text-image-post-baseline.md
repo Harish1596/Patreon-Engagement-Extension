@@ -772,6 +772,23 @@ cache misses. This supersedes the unencrypted-source observation above. It does
 not protect against a compromised running browser, privileged memory inspection,
 OS swap/hibernation captures or files the user deliberately saves.
 
+**November 2 encrypted retry/budget follow-up:** Archive retry chapters are stored
+as bounded AES-GCM frames authenticated to job/index/transfer/offset. Packaging
+decrypts one frame at a time into the browser-required temporary plaintext ZIP.
+The final ZIP is not an idle reusable cache: failed handoffs remove it and startup
+removes idle ZIPs. Active native-download backing files remain until completion.
+Legacy plaintext retry metadata/files are discarded. This supersedes the earlier
+unencrypted-retry observation; temporary ZIPs can still leave plaintext after a
+forced termination, and deletion does not establish secure erasure.
+
+All archive jobs share a separate 1 GiB payload budget, counting committed files,
+pending writes and the ZIP simultaneously. Serialized writes prevent concurrent
+jobs from exceeding that payload budget; restart reconstructs usage from disk and
+failed deletion keeps accounting conservative. The source cache retains its own
+512 MiB budget. Filesystem metadata/overhead and user-saved downloads are outside
+these payload limits. Tests cover concurrency, abort/retry accounting, staged-ZIP
+limits after worker restart, tampering, failed handoff cleanup and legacy purging.
+
 **November 2 source reuse:** Individual exports retain one inert source tree and
 distinct image data URLs for two hours in page memory, up to 16 MiB. A SHA-256
 fingerprint of normalized body markup, image sources, and post metadata invalidates

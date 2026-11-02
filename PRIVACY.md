@@ -46,8 +46,9 @@ create user-requested local exports:
   request URLs are not included in source-cache records. Neither the metadata
   nor source cache is sent to the developer or another service. The extension
   does not request broad browser-history or tab-access permission.
-- Collection export compresses generated chapters into extension-private temporary
-  files and streams them into a ZIP on local disk. It retains only filenames,
+- Collection export compresses generated chapters into encrypted extension-private
+  retry files and streams decrypted chunks into a temporary ZIP on local disk.
+  It retains only filenames,
   sizes, checksums, owner IDs, and expiry/download IDs in browser-session storage.
   A hidden extension document creates a local Blob URL for the finished file;
   the browser downloads it without an extra visible tab or intermediary service.
@@ -133,9 +134,24 @@ and persist normally. Clearing the extension's data or uninstalling it
 also removes the cache. Closing a download panel preserves its caches so another
 format can reuse them.
 
-Completed files retained for retry stay in extension-private temporary disk
-storage. Refresh, Cancel, format changes, and owner-tab closure remove unfinished
-archives. Files already handed to the browser are held until their downloads
+Reusable source snapshots (including titles/text/images) and chapter retry files
+use authenticated AES-256-GCM encryption. Their key is kept only in browser-session
+memory, survives worker suspension, and is discarded when the browser/extension
+session ends. No encryption key is saved to durable preference storage. Legacy
+plaintext caches are deleted rather than reused. This reduces exposure from
+leftover cache files, but does not protect a compromised running browser, OS memory
+inspection, swap/hibernation captures or previously saved exports. Deletion is not
+secure erasure.
+
+Completed files retained for retry stay encrypted in extension-private temporary
+disk storage. All archive jobs share a 1 GiB payload budget for encrypted retry
+files, pending writes and staged/final ZIPs, separate from the 512 MiB source-cache
+budget. Browser filesystem metadata/overhead and user-saved files are outside those
+payload limits. The browser download requires a temporary plaintext ZIP during
+assembly/handoff and until completion or interruption. Failed packaging/handoffs
+remove it; a forced quit can leave it for startup/browser cleanup. There is no
+guaranteed crash-time erasure. Refresh, Cancel, format changes, and owner-tab
+closure remove unfinished archives. Files already handed to the browser are held until their downloads
 complete or are interrupted, then deleted. Retry metadata expires after two hours
 of inactivity. Automatic cleanup removes expired idle files, and expired jobs
 cannot be revived by reopening the panel. A live, unexpired checkpoint can extend

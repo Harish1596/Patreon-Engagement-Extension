@@ -1,7 +1,8 @@
 /* Disk-backed retry files and streaming ZIP assembly. No archive bytes enter session storage. */
 (() => {
   function install({ api = globalThis.browser?.runtime ? browser : chrome,
-    root = () => navigator.storage.getDirectory(), download, retention = globalThis.PatreonRetention } = {}) {
+    root = () => navigator.storage.getDirectory(), download, retention = globalThis.PatreonRetention,
+    cipher = globalThis.PatreonDiskCrypto, maxBytes = 1024 * 1024 * 1024 } = {}) {
     const { zipHeader, dosTimestamp } = globalThis.PatreonZip;
     const jobs = new Map();
     const cancelled = new Set();
@@ -10,7 +11,7 @@
     const uuid = value => typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
     const uint32 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xffffffff;
     const validEntry = entry => !entry || (typeof entry.name === "string" && !/[/\\\x00]/.test(entry.name)
-      && uint32(entry.crc) && uint32(entry.size) && uint32(entry.compressedSize));
+      && uint32(entry.crc) && uint32(entry.size) && uint32(entry.compressedSize) && uint32(entry.diskSize) && uuid(entry.transferId));
     let offscreen;
     function call(target, method, ...args) {
       if (globalThis.browser?.runtime) return target[method](...args);
@@ -25,9 +26,80 @@
       job.controller.signal.throwIfAborted();
       if (jobs.get(job.id) !== job) throw new Error("The archive was cancelled.");
     };
+    // Include committed files and pending writes in one serialized archive budget.
+    const usage = new Map();
+    let budgetQueue = Promise.resolve();
+    function budget(action) {
+      const task = budgetQueue.then(action);
+      budgetQueue = task.catch(() => {});
+      return task;
+    }
+    const diskKey = (job, name) => `${job.id}/${name}`;
+    async function write(job, stream, name, bytes) {
+      return budget(async () => {
+        check(job);
+        const key = diskKey(job, name);
+        const total = [...usage.values()].reduce((sum, size) => sum + size, 0);
+        if (total + bytes.length > maxBytes) throw new Error("Temporary archive storage is full. Cancel another export or retry after its download finishes.");
+        await stream.write(bytes);
+        usage.set(key, (usage.get(key) || 0) + bytes.length);
+      });
+    }
+    async function removeFile(job, name) {
+      await budget(async () => {
+        try { await (await folder(job)).removeEntry(name); }
+        catch (error) { if (error.name !== "NotFoundError") throw error; }
+        usage.delete(diskKey(job, name));
+      });
+    }
+    async function abortWriter(job) {
+      if (!job.writer) return;
+      const aborted = await job.writer.stream.abort().then(() => true, () => false);
+      if (aborted) usage.delete(diskKey(job, `${job.writer.index}.pending`));
+      job.writer = null;
+    }
+    async function* chapterBytes(file, job, index) {
+      const reader = file.stream().getReader();
+      const abort = () => { reader.cancel().catch(() => {}); };
+      job.controller.signal.addEventListener("abort", abort, { once: true });
+      let buffer = new Uint8Array(), offset = 0, position = 0;
+      async function take(size, endAllowed = false) {
+        const result = new Uint8Array(size);
+        let copied = 0;
+        while (copied < size) {
+          check(job);
+          if (offset === buffer.length) {
+            const next = await reader.read();
+            if (next.done) {
+              if (!copied && endAllowed) return null;
+              throw new Error("The encrypted chapter is incomplete.");
+            }
+            buffer = next.value; offset = 0;
+          }
+          const count = Math.min(size - copied, buffer.length - offset);
+          result.set(buffer.subarray(offset, offset + count), copied); copied += count; offset += count;
+        }
+        return result;
+      }
+      try {
+        for (;;) {
+          const header = await take(4, true);
+          if (!header) break;
+          const length = new DataView(header.buffer).getUint32(0);
+          if (length < 29 || length > 1024 * 1024 + 28) throw new Error("The encrypted chapter frame is invalid.");
+          const plain = await cipher.open(await take(length), `${job.id}:${index}:${job.entries[index].transferId}:${position}`);
+          position += plain.length;
+          yield plain;
+        }
+        if (position !== job.entries[index].compressedSize) throw new Error("The encrypted chapter length is invalid.");
+      } finally {
+        job.controller.signal.removeEventListener("abort", abort);
+        await reader.cancel().catch(() => {}); reader.releaseLock();
+      }
+    }
     async function persist(job) {
       const { id, owner, count, filename, entries, expires, downloadId } = job;
-      await call(api.storage.session, "set", { [prefix + id]: { version: 1, id, owner, count, filename, entries, expires, ...(downloadId === undefined ? {} : { downloadId }) } });
+      await call(api.storage.session, "set", { [prefix + id]: { version: 2, id, owner, count, filename, entries, expires, ...(downloadId === undefined ? {} : { downloadId }) } });
       if (jobs.get(id) !== job) await call(api.storage.session, "remove", prefix + id);
       retention?.changed();
     }
@@ -42,9 +114,14 @@
       if (jobs.get(job.id) === job) jobs.delete(job.id);
       job.controller.abort();
       await job.queue;
-      await job.writer?.stream.abort().catch(() => {});
+      await abortWriter(job);
       await call(api.storage.session, "remove", prefix + job.id);
-      try { await (await directory()).removeEntry(job.id, { recursive: true }); } catch { /* Already removed or unavailable. */ }
+      await budget(async () => {
+        try {
+          await (await directory()).removeEntry(job.id, { recursive: true });
+          for (const key of usage.keys()) if (key.startsWith(`${job.id}/`)) usage.delete(key);
+        } catch { /* Keep accounting conservative if physical deletion fails. */ }
+      });
       if (api.offscreen && await api.offscreen.hasDocument()) {
         await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_CLOSE", id: job.id }).catch(() => {});
         if (![...jobs.values()].some(item => item.downloading || item.blobOpen)) await api.offscreen.closeDocument();
@@ -56,7 +133,7 @@
       const stored = await call(api.storage.session, "get", null);
       for (const [key, value] of Object.entries(stored)) {
         if (!key.startsWith(prefix)) continue;
-        if (!uuid(value?.id) || key !== prefix + value.id || value.version !== 1
+        if (!uuid(value?.id) || key !== prefix + value.id || value.version !== 2
           || !Number.isSafeInteger(value.owner) || !Number.isSafeInteger(value.count) || value.count < 1 || value.count > 100
           || !Array.isArray(value.entries) || value.entries.length > value.count || !value.entries.every(validEntry) || typeof value.filename !== "string"
           || (value.downloadId !== undefined && !uint32(value.downloadId))
@@ -67,8 +144,16 @@
       }
       try {
         const disk = await directory();
-        for await (const [name] of disk.entries()) if (!jobs.has(name)) await disk.removeEntry(name, { recursive: true });
-      } catch { /* A storage error is reported when the user starts an archive. */ }
+        for await (const [name] of disk.entries()) {
+          if (!jobs.has(name)) { await disk.removeEntry(name, { recursive: true }); continue; }
+          const child = await disk.getDirectoryHandle(name);
+          for await (const [fileName] of child.entries()) {
+            // An idle ZIP is never a reusable cache; rebuild it from encrypted chapters.
+            if (fileName === "archive.zip" && !jobs.get(name).downloading) { await child.removeEntry(fileName); continue; }
+            usage.set(`${name}/${fileName}`, (await (await child.getFileHandle(fileName)).getFile()).size);
+          }
+        }
+      } catch (error) { throw new Error(`Temporary archive storage cannot be inspected: ${error.message}`); }
       if (!download) for (const job of [...jobs.values()]) {
         if (job.downloadId === undefined) continue;
         const [state] = await call(api.downloads, "search", { id: job.downloadId });
@@ -126,7 +211,9 @@
     async function packageZip(job, operationId) {
       if (job.entries.filter(Boolean).length !== job.count) throw new Error("Some archive chapters are missing.");
       const disk = await folder(job);
+      await removeFile(job, "archive.zip");
       const output = await (await disk.getFileHandle("archive.zip", { create: true })).createWritable();
+      const outputWrite = bytes => write(job, output, "archive.pending", bytes);
       const central = [];
       const timestamp = dosTimestamp();
       let offset = 0;
@@ -148,44 +235,40 @@
           await progress(index, index, true);
           const name = new TextEncoder().encode(entry.name);
           const file = await (await disk.getFileHandle(`${index}.deflate`)).getFile();
-          if (file.size !== entry.compressedSize || !uint32(offset + 30 + name.length + file.size)) throw new Error("The archive is incomplete or exceeds the 4 GiB ZIP limit.");
-          await output.write(zipHeader(file.size, entry.size, entry.crc, name.length, offset, timestamp, 8));
-          await output.write(name);
-          const reader = file.stream().getReader();
-          const abortRead = () => { reader.cancel().catch(() => {}); };
-          job.controller.signal.addEventListener("abort", abortRead, { once: true });
-          try {
-            for (;;) {
-              check(job);
-              const { value, done } = await reader.read();
-              if (done) break;
-              await output.write(value);
-              bytesCopied += value.length;
-              await progress(index, index);
-            }
-          } finally {
-            job.controller.signal.removeEventListener("abort", abortRead);
-            await reader.cancel().catch(() => {}); reader.releaseLock();
+          if (file.size !== entry.diskSize || !uint32(offset + 30 + name.length + entry.compressedSize)) throw new Error("The archive is incomplete or exceeds the 4 GiB ZIP limit.");
+          await outputWrite(zipHeader(entry.compressedSize, entry.size, entry.crc, name.length, offset, timestamp, 8));
+          await outputWrite(name);
+          for await (const value of chapterBytes(file, job, index)) {
+            await outputWrite(value);
+            bytesCopied += value.length;
+            await progress(index, index);
           }
-          central.push(zipHeader(file.size, entry.size, entry.crc, name.length, offset, timestamp, 8, true), name);
-          offset += 30 + name.length + file.size;
+          central.push(zipHeader(entry.compressedSize, entry.size, entry.crc, name.length, offset, timestamp, 8, true), name);
+          offset += 30 + name.length + entry.compressedSize;
           await progress(index, index + 1, true);
         }
         const centralSize = central.reduce((sum, bytes) => sum + bytes.length, 0);
         if (!uint32(offset + centralSize + 22)) throw new Error("The archive exceeds the 4 GiB ZIP limit.");
-        for (const bytes of central) { check(job); await output.write(bytes); }
+        for (const bytes of central) { check(job); await outputWrite(bytes); }
         const end = new Uint8Array(22);
         const view = new DataView(end.buffer);
         view.setUint32(0, 0x06054b50, true);
         view.setUint16(8, job.count, true); view.setUint16(10, job.count, true);
         view.setUint32(12, centralSize, true); view.setUint32(16, offset, true);
-        await output.write(end);
+        await outputWrite(end);
         await progress(job.count - 1, job.count, true, "finalize");
         check(job);
         await output.close();
-      } catch (error) { await output.abort().catch(() => {}); throw error; }
-      check(job);
-      return deliver(job, operationId);
+        usage.set(diskKey(job, "archive.zip"), usage.get(diskKey(job, "archive.pending")) || 0);
+        usage.delete(diskKey(job, "archive.pending"));
+        check(job);
+        return await deliver(job, operationId);
+      } catch (error) {
+        const aborted = await output.abort().then(() => true, () => false);
+        if (aborted) usage.delete(diskKey(job, "archive.pending"));
+        await removeFile(job, "archive.zip").catch(() => {});
+        throw error;
+      }
     }
     async function handle(message, sender) {
       await ready;
@@ -227,7 +310,7 @@
         if (!Number.isSafeInteger(index) || index < 0 || index >= job.count) throw new Error("The archive chapter index is invalid.");
         if (message.type === "COLLECTION_ARCHIVE_BEGIN") {
           if (!uuid(message.transferId) || typeof message.name !== "string" || /[/\\\x00]/.test(message.name) || new TextEncoder().encode(message.name).length > 65535) throw new Error("The archive chapter name is invalid.");
-          await job.writer?.stream.abort().catch(() => {});
+          await abortWriter(job);
           job.entries[index] = null;
           const stream = await (await (await folder(job)).getFileHandle(`${index}.deflate`, { create: true })).createWritable();
           try { check(job); } catch (error) { await stream.abort().catch(() => {}); throw error; }
@@ -237,8 +320,7 @@
         const writer = job.writer;
         if (message.type === "COLLECTION_ARCHIVE_ABORT") {
           if (writer?.index === index && writer.transferId === message.transferId) {
-            await writer.stream.abort().catch(() => {});
-            job.writer = null;
+            await abortWriter(job);
           }
           return { aborted: true };
         }
@@ -250,7 +332,10 @@
           if (message.offset !== writer.bytes || !uint32(writer.bytes + bytes.length)) throw new Error("The archive chunk is out of order or too large.");
           const stored = job.entries.reduce((sum, entry) => sum + (entry?.compressedSize || 0), 0);
           if (!uint32(stored + writer.bytes + bytes.length)) throw new Error("The archive exceeds the 4 GiB ZIP limit.");
-          await writer.stream.write(bytes);
+          const sealed = await cipher.seal(bytes, `${job.id}:${index}:${writer.transferId}:${writer.bytes}`);
+          const frame = new Uint8Array(4 + sealed.length);
+          new DataView(frame.buffer).setUint32(0, sealed.length); frame.set(sealed, 4);
+          await write(job, writer.stream, `${index}.pending`, frame);
           writer.bytes += bytes.length;
           return { written: true };
         }
@@ -258,7 +343,10 @@
           if (!uint32(message.crc) || !uint32(message.size) || message.compressedSize !== writer.bytes) throw new Error("The archive chapter ended at an unexpected position.");
           await writer.stream.close();
           check(job);
-          job.entries[index] = { name: writer.name, crc: message.crc, size: message.size, compressedSize: writer.bytes };
+          const pendingKey = diskKey(job, `${index}.pending`);
+          const diskSize = usage.get(pendingKey) || 0;
+          usage.set(diskKey(job, `${index}.deflate`), diskSize); usage.delete(pendingKey);
+          job.entries[index] = { name: writer.name, crc: message.crc, size: message.size, compressedSize: writer.bytes, diskSize, transferId: writer.transferId };
           job.writer = null;
           job.expires = Date.now() + ttl;
           await persist(job);

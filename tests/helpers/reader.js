@@ -244,6 +244,8 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
   }, { stored, namespace });
   for (const name of contentScripts.css) await page.addStyleTag({ path: path.join(extensionRoot, name) });
   for (const name of contentScripts.js) await page.addScriptTag({ path: path.join(extensionRoot, name) });
+  await page.addScriptTag({ path: path.join(extensionRoot, "background/disk-crypto.js") });
+  await page.evaluate(() => { globalThis.PatreonDiskCrypto = PatreonExportCrypto.create(); });
   await page.addScriptTag({ path: path.join(extensionRoot, "background/archives.js") });
   await page.evaluate(() => {
     globalThis.archiveTestBackend = PatreonArchives.install({ download: async (job, file) => {

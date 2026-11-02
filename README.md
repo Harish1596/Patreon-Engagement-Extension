@@ -162,7 +162,8 @@ released after each download. Fetched chapter text and distinct inline images
 are cached once in extension-owned local disk storage for two hours. EPUB and
 Markdown are generated from that shared source, one chapter at a time, so another
 format can avoid reopening post tabs and fetching their images again. The source
-cache survives background-worker restarts and has a shared 512 MiB limit; older
+cache uses session-key AES-256-GCM encryption, survives background-worker restarts,
+and has a shared 512 MiB limit; older
 entries may be evicted to stay within it. Expired, evicted, or unavailable storage
 falls back to normal fetching. Refresh collection, Cancel, and closing the owner
 tab clear that collection's source entries. No signed image URLs are stored in
@@ -195,7 +196,22 @@ Collection ZIPs are assembled as a stream into private temporary storage. Chapte
 are compressed and written one at a time; the page keeps file metadata for retry
 instead of retaining all chapter contents and a complete ZIP in RAM. One chapter's
 source/conversion still needs memory. Temporary storage must be available, and the
-completed ZIP must stay below 4 GiB (ZIP64 is not implemented).
+completed ZIP must stay below 4 GiB (ZIP64 is not implemented). All temporary
+archives additionally share a 1 GiB payload budget, separate from the source
+cache: encrypted retry files, pending writes, and the staged/final ZIP count
+together, including concurrent exports. Browser filesystem overhead can add to
+physical disk use. Reaching the budget stops the operation with a visible error
+and preserves completed encrypted chapters for retry after space is freed. These
+are disk-payload budgets, not a total RAM limit.
+
+Reusable source snapshots and chapter retry files are encrypted with an
+AES-256-GCM key kept in browser-session memory; restarting the worker preserves
+it, while ending the browser/extension session discards it. Legacy plaintext
+caches are removed. Authentication binds encrypted records/frames to their owner
+and transfer position. The browser download still requires a temporary plaintext
+ZIP during assembly/handoff and until completion; failed handoffs remove it.
+Forced termination can interrupt deletion, so this does not guarantee secure
+erasure or protect against a compromised running browser or OS memory capture.
 The browser saves the finished disk-backed ZIP through a hidden extension document,
 without opening a download tab. The `downloads` permission starts that download and
 checks its completion; `offscreen` supplies the hidden document. Temporary archive

@@ -9,11 +9,12 @@ const { deflateRawSync } = require("node:zlib");
 const { readZip } = require("../helpers/zip");
 const extension = path.resolve(__dirname, "../../extension");
 const source = fs.readFileSync(path.join(extension, "shared/zip.js"), "utf8")
+  + "\n" + fs.readFileSync(path.join(extension, "background/disk-crypto.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "background/archives.js"), "utf8");
 const id = "11111111-1111-4111-8111-111111111111";
 const transferId = "22222222-2222-4222-8222-222222222222";
 
-function harness(t) {
+function harness(t, { maxBytes, deliver } = {}) {
   const disk = fs.mkdtempSync(path.join(os.tmpdir(), "patreon-archive-test-"));
   t.after(() => fs.rmSync(disk, { force: true, recursive: true }));
   const records = {};
@@ -78,12 +79,13 @@ function harness(t) {
   };
   const restart = async () => {
     for (const writer of [...writers]) await writer.abort();
-    const scope = { browser, URL, AbortController, Uint8Array, DataView, TextEncoder, setTimeout,
+    const scope = { browser, URL, AbortController, Uint8Array, DataView, TextEncoder, TextDecoder, setTimeout, crypto: require("node:crypto").webcrypto,
       Date: class extends Date { static now() { return Date.now() + elapsed; } },
       atob: value => Buffer.from(value, "base64").toString("binary") };
     vm.runInNewContext(source, scope);
-    controller = scope.PatreonArchives.install({ root: async () => directory(disk),
-      download: async () => { downloads++; return { started: true }; } });
+    scope.PatreonDiskCrypto = scope.PatreonExportCrypto.create();
+    controller = scope.PatreonArchives.install({ root: async () => directory(disk), ...(maxBytes === undefined ? {} : { maxBytes }),
+      download: async () => { downloads++; if (deliver) return deliver(); return { started: true }; } });
     await controller.ready;
     return scope;
   };
@@ -134,7 +136,7 @@ test("disk archive resumes after worker restart and assembles independently read
   assert.equal(h.writers.size, 0);
   assert.equal((await h.send("DROP")).dropped, true);
   assert.match((await h.send("CREATE", { count: 2, filename: "Synthetic.zip" })).error, /cancelled/);
-  assert.equal(Object.keys(h.records).length, 0);
+  assert.equal(Object.keys(h.records).filter(key => key.startsWith("collection-archive:")).length, 0);
   assert.deepEqual(fs.readdirSync(path.join(h.disk, "patreon-archives-v1")), []);
 });
 
@@ -144,8 +146,8 @@ test("archive owner closure aborts partial files and startup prunes expired and 
   await h.send("CREATE", { count: 1, filename: "Synthetic.zip" });
   await h.send("BEGIN", { index: 0, name: "Chapter.md", transferId });
   h.closeOwner();
-  for (let check = 0; check < 30 && Object.keys(h.records).length; check++) await new Promise(resolve => setTimeout(resolve, 5));
-  assert.equal(Object.keys(h.records).length, 0);
+  for (let check = 0; check < 30 && Object.keys(h.records).filter(key => key.startsWith("collection-archive:")).length; check++) await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(Object.keys(h.records).filter(key => key.startsWith("collection-archive:")).length, 0);
   assert.equal(h.writers.size, 0);
   await h.send("CREATE", { count: 1, filename: "Synthetic.zip" });
   const orphan = path.join(h.disk, "patreon-archives-v1", "orphan");
@@ -154,7 +156,7 @@ test("archive owner closure aborts partial files and startup prunes expired and 
   h.advance(121);
   await h.restart();
   assert.match((await h.send("GET")).error, /expired/);
-  assert.equal(Object.keys(h.records).length, 0);
+  assert.equal(Object.keys(h.records).filter(key => key.startsWith("collection-archive:")).length, 0);
   assert.deepEqual(fs.readdirSync(path.join(h.disk, "patreon-archives-v1")), []);
 });
 
@@ -165,12 +167,69 @@ test("expiry sweep removes idle archive files and an expired GET cannot renew a 
   await store(h, scope, 0, "Synthetic chapter");
   h.advance(121);
   assert.match((await h.send("GET")).error, /expired/);
-  assert.equal(Object.keys(h.records).length, 0);
+  assert.equal(Object.keys(h.records).filter(key => key.startsWith("collection-archive:")).length, 0);
   assert.deepEqual(fs.readdirSync(path.join(h.disk, "patreon-archives-v1")), []);
   await h.send("CREATE", { count: 1, filename: "Synthetic.zip" });
   await store(h, scope, 0, "Another synthetic chapter");
   h.advance(121);
   await h.sweep();
-  assert.equal(Object.keys(h.records).length, 0);
+  assert.equal(Object.keys(h.records).filter(key => key.startsWith("collection-archive:")).length, 0);
   assert.deepEqual(fs.readdirSync(path.join(h.disk, "patreon-archives-v1")), []);
+});
+
+test("archive quota covers concurrent pending writes across jobs and releases aborted reservations", async t => {
+  const h = harness(t, { maxBytes: 700 });
+  await h.restart();
+  const second = "33333333-3333-4333-8333-333333333333";
+  const ids = [id, second];
+  for (const jobId of ids) {
+    await h.send("CREATE", { id: jobId, count: 1, filename: "Synthetic.zip" });
+    await h.send("BEGIN", { id: jobId, index: 0, name: "Chapter.md", transferId });
+  }
+  const data = Buffer.alloc(400, 1).toString("base64");
+  const results = await Promise.all(ids.map(jobId => h.send("CHUNK", { id: jobId, index: 0, transferId, offset: 0, data })));
+  assert.equal(results.filter(result => result.written).length, 1);
+  assert.match(results.find(result => result.error).error, /storage is full/);
+  const winner = results.findIndex(result => result.written), loser = 1 - winner;
+  await h.send("ABORT", { id: ids[winner], index: 0, transferId });
+  assert.equal((await h.send("CHUNK", { id: ids[loser], index: 0, transferId, offset: 0, data })).written, true);
+});
+
+test("encrypted retry files reject tampering and a failed handoff leaves no plaintext ZIP", async t => {
+  const h = harness(t, { deliver: async () => { throw new Error("Synthetic handoff failure"); } });
+  const scope = await h.restart();
+  await h.send("CREATE", { count: 1, filename: "Synthetic.zip" });
+  await store(h, scope, 0, "Sensitive synthetic chapter.");
+  const folder = path.join(h.disk, "patreon-archives-v1", id);
+  const retry = path.join(folder, "0.deflate");
+  const encrypted = fs.readFileSync(retry);
+  assert.notDeepEqual(encrypted, deflateRawSync(Buffer.from("Sensitive synthetic chapter.")));
+  assert.match((await h.send("PACKAGE")).error, /handoff/);
+  assert.equal(fs.existsSync(path.join(folder, "archive.zip")), false);
+  encrypted[20] ^= 1; fs.writeFileSync(retry, encrypted);
+  assert.ok((await h.send("PACKAGE")).error);
+  assert.equal(fs.existsSync(path.join(folder, "archive.zip")), false);
+});
+
+test("ZIP staging shares the retry-file quota, also after worker restart", async t => {
+  const h = harness(t, { maxBytes: 150 });
+  let scope = await h.restart();
+  await h.send("CREATE", { count: 1, filename: "Synthetic.zip" });
+  await store(h, scope, 0, "A small synthetic chapter.");
+  scope = await h.restart();
+  assert.match((await h.send("PACKAGE")).error, /storage is full/);
+  assert.equal(fs.existsSync(path.join(h.disk, "patreon-archives-v1", id, "archive.zip")), false);
+  assert.ok((await h.send("GET")).entries[0]);
+});
+
+
+test("startup removes legacy plaintext retry files instead of adopting them", async t => {
+  const h = harness(t);
+  const folder = path.join(h.disk, "patreon-archives-v1", id);
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(path.join(folder, "0.deflate"), "Legacy synthetic plaintext");
+  h.records["collection-archive:" + id] = { version: 1, id };
+  await h.restart();
+  assert.equal(fs.existsSync(folder), false);
+  assert.equal(h.records["collection-archive:" + id], undefined);
 });
