@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Stream collection ZIP assembly through extension-private temporary disk files,
+  retaining chapter metadata for retry instead of all generated file contents.
+- Save disk-backed ZIPs through a hidden extension document and clean up files
+  when browser-managed downloads finish, using downloads/offscreen permissions.
 - Reuse format-independent chapter text and images across EPUB/Markdown exports
   with a bounded two-hour extension disk cache and a small individual-post cache.
 - Deduplicate repeated inline images, generate fresh export timestamps, and

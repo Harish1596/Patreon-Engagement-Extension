@@ -39,6 +39,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
     const listeners = [];
     const messages = [];
     const collectionSessions = new Map();
+    const session = {};
     globalThis.collectionPrepareCount = 0;
     globalThis.forgetCollectionSessions = () => collectionSessions.clear();
     const deliver = async (message) => {
@@ -46,7 +47,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
         const result = await new Promise((resolve) => {
           let responded = false;
           const respond = (value) => { responded = true; resolve(value); };
-          const returned = listener(message, { id: "fixture-extension" }, respond);
+          const returned = listener(message, { id: "fixture-extension", tab: { id: 1, url: location.href } }, respond);
           if (returned !== true && !responded) resolve(returned);
         });
         if (result !== undefined) return result;
@@ -69,6 +70,14 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             globalThis.collectionHeldType = message.type;
             await new Promise(resolve => { globalThis.releaseCollectionMessage = resolve; });
             globalThis.collectionLateReplyReleased = true;
+          }
+          if (message.type.startsWith("COLLECTION_ARCHIVE_")) {
+            if (message.type === "COLLECTION_ARCHIVE_CHUNK") {
+              globalThis.archiveChunkSizes ||= [];
+              globalThis.archiveChunkSizes.push(message.data.length);
+            }
+            if (message.type === "COLLECTION_ARCHIVE_PACKAGE" && globalThis.failArchivePackaging) return { error: "Synthetic packaging failure." };
+            return deliver(message);
           }
           if (message.type === "REGISTER_POST_EXPORT") {
             globalThis.requestedExportOrigins = message.origins;
@@ -171,6 +180,11 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
         }
       },
       storage: {
+        session: {
+          get: async () => structuredClone(session),
+          set: async values => Object.assign(session, structuredClone(values)),
+          remove: async keys => { for (const key of Array.isArray(keys) ? keys : [keys]) delete session[key]; }
+        },
         local: {
           get: async () => JSON.parse(localStorage.getItem("test-storage")),
           set: async (next) => {
@@ -184,7 +198,8 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
       },
       tabs: {
         query: async () => [{ id: 1 }],
-        sendMessage: async () => {
+        sendMessage: async (tabId, message) => {
+          if (message?.type?.startsWith("COLLECTION_ARCHIVE_")) return deliver(message);
           if (globalThis.failMessage) throw new Error("Receiving end does not exist");
           return globalThis.pageReply ?? { isPostPage: true };
         }
@@ -219,6 +234,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
         };
       };
       wrap(api.storage.local, "get"); wrap(api.storage.local, "set");
+      wrap(api.storage.session, "get"); wrap(api.storage.session, "set"); wrap(api.storage.session, "remove");
       wrap(api.tabs, "query"); wrap(api.tabs, "sendMessage");
       wrap(api.runtime, "sendMessage");
       globalThis.chrome = api;
@@ -226,6 +242,13 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
   }, { stored, namespace });
   for (const name of contentScripts.css) await page.addStyleTag({ path: path.join(extensionRoot, name) });
   for (const name of contentScripts.js) await page.addScriptTag({ path: path.join(extensionRoot, name) });
+  await page.addScriptTag({ path: path.join(extensionRoot, "background/archives.js") });
+  await page.evaluate(() => {
+    globalThis.archiveTestBackend = PatreonArchives.install({ download: async (job, file) => {
+      PatreonExporter.saveBlob(file, job.filename);
+      return { started: true };
+    } });
+  });
 }
 
 const button = (page) => page.getByRole("button", { name: "Customize reading appearance", exact: true });

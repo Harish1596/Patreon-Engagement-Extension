@@ -591,7 +591,7 @@ Input tints and banner shadows are derived CSS, not extra saved preferences.
 
 | File | Responsibility |
 | --- | --- |
-| [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS/scripts, background worker, required storage permission, and optional media-origin envelope. |
+| [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS/scripts, background worker, storage/downloads/offscreen permissions, and optional media-origin envelope. |
 | [extension.js](../extension/shared/extension.js) | Browser API adapter, validated preference schema, fixed fonts/presets, contrast and legacy-color normalization. |
 | [patreon-dom.js](../extension/content/patreon-dom.js) | Patreon selectors, post discovery, and surface/action-row selection; no preference or panel state. |
 | [content.js](../extension/content/content.js) | Supported-route detection, storage events, popup state messages, floating-bar visibility, batched reconciliation. |
@@ -700,8 +700,9 @@ permissions API directly from the user's format-button gesture. It returns the
 validated format through extension runtime messaging; the worker binds the token
 to the originating Patreon tab and delivers the choice with `tabs.sendMessage`
 to the isolated content-script world. The worker rechecks permission and the Patreon sender before
-fetching those image URLs without credentials. Storage remains the only required
-extension permission. No remote executable code, selectors, analytics, or fonts
+fetching those image URLs without credentials. Since the November 2 streaming-ZIP
+change, storage, downloads, and offscreen are required extension permissions.
+No remote executable code, selectors, analytics, or fonts
 are fetched.
 
 ## Post export boundary (unreleased)
@@ -863,9 +864,10 @@ The background's `post-cache.js` stores snapshots in extension-origin CacheStora
 keyed by collection token and post ID. Synthetic HTTPS cache keys never cause
 network requests. Entries expire two hours after insertion and share a 512 MiB
 budget with oldest-entry eviction; failures or eviction fall back to fetching.
-Only one chapter is loaded into memory for conversion at a time; the existing
-generated-file retry/ZIP buffers still scale with archive size. Source caching
-does not make ZIP packaging a streaming operation.
+Only one chapter is loaded into memory for conversion at a time. The initial
+source-cache change retained generated-file retry/ZIP buffers proportional to
+archive size. The subsequent November 2 streaming-ZIP change below replaces them
+with private disk files and bounded byte streams.
 Refresh, Cancel, and owner-tab closure delete the collection's sources. Worker
 startup prunes expired and orphaned entries against restored session metadata;
 expiry deletion is lazy, so disk records may remain while the browser is closed,
@@ -887,7 +889,8 @@ is shown. As of November 2, a failure after preflight no longer discards complet
 chapters: generation/transfer continues through the remaining posts, then offers
 Retry failed posts for missing files. The ZIP is withheld until every prepared
 chapter succeeds. Retry packaging reuses the completed entries after a compression
-failure. Checkpoints stay only in collection-page memory, survive panel closure and
+failure. Checkpoint metadata stays in collection-page memory and generated files
+now stay on private disk as described below; they survive panel closure and
 metadata-only worker restarts, and are cleared by reload/navigation, Cancel,
 Refresh collection, switching formats, or successful ZIP handoff. Expired/missing
 prepared metadata is rebuilt from cached discovery before retry; retained entries
@@ -958,6 +961,50 @@ before each destination, plus a browser test rejecting stale document requests.
 The full authenticated collection still needs live post-fix confirmation.
 
 ## Verification and change history
+
+**November 2 streaming collection ZIP update (intended behavior, synthetic evidence):**
+`content/archive-stream.js` consumes one generated chapter's Blob stream, computes
+CRC-32 incrementally, compresses it, strips the zlib framing with a four-byte tail,
+and awaits bounded chunk writes to `background/archives.js`. Completed entries
+are raw-DEFLATE files in extension-origin OPFS, not retained chapter byte arrays.
+The page's retry entries contain only names, sizes, checksums, and archive IDs.
+Session storage retains the same small archive metadata with owner IDs and expiry;
+no archive/file chunks are put there. Metadata restoration preserves completed
+chapters after worker suspension. Missing or expired jobs rebuild their files from
+available source snapshots. An open checkpoint can renew existing retry metadata.
+
+The background streams each compressed file into a temporary `archive.zip`, then
+writes its small central directory. ZIP headers/CRC primitives are shared with
+post export through `shared/zip.js`; UTF-8 names, actual DEFLATE, and valid DOS
+timestamps are preserved. The writer rejects missing files, out-of-order chunks,
+and 32-bit size/offset overflow before download. ZIP64 remains unsupported; the
+finished archive must fit below 4 GiB. Temporary disk quota failures are visible
+and retain completed chapters for retry. There is no whole-archive RAM fallback.
+Source extraction and individual EPUB/Markdown rendering still hold one chapter
+in memory, so this is streaming archive construction, not fully streamed rendering.
+
+Before download, the background obtains an explicit handoff acknowledgement from
+the active collection operation, closing the Cancel race. The required offscreen
+permission provides a hidden first-party extension document that gets the OPFS
+File and creates its Blob URL without reading the whole file. The required
+downloads permission starts that ZIP and checks only its own download IDs.
+Completion/interruption revokes the URL, deletes temporary files/metadata, and
+closes the hidden document when no other archive download needs it. No download
+tab is opened or focused. Owner closure, Cancel, Refresh, and format changes
+discard unfinished archives; files already handed to the browser stay until
+completion/interruption. Expired and orphaned directories are pruned at subsequent
+worker startup. These files are separate from the reusable two-hour source cache.
+
+Evidence: Chrome/Brave fixtures use the real archive controller with a test download
+handoff; a random-data archive forbids whole-file `arrayBuffer()` reads and is
+checked with independent ZIP inflation, `unzip`, and macOS `ditto`. New cases cancel
+disk writes and packaging, verify disk-error reporting without partial downloads,
+and restore staged files across worker restart. The unpacked Brave test uses real
+OPFS, the hidden document, and browser downloads in an isolated output directory;
+it checks cleanup of both files and the hidden document. These are synthetic pages,
+not live authenticated Patreon verification or a measured cross-browser peak-RAM
+benchmark. Required APIs target current Chromium/Brave; Firefox/Safari export
+compatibility is not established.
 
 Original feature verification (1.3.9): 27 Chrome fixture tests and 28
 Brave tests, including one actual unpacked-extension test; syntax and whitespace

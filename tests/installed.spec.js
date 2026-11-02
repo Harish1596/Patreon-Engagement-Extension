@@ -4,14 +4,7 @@ const fs = require("node:fs");
 const { browserExecutable } = require("../scripts/browser-config");
 const { readZip } = require("./helpers/zip");
 
-async function downloadBytes(download) {
-  const stream = await download.createReadStream();
-  const chunks = [];
-  for await (const chunk of stream) chunks.push(chunk);
-  return Buffer.concat(chunks);
-}
-
-test("installed Brave extension: actual storage, content scripts, and popup", async () => {
+test("installed Brave extension: actual storage, content scripts, and popup", async ({}, testInfo) => {
   test.skip(process.env.TEST_BROWSER !== "brave", "Uses Brave's unpacked-extension support.");
   const root = path.resolve(__dirname, "../extension");
   const context = await chromium.launchPersistentContext("", {
@@ -171,6 +164,22 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       .getByRole("button", { name: "Markdown", exact: true });
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     const workerControl = await context.newCDPSession(manager);
+    const downloadDirectory = testInfo.outputPath("collection-downloads");
+    fs.mkdirSync(downloadDirectory, { recursive: true });
+    await workerControl.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: downloadDirectory, eventsEnabled: true });
+    const receivedIds = new Set();
+    async function downloadCollectionZip(click) {
+      await click();
+      let result;
+      await expect.poll(async () => {
+        const items = await popup.evaluate(async () => chrome.downloads.search({ state: "complete", orderBy: ["-startTime"], limit: 10 }));
+        result = items.find(item => item.byExtensionId === extensionId && !receivedIds.has(item.id));
+        return Boolean(result);
+      }, { timeout: 20_000 }).toBe(true);
+      receivedIds.add(result.id);
+      expect(result.filename.startsWith(downloadDirectory + path.sep)).toBe(true);
+      return fs.readFileSync(result.filename);
+    }
     async function suspendExportWorker() {
       const { targetInfos } = await workerControl.send("Target.getTargets");
       const target = targetInfos.find(item => item.type === "service_worker"
@@ -183,12 +192,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       }).toBe(false);
     }
     await suspendExportWorker();
-    const [collectionZip] = await Promise.all([
-      collection.waitForEvent("download"),
-      collectionMarkdown.click()
-    ]);
-    expect(collectionZip.suggestedFilename()).toBe("Test collection.zip");
-    const collectionBytes = await downloadBytes(collectionZip);
+    const collectionBytes = await downloadCollectionZip(() => collectionMarkdown.click());
     expect(collectionBytes.includes(Buffer.from("001 - Collection post one.md"))).toBe(true);
     expect(collectionBytes.includes(Buffer.from("002 - Collection post two.md"))).toBe(true);
     const collectionEntries = readZip(collectionBytes);
@@ -208,12 +212,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     let openedPostTabs = 0;
     const countPostTab = () => { openedPostTabs++; };
     context.on("page", countPostTab);
-    const [collectionEpub] = await Promise.all([
-      collection.waitForEvent("download"),
-      collection.frameLocator('iframe[title="Collection export formats"]')
-        .getByRole("button", { name: "EPUB", exact: true }).click()
-    ]);
-    const epubEntries = readZip(await downloadBytes(collectionEpub));
+    const epubBytes = await downloadCollectionZip(() => collection.frameLocator('iframe[title="Collection export formats"]')
+      .getByRole("button", { name: "EPUB", exact: true }).click());
+    const epubEntries = readZip(epubBytes);
     expect(epubEntries.map(entry => entry.name)).toEqual([
       "001 - Collection post one.epub", "002 - Collection post two.epub"
     ]);
@@ -227,6 +228,14 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       expect(images[0].data.toString()).toContain("<svg");
     }
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    await expect.poll(() => popup.evaluate(async () => {
+      const root = await navigator.storage.getDirectory();
+      const folder = await root.getDirectoryHandle("patreon-archives-v1");
+      let count = 0;
+      for await (const entry of folder.values()) { void entry; count++; }
+      return count;
+    })).toBe(0);
+    await expect.poll(() => popup.evaluate(() => chrome.offscreen.hasDocument())).toBe(false);
     context.off("page", countPostTab);
     expect(openedPostTabs).toBe(0);
     await collection.frameLocator('iframe[title="Collection export formats"]').locator("body").evaluate(async () => {

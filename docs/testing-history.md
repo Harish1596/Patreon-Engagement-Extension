@@ -1008,3 +1008,48 @@ owner cleanup, unavailable disk storage, and worker-restored hits. Earlier broad
 runs hit the known PDF-status flake and a synthetic chooser click timeout; the
 post-cache case now exercises the runtime message contract, while installed
 coverage retains actual chooser clicks. Authenticated live reuse is pending.
+
+### Stream collection ZIPs through private disk storage — November 2, 2026
+
+Replaced in-memory generated retry files and whole-archive assembly with compressed
+OPFS chapter files and a streaming disk ZIP writer. Chapter CRCs are computed while
+compressing, zlib framing is stripped incrementally, and bounded chunk writes are
+awaited before more output is requested. The writer copies compressed file streams
+directly into a disk-backed ZIP and keeps only its central directory in memory.
+Shared ZIP primitives preserve post EPUB behavior and classic ZIP headers.
+Archive owner IDs, names, sizes, checksums, expiry, and download IDs persist in
+session storage; no chapter/archive payloads are stored there. Source snapshots
+remain in their separate two-hour cache.
+
+Added required downloads/offscreen permissions. A hidden first-party document
+creates a Blob URL for the finished disk File, and the browser's downloads API
+saves it without a new tab. The active collection acknowledges handoff before
+Cancel is hidden and the download begins. Completion/interruption revokes the
+Blob URL, removes files/metadata, and closes the hidden document when unused.
+Unfinished files are deleted on Cancel, Refresh, format changes, and owner closure;
+downloads already handed to the browser retain their file until completion.
+Idle retry records expire after two hours and startup prunes expired/orphaned
+directories. Live open checkpoints can renew files, while lost jobs rebuild from
+available cached sources. Disk/quota errors preserve completed entries and produce
+a visible error; there is no whole-archive RAM fallback. ZIP64 remains deferred,
+with explicit checks against 32-bit size/offset overflow. Per-chapter rendering
+still needs memory proportional to that chapter.
+
+Verification: 20 Chrome collection cases and 10 Chrome post/streaming cases passed;
+23 Brave collection/streaming/installed cases, 8 isolated Brave post cases, and
+35 tooling cases passed; syntax
+checks cover 41 JavaScript files. A 12 MiB random-data fixture forbids whole-file
+reads, checks UTF-8 filenames and independent inflation/CRC checks through unzip,
+and extracts with macOS ditto. New cancellation cases cover archive chunk writes
+and packaging. Node disk tests restore completed files after worker restart,
+simulate quota failure and successful retry, reject invalid ownership/offsets,
+and clean partial/expired/orphaned files. The installed test verifies actual browser
+downloads to an isolated directory and cleanup of files plus the hidden document,
+including format reuse after closing source tabs and terminating the worker.
+An earlier broad Chrome run hit the existing EPUB synthetic chooser click timeout;
+the isolated post suite subsequently passed. The old installed test waited for
+a Patreon-page download event; it now checks browser download completion because
+the hidden document owns the download. These are synthetic tests, not authenticated
+Patreon verification or an empirical peak-memory benchmark.
+Six focused Chrome cancellation/recovery cases also passed after guarding late
+archive creation and rechecking cancellation after asynchronous checkpoint cleanup.

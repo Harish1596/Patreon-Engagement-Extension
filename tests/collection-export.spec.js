@@ -263,7 +263,7 @@ test("collection reuses discovery and preparation across downloads and refreshes
   expect(await page.evaluate(() => collectionPrepareCount)).toBe(5);
 });
 
-for (const phase of ["PREPARE_COLLECTION_EXPORT", "BUILD_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_CHUNK"]) {
+for (const phase of ["PREPARE_COLLECTION_EXPORT", "BUILD_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_CHUNK", "COLLECTION_ARCHIVE_CHUNK", "COLLECTION_ARCHIVE_PACKAGE"]) {
   test(`Cancel stops ${phase} and ignores late replies before restarting`, async ({ page }) => {
     await setup(page, { content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
       url: "https://www.patreon.com/collection/500" });
@@ -461,14 +461,13 @@ test("packaging retry reuses every completed chapter", async ({ page }) => {
   await setup(page, { content: '<main><h1>Recovery</h1><a class="fixture_gridCard" href="/posts/101">First</a></main>',
     url: "https://www.patreon.com/collection/500" });
   await page.evaluate(() => {
-    globalThis.originalCompressionStream = CompressionStream;
-    globalThis.CompressionStream = class { constructor() { throw new Error("Synthetic compression failure."); } };
+    globalThis.failArchivePackaging = true;
   });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("1 post is ready");
   await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
   await expect(page.getByRole("button", { name: "Retry packaging", exact: true })).toBeVisible();
-  await page.evaluate(() => { globalThis.CompressionStream = originalCompressionStream; });
+  await page.evaluate(() => { globalThis.failArchivePackaging = false; });
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "Retry packaging", exact: true }).click();
   expect(readZip(await downloadBytes(await pending))).toHaveLength(1);

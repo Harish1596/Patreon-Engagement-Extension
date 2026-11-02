@@ -161,6 +161,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
   const restart = () => vm.runInNewContext(cacheSource + "\n" + source, {
     browser, URL, Map, Set, Promise, Uint8Array, AbortController,
     importScripts() {}, caches: { async open() { return cache; } }, Blob, Response,
+    PatreonArchives: { install() {} },
     Date: class extends Date { static now() { return Date.now() + elapsed; } }, Error, Array,
     crypto: { randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },
     setTimeout: fastTimers ? callback => setTimeout(callback, 0) : setTimeout,

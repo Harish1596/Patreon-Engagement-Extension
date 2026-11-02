@@ -175,7 +175,7 @@ navigation invalidate it; Reader typography changes do not. Larger single-post
 sources are exported normally without being retained in that memory cache.
 
 If a chapter fails during generation or transfer, the remaining chapters continue.
-Completed files stay in collection-page memory and **Retry failed posts** fetches
+Completed files stay in extension-private temporary disk storage and **Retry failed posts** fetches
 only missing files. No ZIP is downloaded until every prepared chapter is ready.
 If packaging fails, **Retry packaging** reuses all completed files. You can close
 and reopen the panel without losing this progress. Reloading, navigating away,
@@ -183,6 +183,20 @@ cancelling, refreshing the collection, or choosing another format clears it.
 This recovery does not retry posts already reported as skipped during preparation.
 Switching formats clears generated retry files while preserving reusable source
 chapters in the disk cache.
+
+Collection ZIPs are assembled as a stream into private temporary storage. Chapters
+are compressed and written one at a time; the page keeps file metadata for retry
+instead of retaining all chapter contents and a complete ZIP in RAM. One chapter's
+source/conversion still needs memory. Temporary storage must be available, and the
+completed ZIP must stay below 4 GiB (ZIP64 is not implemented).
+The browser saves the finished disk-backed ZIP through a hidden extension document,
+without opening a download tab. The `downloads` permission starts that download and
+checks its completion; `offscreen` supplies the hidden document. Temporary archive
+files and their Blob URLs are released when the download completes or is interrupted.
+Cancel, Refresh, format changes, and owner-tab closure remove unfinished archives.
+Retry metadata survives worker restarts for two hours after activity; missing or
+expired temporary files are rebuilt from available source-cache entries. Idle
+orphaned files are removed during subsequent worker startup.
 
 The collection dialog keeps an activity bar visible throughout discovery,
 preparation, file generation, transfer, and ZIP packaging. It reports completed

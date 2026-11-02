@@ -1,5 +1,6 @@
 /* Fetches post media only after the user grants the exact image origin. */
-importScripts("post-cache.js");
+importScripts("../shared/zip.js", "post-cache.js", "archives.js");
+globalThis.PatreonArchives.install();
 (() => {
   const api = globalThis.browser?.runtime ? globalThis.browser : globalThis.chrome;
   const MAX_IMAGE_BYTES = 25 * 1024 * 1024;

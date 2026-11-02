@@ -1,7 +1,8 @@
 /* Collection export: packages one EPUB or Markdown file per accessible post. */
 (() => {
   const { api, call } = globalThis.PatreonExtension;
-  const { makeCollectionZip, saveBlob, fileStem, fileFromSnapshot } = globalThis.PatreonExporter;
+  const { fileStem, fileFromSnapshot } = globalThis.PatreonExporter;
+  const archive = globalThis.PatreonArchiveStream;
   const POST_PATH = /^(?:\/posts\/\d+|\/[^/]+\/posts\/(?:[^/]+-)?\d+)\/?$/;
   let host;
   let shadow;
@@ -18,6 +19,12 @@
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const observedApiRequests = [];
   const MAX_TRANSFER_CHARS = 1024 * 1024;
+
+  function dropCheckpoint() {
+    const id = checkpoint?.id;
+    checkpoint = null;
+    return id ? archive.request("DROP", { id }).catch(() => ({ dropped: false })) : Promise.resolve({ dropped: true });
+  }
 
   function beginOperation() {
     const operation = { controller: new AbortController(), handedOff: false };
@@ -48,7 +55,7 @@
     if (!busy || !operation || operation.handedOff) return;
     const ownerHost = host;
     operation.controller.abort();
-    checkpoint = null;
+    const dropping = dropCheckpoint();
     activeOperation = null;
     const token = requestToken;
     requestToken = "";
@@ -56,11 +63,11 @@
     report("Cancelling…");
     setProgress("Cancelling");
     shadow.querySelector(".cancel").disabled = true;
-    let failed = false;
+    let failed = !(await dropping).dropped;
     if (token) {
       try {
         const result = await call(api.runtime, "sendMessage", { type: "CANCEL_COLLECTION_EXPORT", token });
-        failed = !result?.cancelled;
+        failed ||= !result?.cancelled;
       } catch { failed = true; }
     }
     if (host !== ownerHost || !host?.isConnected || activeOperation) return;
@@ -310,7 +317,7 @@
   }
 
   async function discardPreparation(clearCheckpoint = true) {
-    if (clearCheckpoint) checkpoint = null;
+    if (clearCheckpoint) await dropCheckpoint();
     const token = requestToken;
     requestToken = "";
     if (token) await call(api.runtime, "sendMessage", {
@@ -373,7 +380,8 @@
     if (route !== preparationRoute || !host?.isConnected) return;
     checkOperation(operation);
     if (checkpoint && (checkpoint.count !== result.count
-      || checkpoint.signature !== JSON.stringify(result.postUrls))) checkpoint = null;
+      || checkpoint.signature !== JSON.stringify(result.postUrls))) await dropCheckpoint();
+    checkOperation(operation);
     if (continueOperation) return result;
     loadChooser();
     const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
@@ -388,7 +396,7 @@
   function showRetry() {
     const complete = checkpoint.entries.filter(Boolean).length;
     const remaining = checkpoint.count - complete;
-    report(`${complete} of ${checkpoint.count} posts retained. ${remaining ? `${remaining} failed. ${checkpoint.error || ""}` : "Packaging failed."} Retry to resume.`, "error");
+    report(`${complete} of ${checkpoint.count} posts retained. ${remaining ? `${remaining} failed.` : "Packaging failed."} ${checkpoint.error || ""} Retry to resume.`, "error");
     const retry = shadow.querySelector(".retry");
     retry.textContent = remaining ? "Retry failed posts" : "Retry packaging";
     retry.hidden = false;
@@ -453,7 +461,20 @@
       checkOperation(operation);
       const signature = JSON.stringify(prepared.postUrls);
       if (!checkpoint || checkpoint.format !== format || checkpoint.count !== prepared.count || checkpoint.signature !== signature) {
-        checkpoint = { format, count: prepared.count, signature, entries: [], error: "" };
+        await dropCheckpoint();
+        checkOperation(operation);
+        checkpoint = { id: crypto.randomUUID(), format, count: prepared.count, signature, entries: [], error: "" };
+      }
+      let staged;
+      try { staged = await archive.request("GET", { id: checkpoint.id }, signal); }
+      catch { checkOperation(operation); }
+      if (!staged) {
+        // Rebuild disk files only if the browser lost their temporary directory.
+        await archive.request("CREATE", { id: checkpoint.id, count: checkpoint.count,
+          filename: `${fileStem(collectionTitle())}.zip` }, signal);
+        checkpoint.entries = [];
+      } else {
+        checkpoint.entries = staged.entries;
       }
       for (let index = 0; index < checkpoint.count; index++) {
         if (checkpoint.entries[index]) continue;
@@ -469,7 +490,8 @@
           if (file.extension !== "snapshot") throw new Error("The collection returned an invalid source snapshot.");
           file = await fileFromSnapshot(JSON.parse(file.data), format, prepared.postUrls[index]);
           checkOperation(operation);
-          checkpoint.entries[index] = decodeFile(file, index, checkpoint.count);
+          checkpoint.entries[index] = await archive.store(checkpoint.id, index, decodeFile(file, index, checkpoint.count), signal);
+          checkOperation(operation);
         } catch (error) {
           checkOperation(operation);
           checkpoint.error = `Post ${index + 1}: ${error.message || "Export failed."}`;
@@ -485,11 +507,12 @@
       }
       report("Packaging collection ZIP…");
       setProgress("Packaging collection ZIP");
-      const archive = await makeCollectionZip(checkpoint.entries, signal);
+      const packaged = await archive.request("PACKAGE", { id: checkpoint.id }, signal);
       checkOperation(operation);
+      if (!packaged.started) throw new Error("The collection download could not be started.");
       operation.handedOff = true;
       setBusy(true);
-      saveBlob(archive, `${fileStem(collectionTitle())}.zip`);
+      // The browser now owns the disk-backed archive until completion/interrupt.
       checkpoint = null;
       const finished = await call(api.runtime, "sendMessage", {
         type: "FINISH_COLLECTION_EXPORT", token: requestToken
@@ -503,7 +526,7 @@
       setBusy(false);
       activeOperation = null;
       loadChooser();
-      if (checkpoint) showRetry();
+      if (checkpoint) { checkpoint.error = error.message; showRetry(); }
     }
   }
 
@@ -574,7 +597,7 @@
     host = shadow = trigger = dialog = chooser = undefined;
     requestToken = "";
     discoveryCache = null;
-    checkpoint = null;
+    dropCheckpoint();
     open = busy = false;
   }
 
@@ -595,6 +618,21 @@
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
+    if (["COLLECTION_ARCHIVE_PROGRESS", "COLLECTION_ARCHIVE_HANDOFF"].includes(message.type)) {
+      if (message.id !== checkpoint?.id || !activeOperation || activeOperation.controller.signal.aborted) {
+        respond({ error: "The collection download is no longer active." }); return;
+      }
+      if (message.type === "COLLECTION_ARCHIVE_HANDOFF") {
+        activeOperation.handedOff = true;
+        setBusy(true);
+        respond({ handedOff: true });
+      } else {
+        report(`Packaging collection ZIP… ${message.current} of ${message.total}.`);
+        setProgress("Packaging collection ZIP", message.current, message.total);
+        respond({ reported: true });
+      }
+      return;
+    }
     if (message.type === "COLLECTION_EXPORT_PROGRESS") {
       if (!open || message.token !== requestToken) return;
       if (!Number.isSafeInteger(message.current) || !Number.isSafeInteger(message.total)

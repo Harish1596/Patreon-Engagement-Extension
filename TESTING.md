@@ -29,6 +29,34 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Streaming collection archives, November 2, 2026: **20 Chrome collection cases and
+10 Chrome post/streaming cases passed; 23 Brave collection/streaming/installed
+cases and 8 isolated Brave post cases passed; 35 tooling cases passed**.
+Syntax checks cover 41 JavaScript files.
+The new 12 MiB random-data case forbids whole-file `Blob.arrayBuffer()` reads,
+stores only metadata in retry entries, checks bounded message chunks, and validates
+the resulting archive with independent inflation, `unzip`, and macOS `ditto`.
+Fixtures use the real OPFS archive controller with a test download handoff.
+The unpacked Brave test uses real OPFS, browser-managed downloads into an isolated
+test directory, and the hidden extension document. It checks actual file bytes,
+no newly opened tabs, empty temporary directories after completion, and closure
+of the hidden document. Browser download completion is queried through the
+extension's own download IDs rather than a Patreon-page download event.
+
+New cases cancel disk-chunk receipt and packaging, report unavailable temporary
+storage without a partial download, restore completed entries after worker restart,
+handle quota failure before retry, reject wrong owners/out-of-order chunks, and
+remove partial, expired, or orphaned files. Source rendering still needs one
+chapter in memory; this is not a full image-to-ZIP streaming renderer or a measured
+peak-RAM benchmark. The output must fit classic ZIP's 32-bit size/offset limit
+(below 4 GiB); ZIP64 is not supported. The required downloads/offscreen permissions
+support safe handoff and completion cleanup without a download tab. Live
+authenticated Patreon validation remains pending. One earlier broad Chrome run
+hit the existing synthetic post-chooser EPUB click timeout; the isolated post suite
+passed afterward.
+Six focused Chrome cancellation/recovery cases passed again after adding guards
+against late archive creation and late chooser mounting after cancellation.
+
 Shared export sources, November 2, 2026: **18 Chrome collection cases and 8
 isolated Chrome post cases passed; 19 Brave collection/installed cases and 8
 isolated Brave post cases passed; 33 tooling cases passed**. Syntax checks cover

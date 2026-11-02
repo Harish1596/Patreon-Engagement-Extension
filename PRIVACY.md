@@ -46,6 +46,11 @@ create user-requested local exports:
   request URLs are not included in source-cache records. Neither the metadata
   nor source cache is sent to the developer or another service. The extension
   does not request broad browser-history or tab-access permission.
+- Collection export compresses generated chapters into extension-private temporary
+  files and streams them into a ZIP on local disk. It retains only filenames,
+  sizes, checksums, owner IDs, and expiry/download IDs in browser-session storage.
+  A hidden extension document creates a local Blob URL for the finished file;
+  the browser downloads it without an extra visible tab or intermediary service.
 - To embed remote inline images, it asks the browser for access to the exact
   image origins used by that post. After permission is granted, the locally
   installed extension fetches those image bytes directly from the media origin.
@@ -90,6 +95,12 @@ The extension uses the following access:
 - **Storage:** Saves engagement visibility, Reader enablement, and appearance
   preferences, prepared collection metadata, and reusable export sources locally
   in the browser.
+- **Downloads:** Starts collection ZIP downloads and observes their completion or
+  interruption to release temporary files safely. Download queries are restricted
+  to IDs created for those exports; unrelated download records are not processed
+  or retained.
+- **Offscreen:** Provides a hidden local extension document to turn a disk-backed
+  archive into a Blob URL. It is closed after its active export downloads finish.
 - **Access to `https://www.patreon.com/*`:** Loads the packaged content script
   and stylesheets, identifies supported post URLs and DOM elements, hides or
   restores the floating engagement bar, adds Reader/export controls and appearance
@@ -113,9 +124,16 @@ On worker startup, entries without an active saved browser-session owner are
 deleted. Disk data may therefore remain while the browser is closed, but is not
 reused in a new browser session. Clearing the extension's data or uninstalling it
 also removes the cache. Closing a download panel preserves its caches so another
-format can reuse them. Completed files retained for retry remain in collection
-page memory until successful handoff, refresh, cancellation, format change, or
-page navigation/reload.
+format can reuse them.
+
+Completed files retained for retry stay in extension-private temporary disk
+storage. Refresh, Cancel, format changes, and owner-tab closure remove unfinished
+archives. Files already handed to the browser are held until their downloads
+complete or are interrupted, then deleted. Retry metadata expires after two hours
+of inactivity and expired/orphaned files are pruned on subsequent worker startup.
+An open page with a valid checkpoint can renew its retry files. Navigation/reload
+drops that page's retry checkpoint. Source-cache records are separate from
+generated archive files and retain their original two-hour limit.
 An approved optional media-origin permission may remain in the browser's extension
 settings until the user revokes it or uninstalls the extension. The extension
 uses that access only when the user starts another export
