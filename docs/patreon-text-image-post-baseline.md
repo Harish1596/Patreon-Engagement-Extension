@@ -753,6 +753,15 @@ Patreon media-host compatibility and third-party reader behavior remain unverifi
 Previously saved exports are not rewritten. Local caches remain unencrypted;
 expiry/lifecycle cleanup retains its documented best-effort crash limitations.
 
+**November 2 nested Markdown follow-up:** List continuation lines are indented
+under their marker, preserving fenced code inside lists, nested lists and
+blockquotes. Malformed inline/heading containers render embedded preformatted
+text as inline code so a heading cannot consume an opening fence. A CommonMark
+parser is pinned as a development-only dependency; generated HTML is inspected
+and previewed with external requests blocked to confirm code stays inert. This
+extends the earlier escaping tests with actual Markdown parsing, not live reader
+compatibility claims.
+
 **November 2 source reuse:** Individual exports retain one inert source tree and
 distinct image data URLs for two hours in page memory, up to 16 MiB. A SHA-256
 fingerprint of normalized body markup, image sources, and post metadata invalidates

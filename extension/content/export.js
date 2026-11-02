@@ -362,7 +362,16 @@
     if (node.nodeType === Node.TEXT_NODE) return markdownText(node.nodeValue || "");
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
     const tag = node.tagName.toLowerCase();
-    if (tag === "pre") { const fence = codeFence(node.textContent, 3); return `\n${fence}\n${node.textContent}\n${fence}\n\n`; }
+    if (tag === "pre") {
+      // A malformed inline/heading container must not swallow the opening fence.
+      if (node.closest("h1,h2,h3,h4,h5,h6,a,strong,em,b,i,s,code")) {
+        const text = node.textContent.replace(/[\r\n]+/g, " ");
+        const fence = codeFence(text, 1);
+        return `${fence} ${text} ${fence}`;
+      }
+      const fence = codeFence(node.textContent, 3);
+      return `\n${fence}\n${node.textContent}\n${fence}\n\n`;
+    }
     if (tag === "code") { const fence = codeFence(node.textContent, 1); return `${fence} ${node.textContent.replace(/\n/g, " ")} ${fence}`; }
     const children = [...node.childNodes].map(child => renderMarkdown(child, assets, depth + (tag === "blockquote" ? 1 : 0))).join("");
     if (tag === "img") {
@@ -379,7 +388,10 @@
     if (["em", "i"].includes(tag)) return `*${children}*`;
     if (tag === "s") return `~~${children}~~`;
     if (tag === "br") return "  \n";
-    if (tag === "li") return `\n- ${children.trim()}`;
+    if (tag === "li") {
+      const lines = children.trim().split("\n");
+      return `\n- ${lines[0]}${lines.slice(1).map(line => `\n  ${line}`).join("")}`;
+    }
     if (["ul", "ol"].includes(tag)) return `${children}\n\n`;
     if (tag === "blockquote") return `\n${children.trim().split("\n").map(line => `> ${line}`).join("\n")}\n\n`;
     if (tag === "hr") return "\n---\n\n";

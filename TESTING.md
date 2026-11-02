@@ -29,6 +29,13 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Nested Markdown follow-up, November 2, 2026: **12 Chrome post/security cases
+passed**, including actual CommonMark rendering of code inside lists, nested
+lists, blockquotes and malformed headings. The synthetic preview confirms no
+active injected image, script effect or external request. CommonMark is a pinned
+development dependency and is not included in extension packages.
+
+
 Export security hardening, November 2, 2026: **36 Chrome export/security/
 collection/progress/streaming cases, 11 Brave post/security cases, one installed
 Brave case, and 44 tooling cases passed**. `npm run check` covers 45 JavaScript

@@ -1,6 +1,7 @@
 const { test, expect } = require("@playwright/test");
 const { setup } = require("./helpers/reader");
 const { readZip } = require("./helpers/zip");
+const commonmark = require("commonmark");
 
 async function portable(page, format) {
   return page.evaluate(async format => {
@@ -82,4 +83,34 @@ test("invalid image MIME types and SVG document declarations fail without an exp
     expect(result.error).toMatch(/unsupported|not supported|declared format/);
     expect(result.data).toBeUndefined();
   }
+});
+
+
+test("rendered Markdown keeps code inert in lists, nested lists, blockquotes and headings", async ({ page }) => {
+  await setup(page);
+  await page.evaluate(() => {
+    const body = document.querySelector("#post img").parentElement;
+    const payload = '<img src="https://tracker.invalid/nested" onerror="globalThis.auditExecuted=true">';
+    for (const shape of ["list", "nested-list", "quote-list", "heading"]) {
+      const pre = document.createElement("pre"); pre.textContent = payload;
+      let root = pre;
+      if (shape !== "heading") {
+        const list = document.createElement("ul"), item = document.createElement("li"); item.append(pre); list.append(item); root = list;
+        if (shape === "nested-list") { const outer = document.createElement("ul"), li = document.createElement("li"); li.append("Outer", list); outer.append(li); root = outer; }
+        if (shape === "quote-list") { const quote = document.createElement("blockquote"); quote.append(list); root = quote; }
+      } else { const heading = document.createElement("h2"); heading.append(pre); root = heading; }
+      body.append(root);
+    }
+  });
+  const { data } = await portable(page, "markdown");
+  const html = new commonmark.HtmlRenderer().render(new commonmark.Parser().parse(data));
+  expect(html).not.toContain('<img src="https://tracker.invalid/');
+  expect(html.match(/&lt;img src=/g)).toHaveLength(4);
+  const preview = await page.context().newPage();
+  let requested = false;
+  await preview.route("https://tracker.invalid/**", route => { requested = true; return route.abort(); });
+  await preview.setContent(html);
+  expect(await preview.evaluate(() => globalThis.auditExecuted)).toBeUndefined();
+  expect(requested).toBe(false);
+  await preview.close();
 });

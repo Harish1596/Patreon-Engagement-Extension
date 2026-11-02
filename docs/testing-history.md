@@ -1146,3 +1146,14 @@ cross-format source reuse, worker restart and retention cleanup. No authenticate
 Patreon or third-party reader verification is claimed. User-saved old files are
 not modified; disk caches remain unencrypted and crash-time erasure is still
 best effort. These fixes do not establish an extension-wide RAM ceiling.
+
+
+## November 2, 2026 — Nested Markdown containment follow-up
+
+List continuation indentation now preserves nested fenced-code containment.
+Malformed heading/inline containers use inline code for preformatted children.
+All 12 Chrome post/security cases passed; the new regression parses actual output
+using development-only CommonMark and checks the rendered preview for injected
+images, script effects and network attempts. This closes the nested-list bypass
+missed by the original string-only Markdown checks. No live Patreon/reader
+verification is claimed.
