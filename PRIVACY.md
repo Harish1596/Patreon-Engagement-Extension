@@ -55,6 +55,16 @@ create user-requested local exports:
   sizes, checksums, owner IDs, and expiry/download IDs in browser-session storage.
   A hidden extension document creates a local Blob URL for the finished file;
   the browser downloads it without an extra visible tab or intermediary service.
+- The collection download report processes post titles, canonical Patreon post
+  URLs, status and failure/skip reasons locally. The latest report stays in page
+  memory for up to two hours and is cleared on explicit refresh, navigation or
+  expiry. Cancelling an export leaves its cancellation report available to review.
+  Per-post preparation skips are included in prepared browser-session metadata
+  under the same expiry/owner cleanup policy. The extension does not persist raw
+  error URLs, media links, post bodies or credentials in reports. Only clicking
+  Save report creates a user-retained plain-text report file; it is not uploaded
+  or automatically included in an EPUB/ZIP. Reports label browser handoff as
+  Download started rather than claim successful completion of the native save.
 - To embed remote inline images, it asks the browser for access to the exact
   image origins used by that post. After permission is granted, the locally
   installed extension fetches those image bytes directly from the media origin.

@@ -88,9 +88,9 @@ globalThis.PatreonArchives.install();
     checkCancelled(session);
     // Session storage survives worker suspension, but is cleared with the browser
     // session. Never put post bodies, file transfers, or media URLs here.
-    const { ownerTabId, ownerWindowId, posts, skipped, expires } = session;
+    const { ownerTabId, ownerWindowId, posts, skipped, skippedPosts = [], expires } = session;
     await call(api.storage.session, "set", {
-      [COLLECTION_SESSION_PREFIX + token]: { version: 1, ownerTabId, ownerWindowId, posts, skipped, expires }
+      [COLLECTION_SESSION_PREFIX + token]: { version: 1, ownerTabId, ownerWindowId, posts, skipped, skippedPosts, expires }
     });
     if (session.controller?.signal.aborted) await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
     checkCancelled(session);
@@ -114,7 +114,9 @@ globalThis.PatreonArchives.install();
         expired.push(key);
         continue;
       }
-      collections.set(token, { ...value, workerTabId: null });
+      const skippedPosts = Array.isArray(value.skippedPosts) ? value.skippedPosts.filter(post => validPostUrl(post?.url)
+        && typeof post.title === "string" && typeof post.reason === "string").slice(0, 100) : [];
+      collections.set(token, { ...value, skippedPosts, workerTabId: null });
     }
     if (expired.length) await call(api.storage.session, "remove", expired);
     await sourceCache.prune(new Set(collections.keys()));
@@ -329,6 +331,7 @@ globalThis.PatreonArchives.install();
       workerTabId: null,
       posts: [],
       skipped: 0,
+      skippedPosts: [],
       preparing: true,
       controller: new AbortController(),
       expires: Date.now() + COLLECTION_CACHE_MS
@@ -361,11 +364,18 @@ globalThis.PatreonArchives.install();
         } catch (error) {
           if (session.controller.signal.aborted || cancelledCollections.has(message.token)) throw error;
           session.skipped++;
+          const errorText = String(error.message || "");
+          const reason = /supported text body|could not be found|not ready|finished loading/i.test(errorText)
+            ? "No supported text body was available. The post may be locked, unsupported, or not fully loaded."
+            : /timed out|not respond|receiving end|connection/i.test(errorText)
+              ? "The post could not be loaded or did not respond during preparation."
+              : "The post could not be prepared. Access or page loading may have failed.";
+          session.skippedPosts.push({ url, title: "", reason });
         }
         await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length, "",
           { operationId: message.operationId, index, title: session.posts.at(-1)?.url === url ? session.posts.at(-1).title : "" });
       }
-      if (!session.posts.length) throw new Error("No accessible text posts in this collection could be prepared.");
+      if (!session.posts.length) throw Object.assign(new Error("No accessible text posts in this collection could be prepared."), { skippedPosts: session.skippedPosts });
       if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
       await closeWorker(session);
       checkCancelled(session);
@@ -380,6 +390,7 @@ globalThis.PatreonArchives.install();
         postUrls: session.posts.map(post => post.url),
         postTitles: session.posts.map(post => post.title),
         skipped: session.skipped,
+        skippedPosts: session.skippedPosts,
         origins: [...new Set(session.posts.flatMap(post => post.origins))]
       };
     } catch (error) {
@@ -480,7 +491,7 @@ globalThis.PatreonArchives.install();
 
     if (message.type === "PREPARE_COLLECTION_EXPORT") {
       prepareCollection(message, sender).then(respond)
-        .catch((error) => respond({ error: error.message || "The collection could not be prepared." }));
+        .catch((error) => respond({ error: error.message || "The collection could not be prepared.", skippedPosts: error.skippedPosts || [] }));
       return true;
     }
 
@@ -491,7 +502,8 @@ globalThis.PatreonArchives.install();
         count: session.posts.length,
         postUrls: session.posts.map(post => post.url),
         postTitles: session.posts.map(post => post.title),
-        skipped: session.skipped
+        skipped: session.skipped,
+        skippedPosts: session.skippedPosts || []
       } : { error: "The collection export request expired. Reopen Download." });
       return;
     }

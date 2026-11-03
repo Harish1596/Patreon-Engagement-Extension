@@ -867,6 +867,37 @@ message retains the result.
 
 ## Collection export boundary (unreleased)
 
+**November 3 download reports:** The existing collection dialog now includes a
+collapsible Download report with per-post title/canonical link, status and reason,
+plus an explicit Save report action for a standalone plain-text file. Reports
+use text nodes and checked HTTPS Patreon post URLs only. Error URLs are omitted;
+worker preparation errors become fixed, limited explanations rather than raw
+messages. API-exposed membership locks produce individual skipped records even
+when the entire collection is locked. Preparation skips have individual records
+in prepared browser-session metadata and survive worker restart under the same
+owner/two-hour lifecycle. Older sessions with only aggregate skips show unknown
+rows and ask for refresh rather than invent titles or causes.
+
+Generation results distinguish Prepared, Failed, Cancelled and Download started.
+Only browser handoff marks prepared posts as included; packaging failure never
+claims a successful download. Retry rebuilds statuses from committed entries and
+replaces previous failures. The latest attempt survives reopening the dialog;
+new downloads replace it, explicit Refresh resets it, and page navigation/reload
+or a two-hour timer removes it. Cancel leaves the report for review. The report
+itself is page-local and is not added to CacheStorage or the generated archive.
+User-saved reports persist as ordinary downloads. The report does not monitor
+native download completion/interruption, and says so explicitly. No Patreon DOM
+selector, access rule, permission or EPUB/ZIP contents changed.
+
+Synthetic fixtures cover locked-only collections, skip/failure details, URL
+redaction, inert titles, packaging failure, successful retry, cancellation,
+reopening/refresh/navigation and expiry. Worker fixtures cover unsupported-only
+collections, per-post skips after restart and absent signed error URLs. Installed
+Brave verifies the report after native EPUB handoff. Desktop/light and narrow/dark
+screenshots were inspected using synthetic pages. No current live Patreon markup
+or native completion-tracking claim is established.
+
+
 **November 3 single-book writer:** A new packaged worker module assembles one
 EPUB from independently staged, encrypted chapter EPUBs. It decrypts/inflates a
 chapter as a stream, validates stored-resource sizes/CRCs and safe resource names,

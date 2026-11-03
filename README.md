@@ -156,6 +156,25 @@ be retried before the complete book or ZIP is saved; completed encrypted chapter
 are retained for retry. Switching between book and separate-file modes reuses
 source text/images but rebuilds the format-specific files.
 
+Expand **Download report** in the collection dialog to see each post's result.
+It lists ready/prepared chapters, skipped posts (including membership locks),
+failed chapters with reasons, cancellations, and posts included in a download
+that has started. **Open post** links help identify missing chapters. Where
+Patreon exposes no title or precise cause, the report uses its post URL and an
+explicitly limited explanation rather than guessing whether it is locked.
+
+Choose **Save report** to download `<collection> - Download Report.txt`. Reports
+are available after preparation and after export failures, not just successful
+downloads. A packaging failure leaves chapters marked Prepared; a successful
+retry replaces failed outcomes. “Download started” means the collection file was
+handed to the browser, not confirmation it finished saving. Reports are not
+inserted into the book/ZIP and are saved only when requested. They contain post
+links/titles, status and reasons, not post bodies or media URLs; URLs in failure
+messages are omitted. The latest report stays in this page's memory for up to
+two hours, survives closing/reopening the dialog, and clears on Refresh
+collection, navigation/reload or expiry. Cancel updates it so it can be reviewed.
+New downloads replace the previous report. Saved report files remain yours.
+
 The single book is assembled one chapter at a time in temporary storage, using
 the same progress, cancellation, two-hour retention and shared archive budget.
 It does not retain a complete book in page memory. Per-chapter source conversion

@@ -1264,3 +1264,29 @@ source reuse across worker restarts, no new post tabs and expiry cleanup. No
 live authenticated Patreon or EPUB-reader interoperability certification is
 claimed. Existing post/storage limits and temporary plaintext final-file
 limitations apply to books as well as ZIP downloads.
+
+
+## November 3, 2026 — Collection download reports
+
+A collapsible report in the collection dialog lists individual post outcomes and
+safe canonical links, with Save report for an explicit standalone text download.
+Membership locks and preparation skips include reasons; errors lacking evidence
+use limited wording. Generated chapters remain Prepared until browser handoff,
+which is labeled Download started without claiming native completion. Retries
+replace failed outcomes and reuse committed chapters; packaging failures never
+mark posts downloaded. Cancellation remains reviewable. The latest page-local
+report lasts at most two hours, survives dialog reopening and clears on explicit
+refresh, navigation/reload or expiry. Per-post preparation skips follow existing
+browser-session retention and owner cleanup; raw failure URLs are not retained.
+No new permissions, post selectors or generated book/ZIP resources are introduced.
+
+Verification passed: 34 Chrome collection/report/book/progress/streaming cases,
+6 Brave report/installed cases, 56 tooling cases, syntax for 49 JavaScript files
+and whitespace checks. Fixtures cover report saving, URL redaction/inert content,
+locked-only and unsupported-only outcomes, restart, chapter/packaging failures,
+retry, cancellation, refresh/reopen, navigation and expiry. Installed Brave checks
+the report after real EPUB handoff. Synthetic desktop/light and narrow/dark
+screenshots were reviewed and the Impeccable detector returned no findings. The
+new skip handler's intermediate shadowing regression and the locked test's missing
+performance entry were corrected before the final passing runs. No live Patreon
+or native download-completion verification is claimed.

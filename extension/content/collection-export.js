@@ -17,6 +17,75 @@
   let discoveryTimer;
   let activeOperation = null;
   let checkpoint = null;
+  let downloadReport = null;
+  let reportTimer;
+  const cleanReportText = value => String(value || "").replace(/https?:\/\/[^\s<>"']+/gi, "[URL omitted]")
+    .replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 1200);
+  function reportUrl(value) {
+    try { const url = new URL(value); return url.origin === "https://www.patreon.com" && POST_PATH.test(url.pathname)
+      ? `${url.origin}${url.pathname}` : ""; } catch { return ""; }
+  }
+  function resetDownloadReport() {
+    clearTimeout(reportTimer);
+    downloadReport = null;
+    renderDownloadReport();
+  }
+  function renderDownloadReport() {
+    const view = shadow?.querySelector(".download-report");
+    if (!view) return;
+    view.hidden = !downloadReport;
+    if (!downloadReport) return;
+    const summary = view.querySelector("summary");
+    const totals = Object.fromEntries(["ready", "prepared", "download-started", "skipped", "failed", "cancelled"].map(status =>
+      [status, downloadReport.posts.filter(post => post.status === status).length]));
+    summary.textContent = `Download report · ${totals["download-started"]} included · ${totals.skipped} skipped · ${totals.failed} failed`;
+    view.querySelector(".report-state").textContent = downloadReport.state;
+    const list = view.querySelector("ol"); list.replaceChildren();
+    const labels = { ready: "Ready", prepared: "Prepared", "download-started": "Download started", skipped: "Skipped", failed: "Failed", cancelled: "Cancelled" };
+    for (const post of downloadReport.posts) {
+      const row = element("li");
+      row.append(element("strong", {}, post.title || post.url || "Post"), element("p", {}, `${labels[post.status]}${post.reason ? ` · ${post.reason}` : ""}`));
+      if (post.url) row.append(element("a", { href: post.url, target: "_blank", rel: "noopener noreferrer" }, "Open post"));
+      list.append(row);
+    }
+    view.querySelector("button").disabled = busy;
+  }
+  function prepareDownloadReport(prepared, discovered) {
+    if (downloadReport?.format) return; // Preserve the last attempt while its chooser is refreshed.
+    if (!downloadReport) {
+      downloadReport = { title: cleanReportText(collectionTitle()), source: `${location.origin}${location.pathname}`,
+        createdAt: new Date().toISOString(), format: "", state: "Preparation complete. Nothing downloaded yet.", posts: [] };
+      reportTimer = setTimeout(resetDownloadReport, COLLECTION_CACHE_MS);
+    }
+    const posts = new Map();
+    for (const post of [...(discovered?.skippedPosts || []), ...(prepared.skippedPosts || [])]) {
+      const url = reportUrl(post.url); if (url) posts.set(url, { url, title: cleanReportText(post.title), status: "skipped", reason: cleanReportText(post.reason) });
+    }
+    (prepared.postUrls || []).forEach((value, index) => {
+      const url = reportUrl(value); if (url) posts.set(url, { url, title: cleanReportText(prepared.postTitles?.[index]), status: "ready", reason: "" });
+    });
+    downloadReport.posts = [...posts.values()];
+    // Older prepared sessions may only know the skipped count; never invent URLs or reasons.
+    const unknown = Math.max(0, (prepared.skipped || 0) - (prepared.skippedPosts?.length || 0));
+    for (let index = 0; index < unknown; index++) downloadReport.posts.push({ url: "", title: "Unidentified post", status: "skipped", reason: "Unavailable or unsupported. Refresh collection for individual details." });
+    renderDownloadReport();
+  }
+  function updateReportPost(url, status, reason = "") {
+    const post = downloadReport?.posts.find(post => post.url === reportUrl(url));
+    if (post) { post.status = status; post.reason = cleanReportText(reason); }
+    renderDownloadReport();
+  }
+  function reportState(state) {
+    if (downloadReport) { downloadReport.state = state; renderDownloadReport(); }
+  }
+  function saveDownloadReport() {
+    if (!downloadReport || busy) return;
+    const lines = [downloadReport.title, `Source: ${downloadReport.source}`, `Report time: ${downloadReport.createdAt}`,
+      `Format: ${downloadReport.format || "Not selected"}`, `Status: ${downloadReport.state}`, "",
+      "Download started means the file was handed to the browser, not that it finished saving.", ""];
+    for (const post of downloadReport.posts) lines.push(`${post.status.toUpperCase()}: ${post.title || post.url || "Post"}`, post.url, post.reason, "");
+    globalThis.PatreonExporter.saveBlob(new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" }), `${fileStem(downloadReport.title)} - Download Report.txt`);
+  }
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const observedApiRequests = [];
   const MAX_TRANSFER_CHARS = 1024 * 1024;
@@ -122,6 +191,8 @@
     if (!busy || !operation || operation.handedOff) return;
     const ownerHost = host;
     operation.controller.abort();
+    if (downloadReport) for (const post of downloadReport.posts) if (post.status !== "skipped" && post.status !== "download-started") { post.status = "cancelled"; post.reason = "Export cancelled. No collection file was downloaded."; }
+    reportState("Cancelled. Nothing downloaded.");
     const dropping = dropCheckpoint();
     finishOperation(operation);
     const token = requestToken;
@@ -254,6 +325,7 @@
     const campaignId = template.searchParams.get("filter[campaign_id]") || "";
     const seen = new Set();
     const locked = new Set();
+    const titles = new Map();
     let expectedTotal = null;
     let pageUrl = template;
     for (let page = 0; page < 100; page++) {
@@ -282,6 +354,7 @@
         if (item?.type !== "post" || !/^\d+$/.test(item.id)) continue;
         const url = `${location.origin}/posts/${item.id}`;
         seen.add(url);
+        if (typeof item.attributes?.title === "string") titles.set(url, cleanReportText(item.attributes.title));
         if (item.attributes?.current_user_can_view === false) locked.add(url);
       }
       setProgress("Finding collection posts", seen.size, expectedTotal);
@@ -293,7 +366,8 @@
           throw new Error(`Patreon returned ${seen.size} of ${expectedTotal} collection posts.`);
         }
         if (!seen.size) throw new Error("Patreon returned no collection posts.");
-        return { urls: [...seen].filter(url => !locked.has(url)), locked: locked.size };
+        return { urls: [...seen].filter(url => !locked.has(url)), locked: locked.size,
+          skippedPosts: [...locked].map(url => ({ url, title: titles.get(url) || "", reason: "Locked for your current membership." })) };
       }
     }
     throw new Error("This collection has too many API pages to prepare safely.");
@@ -379,6 +453,7 @@
     if (refresh) refresh.disabled = value;
     const cancel = shadow?.querySelector(".cancel");
     if (cancel) { cancel.hidden = !value || activeOperation?.handedOff; cancel.disabled = false; }
+    renderDownloadReport();
   }
 
   function loadChooser() {
@@ -403,6 +478,7 @@
     report(prefix || "Finding accessible posts in this collection…");
     if (refresh || (discoveryCache && discoveryCache.expires <= Date.now())) {
       clearDiscovery();
+      resetDownloadReport();
       await discardPreparation(refresh);
       checkOperation(operation);
     }
@@ -423,6 +499,8 @@
     }
     const { urls, locked } = discovered;
     if (!urls.length && locked) {
+      prepareDownloadReport({ postUrls: [], skippedPosts: [] }, discovered);
+      reportState("No accessible posts. Nothing downloaded.");
       throw new Error(`${locked === 1 ? "The only post is" : `All ${locked} posts are`} locked for your current membership. Nothing was downloaded.`);
     }
     if (!urls.length) throw new Error("No post links were found in this collection.");
@@ -446,13 +524,18 @@
       result = await waitFor(call(api.runtime, "sendMessage", {
         type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls, operationId: operation.id
       }), signal);
-      if (!result?.registered) throw new Error(result?.error || "The collection could not be prepared.");
+      if (!result?.registered) {
+        prepareDownloadReport({ ...result, postUrls: [], skipped: result?.skippedPosts?.length || 0 }, discovered);
+        reportState("Preparation failed. Nothing downloaded.");
+        throw new Error(result?.error || "The collection could not be prepared.");
+      }
     }
     if (route !== preparationRoute || !host?.isConnected) return;
     checkOperation(operation);
     if (checkpoint && (checkpoint.count !== result.count
       || checkpoint.signature !== JSON.stringify(result.postUrls))) await dropCheckpoint();
     checkOperation(operation);
+    prepareDownloadReport(result, discovered);
     if (continueOperation) return result;
     loadChooser();
     const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
@@ -539,6 +622,15 @@
         throw new Error(prepared?.error || "The collection session is unavailable. Reopen Download Collection.");
       }
       checkOperation(operation);
+      if (!downloadReport || downloadReport.mode !== format || !checkpoint || checkpoint.format !== format) {
+        resetDownloadReport();
+        prepareDownloadReport(prepared, discoveryCache?.discovered);
+      }
+      downloadReport.mode = format;
+      downloadReport.format = format === "epub-book" ? "Single EPUB" : `${label} files (ZIP)`;
+      // Retry state comes from committed disk entries, not previous failed attempts.
+      for (const post of downloadReport.posts) if (post.status !== "skipped") { post.status = "ready"; post.reason = ""; }
+      reportState("Building chapters. No collection file downloaded yet.");
       const signature = JSON.stringify(prepared.postUrls);
       if (!checkpoint || checkpoint.format !== format || checkpoint.count !== prepared.count || checkpoint.signature !== signature) {
         await dropCheckpoint();
@@ -560,7 +652,7 @@
       }
       counts(operation);
       for (let index = 0; index < checkpoint.count; index++) {
-        if (checkpoint.entries[index]) continue;
+        if (checkpoint.entries[index]) { updateReportPost(prepared.postUrls[index], "prepared", "Retained chapter reused."); continue; }
         try {
           currentPost(index, checkpoint.count, prepared.postTitles?.[index]);
           detail("bytes", "");
@@ -587,11 +679,13 @@
             detail("bytes", `${bytes(progress.read)} of ${bytes(progress.total)} · Compressed ${bytes(progress.stored)}`);
           });
           checkOperation(operation);
+          updateReportPost(prepared.postUrls[index], "prepared", "Chapter prepared and saved for packaging.");
           counts(operation);
         } catch (error) {
           checkOperation(operation);
           checkpoint.error = `Post ${index + 1}: ${error.message || "Export failed."}`;
           operation.failed.add(index);
+          updateReportPost(prepared.postUrls[index], "failed", error.message || "Export failed.");
           counts(operation);
         }
       }
@@ -600,15 +694,19 @@
         setBusy(false);
         finishOperation(operation);
         loadChooser();
+        reportState("Some chapters failed. Nothing downloaded. Retry failed posts to continue.");
         showRetry();
         return;
       }
+      reportState("Chapters prepared. Packaging the collection file.");
       report(book ? "Assembling EPUB book…" : "Packaging collection ZIP…");
       setProgress(book ? "Assembling EPUB book" : "Packaging collection ZIP");
       const packaged = await archive.request("PACKAGE", { id: checkpoint.id, operationId: operation.id }, signal);
       checkOperation(operation);
       if (!packaged.started) throw new Error("The collection download could not be started.");
       operation.handedOff = true;
+      if (downloadReport) for (const post of downloadReport.posts) if (post.status === "prepared") { post.status = "download-started"; post.reason = "Included in the collection file handed to the browser."; }
+      reportState("Download started. Browser completion has not been confirmed.");
       setBusy(true);
       // The browser now owns the disk-backed archive until completion/interrupt.
       checkpoint = null;
@@ -619,6 +717,7 @@
       await prepareSession(book ? "EPUB book download started." : `${label} ZIP download started.`, false, operation);
     } catch (error) {
       if (signal.aborted || activeOperation !== operation) return;
+      reportState(`Collection download failed: ${cleanReportText(error.message || "Export failed.")} Chapters marked Prepared are retained for retry.`);
       report(error.message || "The collection could not be exported.", "error");
       setProgress();
       setBusy(false);
@@ -678,6 +777,13 @@
     restart.addEventListener("click", () => prepareSession().catch(showPreparationError));
     const retry = element("button", { type: "button", class: "close retry", hidden: "" }, "Retry failed posts");
     retry.addEventListener("click", () => { if (checkpoint) run(checkpoint.format); });
+    const reportView = element("details", { class: "download-report", hidden: "" });
+    reportView.append(element("summary", {}, "Download report"), element("p", { class: "report-state" }),
+      element("ol", { "aria-label": "Post download results" }));
+    const saveReport = element("button", { type: "button", class: "close" }, "Save report");
+    saveReport.addEventListener("click", saveDownloadReport); reportView.append(saveReport);
+    style.textContent += ".download-report{margin-top:14px;border-top:1px solid currentColor;padding-top:10px}.download-report summary{cursor:pointer;font-weight:650;font-size:13px}.download-report ol{max-height:220px;overflow:auto;padding-left:22px;margin:8px 0;font-size:12px}.download-report li{margin:10px 0;overflow-wrap:anywhere}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline}.download-report strong{font-size:12px}";
+    dialog.append(reportView);
     controls.append(refresh, cancel, restart, retry);
     dialog.append(controls);
     trigger.addEventListener("click", () => {
@@ -701,6 +807,7 @@
     host = shadow = trigger = dialog = chooser = undefined;
     requestToken = "";
     clearDiscovery();
+    resetDownloadReport();
     dropCheckpoint();
     open = busy = false;
   }

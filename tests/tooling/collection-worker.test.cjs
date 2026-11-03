@@ -71,7 +71,7 @@ test("indexed chapter failure keeps the session retryable across worker restart"
   assert.equal(calls.remove.length, calls.create.length);
 });
 
-function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, fastTimers = false, fetchMedia, failBuild = () => false } = {}) {
+function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, fastTimers = false, fetchMedia, failDescribe = () => false, failBuild = () => false } = {}) {
   let listener;
   let removedListener;
   let nextTabId = 10;
@@ -143,6 +143,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
         const url = tabUrls.get(tabId) || "https://www.patreon.com/posts/open-999";
         const id = new URL(url).pathname.split("/").pop();
         if (message.type === "DESCRIBE_POST_EXPORT") {
+          if (failDescribe(id)) return { error: "This post does not expose a supported text body. https://media.example/private?signature=secret" };
           return { post: { title: `Post ${id}`, origins: [], postId: id } };
         }
         if (message.type === "BUILD_POST_EXPORT") {
@@ -459,4 +460,26 @@ test("image requests time out and abort stalled network work", async () => {
   const result = await send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/stalled.png" });
   assert.match(result.error, /timed out/);
   assert.ok(signal.aborted);
+});
+
+
+test("preparation reports per-post skips after restart without retaining signed failure URLs", async () => {
+  const { send, restart, sessionStore } = backgroundHarness({ failDescribe: id => id === "102", fastTimers: true });
+  const token = "abababab-abab-4bab-8bab-abababababab";
+  const prepared = await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: [101, 102].map(id => `https://www.patreon.com/posts/${id}`) });
+  assert.equal(prepared.count, 1); assert.equal(prepared.skippedPosts.length, 1);
+  assert.equal(prepared.skippedPosts[0].url, "https://www.patreon.com/posts/102");
+  assert.match(prepared.skippedPosts[0].reason, /supported text body/);
+  assert.equal(JSON.stringify(sessionStore).includes("signature=secret"), false);
+  restart();
+  const restored = await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token });
+  assert.equal(restored.skippedPosts[0].reason, prepared.skippedPosts[0].reason);
+});
+
+test("an entirely unsupported collection returns individual skip details without leaving a session", async () => {
+  const { send, sessionStore } = backgroundHarness({ failDescribe: () => true, fastTimers: true });
+  const result = await send({ type: "PREPARE_COLLECTION_EXPORT", token: "abababab-abab-4bab-8bab-abababababab", urls: ["https://www.patreon.com/posts/101"] });
+  assert.match(result.error, /No accessible text posts/);
+  assert.equal(result.skippedPosts.length, 1);
+  assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
 });

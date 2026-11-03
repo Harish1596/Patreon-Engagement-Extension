@@ -29,6 +29,36 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection download report, November 3, 2026: **34 Chrome collection/report/
+book/progress/streaming cases, 6 Brave report/installed cases and 56 tooling
+cases passed**. Syntax checks cover 49 JavaScript files; whitespace checks pass.
+
+```sh
+npx playwright test tests/collection-report.spec.js tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js
+npm run test:brave -- tests/collection-report.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+New fixtures inspect per-post locked/preparation skips, chapter failures,
+packaging failures without false success, replaced failures after retry, plaintext
+report downloads and canonical URLs, remote-error URL redaction, inert HTML-like
+titles, cancellation, reopening, explicit refresh, navigation and two-hour expiry.
+Worker fixtures retain individual skip details across restart without signed
+URLs and report unsupported-only collections without leaving sessions. Installed
+Brave checks report counts, native-handoff wording and Save report availability.
+Desktop/light and narrow/dark synthetic screenshots were inspected; the report
+uses bounded list/dialog scrolling. The Impeccable detector returned no findings.
+The earlier locked-only fixture needed explicit performance-resource discovery
+setup; the fixed fixture uses the same seam as existing collection API tests.
+An intermediate worker regression caught a shadowed variable in the new skip
+handler, corrected before these successful runs. Tests do not claim live Patreon
+verification, detailed diagnoses when Patreon exposes no cause, or native-save
+completion tracking. Saved reports are explicit user downloads; ephemeral report
+state is page-local, while preparation skip metadata follows session retention.
+
+
 Single EPUB collection download, November 3, 2026: **43 Chrome cases, 44 Brave
 cases (including the installed extension), and 54 tooling cases passed**. Syntax
 checks cover 48 JavaScript files; whitespace checks pass. Reproduce with:
