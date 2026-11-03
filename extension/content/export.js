@@ -664,6 +664,13 @@
   }, true);
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
+    if (message.type === "POST_EXPORT_RETRY") {
+      if (busy && !message.transferId && Number.isSafeInteger(message.attempt) && message.attempt >= 2 && message.attempt <= 3
+        && Number.isFinite(message.delayMs) && message.delayMs >= 0 && message.delayMs <= 60_000) {
+        report(`Image request failed temporarily. Retry ${message.attempt} of 3 in ${Math.ceil(message.delayMs / 1000)}s…`);
+      }
+      respond({ reported: true }); return;
+    }
     if (message.type === "DESCRIBE_POST_EXPORT") {
       try {
         requirePost(message.expectedPostId);

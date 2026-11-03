@@ -1318,3 +1318,33 @@ download in the broad run; its isolated rerun passed, alongside the 35 other bro
 passes. No authenticated live private-API compatibility or universal revision
 availability is claimed. No raw response content or signed URL is stored in
 revision metadata.
+
+
+## November 3, 2026 — Automatically retry temporary export reads
+
+A packaged shared helper retries idempotent collection-API and inline-image reads
+up to three total attempts with 1s/2s exponential backoff, small jitter, per-attempt
+30s deadlines and abortable waits. Readable Retry-After seconds/dates increase the
+wait; requests asking for over 60s stay manual. Permissions, access denials,
+unsupported/invalid/oversized content, storage and packaging/native-download
+mutations remain manual. Retry progress uses the existing owner/operation guards.
+Failed image streams restart from zero, releasing the media slot between attempts,
+with the same origin/credential/redirect/size rules. Exhausted transient or denied
+collection API reads no longer initiate a hidden DOM fallback. Completed chapter
+BUILD failures cannot repeat through readiness polling or an existing-tab fallback;
+normal document-readiness polling remains separate.
+
+Verification passed: 56 Chrome export cases, 14 Brave focused cases including
+installed extension coverage, 68 tooling cases, syntax for 53 JavaScript files
+and whitespace checks. Initial broad and isolated runs hit repeated synthetic
+post-chooser pointer/layout failures; a diagnostic click produced no choice
+message. Fixture controls stay disabled until handlers/rendering are ready, and
+three post-export behavior cases use the existing runtime delivery seam. Real
+chooser gestures remain in installed Brave. A focused 14-case run passed before
+the final broad runs above.
+Unit/worker tests exercise bounded delays/attempts, Retry-After, cancellation,
+timeout, stream reset, permanent errors and no repeated finished builds. Browser
+fixtures verify UI recovery, wait cancellation, exhaustion without fallback and
+manual 401/403/long-wait errors. Installed Brave injects a temporary API failure
+and verifies real recovery/downloads. These fixtures do not establish live Patreon
+or network-service behavior.

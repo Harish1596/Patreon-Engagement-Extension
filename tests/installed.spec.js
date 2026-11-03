@@ -26,8 +26,10 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       }
       throw new Error("Unpacked extension did not load");
     });
+    let collectionApiCalls = 0;
     await context.route("https://www.patreon.com/**", (route) => {
       const pathname = new URL(route.request().url()).pathname;
+      if (pathname === "/api/posts" && ++collectionApiCalls < 3) return route.fulfill({ status: 503, headers: { "Retry-After": "0" }, body: "Synthetic temporary failure" });
       if (pathname === "/api/posts") return route.fulfill({ contentType: "application/json", body: JSON.stringify({
         data: [201, 202].map(id => ({ id: String(id), type: "post", attributes: {
           current_user_can_view: true, title: `Collection post ${id === 201 ? "one" : "two"}`,
@@ -172,6 +174,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       const sessions = Object.entries(await chrome.storage.session.get(null)).filter(([key]) => key.startsWith("collection-export:"));
       return sessions[0]?.[1].posts.map(post => Boolean(post.revision));
     })).toEqual([true, true]);
+    expect(collectionApiCalls).toBeGreaterThanOrEqual(3);
     const collectionMarkdown = collection.frameLocator('iframe[title="Collection export formats"]')
       .getByRole("button", { name: "Markdown", exact: true });
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });

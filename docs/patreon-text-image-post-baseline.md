@@ -867,6 +867,44 @@ message retains the result.
 
 ## Collection export boundary (unreleased)
 
+**November 3 automatic network retries:** A packaged `shared/retry.js` helper
+is loaded by content scripts and the media worker. Idempotent collection API and
+inline-image reads retry at most three times total, using 1s/2s exponential waits
+plus less than 250ms jitter, per-attempt 30s deadlines and abortable waits. Only
+fetch/read TypeErrors, attempt timeouts and HTTP 408/429/500/502/503/504 qualify.
+HTTP Retry-After seconds or dates increase the delay; waits over 60s stop for a
+manual retry rather than violating the requested wait. Header interpretation
+follows the [HTTP Retry-After reference](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Retry-After).
+
+Retries keep permission/origin checks, omitted media credentials, redirect rejection,
+byte limits and the two-request concurrency cap. A failed image stream is discarded
+and that image restarts from zero; the media slot releases between attempts. API
+response-body reads are retried only for transport errors, not JSON syntax or
+content validation failures. 401/403 access errors and exhausted/long-wait transient
+API reads surface instead of silently triggering DOM fallback. The private-API
+format/availability fallback still applies to other nontransient discovery errors.
+Permission denials, unsupported content, invalid or oversized media, archive
+storage errors and download/package mutations are not auto-retried.
+
+The existing 60x250ms page-readiness loop remains separate. Completed BUILD error
+responses are now terminal unless explicitly reporting an unfinished/incorrect
+page; this prevents multiplying three network attempts across repeated builds or
+an existing-tab fallback. Manual Retry failed posts/Retry packaging remains
+available and committed chapter entries are retained. The UI shows retry attempt
+and wait time; media progress messages retain owner/operation correlation, and
+post exports also show media retry waits. This introduces no new site selectors,
+permissions, storage keys, remote dependencies or access bypass.
+
+Synthetic unit cases verify delay growth, both Retry-After forms, bounded attempts,
+permanent errors, timeout/abort handling and interrupted-stream restart. Worker
+cases verify unchanged media request policy and cancellation during backoff, plus
+one build attempt for a completed chapter failure. Browser fixtures use a virtual
+clock to check recovery, cancellation, long waits, exhausted requests and denied
+access without fallback. Installed Brave recovers from a transient private-API
+failure before preparing cached exports. No live Patreon or permission-prompt
+verification is claimed by these fixtures.
+
+
 **November 3 incremental refresh:** Refresh collection now reconciles the existing
 owner/token namespace instead of cancelling it before discovery. API pagination
 is reread for fresh order/access. The request asks for the already observed

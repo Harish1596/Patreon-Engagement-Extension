@@ -241,6 +241,25 @@ for up to two hours, limited to 16 MiB. Changes to the post content, expiry, or
 navigation invalidate it; Reader typography changes do not. Larger single-post
 sources are exported normally without being retained in that memory cache.
 
+Temporary collection-API and remote-image failures retry automatically, up to
+three total attempts per request. Delays grow from about one second to two seconds
+(with a small random spread); the dialog shows the next attempt and wait time.
+Retryable failures are connection errors, per-attempt timeouts, HTTP 408/429,
+and temporary server responses 500/502/503/504. A readable `Retry-After` header
+can increase the delay. If the server asks for more than one minute, the extension
+stops and asks you to retry manually later rather than retrying early.
+
+Each network attempt has a 30-second deadline. Cancellation interrupts both
+active requests and retry waits. A broken image stream restarts that image from
+zero under the same size/origin limits, and its concurrency slot is released
+between attempts. Completed chapter files stay intact. Permission denials,
+401/403 access failures, unsupported content, invalid/oversized images, and
+storage/packaging failures do not get automatic retries. Collection API access
+denials or exhausted temporary failures stay visible instead of silently taking
+the DOM-discovery fallback. Existing fallback for unavailable/changed API formats
+and page-readiness polling remain separate. Finished chapter-build failures are
+not repeated by readiness polling or by opening another worker tab.
+
 If a chapter fails during generation or transfer, the remaining chapters continue.
 Completed files stay in extension-private temporary disk storage and **Retry failed posts** fetches
 only missing files. No ZIP is downloaded until every prepared chapter is ready.

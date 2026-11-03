@@ -29,6 +29,41 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Automatic network retries, November 3, 2026: **56 Chrome export cases,
+14 Brave focused cases including the installed extension, and 68 tooling cases
+passed**. Syntax covers 53 JavaScript files; whitespace checks pass. Commands:
+
+```sh
+npx playwright test tests/collection-retry.spec.js tests/collection-refresh.spec.js tests/collection-report.spec.js tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js tests/export.spec.js tests/export-security.spec.js
+npm run test:brave -- tests/collection-retry.spec.js tests/collection-refresh.spec.js tests/collection-report.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+Tests verify 503/connection recovery, bounded retries, Retry-After seconds/dates
+and long-wait refusal, 401/403 manual failures, no hidden DOM retry after exhaustion,
+aborting waits/requests, media origin/credential/redirect policy, discarded partial
+stream bytes, and terminal completed-build failures. Existing collection ZIP/book/
+report/cache/progress/security cases exercise retained completed chapters and
+manual retry flows. Installed Brave injects a temporary API error and verifies
+eventual preparation, cache reuse, native downloads and expiry cleanup.
+
+Initial broad and isolated runs exposed repeated synthetic post-chooser pointer/
+layout timing failures: captured clicks produced no choice message. The fixture
+retains disabled buttons until handlers/rendering are ready. Three post exporter
+cases now use the same runtime delivery seam already used by source-reuse tests;
+installed Brave retains real chooser gestures. A focused 14-case run then passed,
+followed by the final broad suites above. These are exporter behavior tests,
+not a claim that synthetic mouse delivery is equivalent to native permission
+requests.
+
+Network attempts have a per-attempt deadline; external servers/permissions and
+live Patreon behavior remain outside these synthetic fixtures. No new permission
+or raw network-error persistence is introduced. Retries do not apply to storage,
+packaging or native download side effects.
+
+
 Incremental collection refresh, November 3, 2026: **36 Chrome collection/
 refresh/report/book/progress/streaming cases, 12 Brave refresh/report/book/installed
 cases and 60 tooling cases passed**. One existing Chrome cancellation/restart

@@ -10,7 +10,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
   await page.route("https://fixture-extension.invalid/export/chooser.html**", (route) => route.fulfill({
     contentType: "text/html",
     body: `<!doctype html><html><body><main aria-label="Post export formats">
-      <button data-format="pdf">PDF</button><button data-format="epub">EPUB</button><button data-format="markdown">Markdown</button>
+      <button disabled data-format="pdf">PDF</button><button disabled data-format="epub">EPUB</button><button disabled data-format="markdown">Markdown</button>
       </main><script>
       const token = location.hash.slice(1);
       for (const button of document.querySelectorAll("button")) button.onclick = () => parent.postMessage({
@@ -18,17 +18,25 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
         ...(sessionStorage.getItem("deny-export") === "1" ? { error: "Media access was not granted, so an offline export cannot be created." }
           : { format: button.dataset.format, granted: true })
       }, "https://www.patreon.com");
+      // Match the real chooser's asynchronous readiness after its frame/layout settles.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        for (const button of document.querySelectorAll("button")) button.disabled = false;
+      }));
       </script></body></html>`
   }));
   await page.route("https://fixture-extension.invalid/export/collection-chooser.html**", (route) => route.fulfill({
     contentType: "text/html",
     body: `<!doctype html><html><body><main aria-label="Collection export formats">
-      <button data-format="epub-book">Single EPUB</button><button data-format="epub">EPUB</button><button data-format="markdown">Markdown</button>
+      <button disabled data-format="epub-book">Single EPUB</button><button disabled data-format="epub">EPUB</button><button disabled data-format="markdown">Markdown</button>
       </main><script>
       const token = location.hash.slice(1);
       for (const button of document.querySelectorAll("button")) button.onclick = () => parent.postMessage({
         source: "patreon-reader-collection-export", token, format: button.dataset.format
       }, "https://www.patreon.com");
+      // Match the real chooser's asynchronous readiness after its frame/layout settles.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        for (const button of document.querySelectorAll("button")) button.disabled = false;
+      }));
       </script></body></html>`
   }));
   await page.goto(url);

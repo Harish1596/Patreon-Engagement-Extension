@@ -5,6 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = fs.readFileSync(path.resolve(__dirname, "../../extension/background/media.js"), "utf8");
+const retrySource = fs.readFileSync(path.resolve(__dirname, "../../extension/shared/retry.js"), "utf8");
 const cryptoSource = fs.readFileSync(path.resolve(__dirname, "../../extension/background/disk-crypto.js"), "utf8");
 const cacheSource = fs.readFileSync(path.resolve(__dirname, "../../extension/background/post-cache.js"), "utf8");
 
@@ -101,7 +102,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
     holds.set(type, { enter, gate });
     return { entered, release };
   }
-  const calls = { create: [], update: [], remove: [], workerChunks: [], progress: [], staleReplies: 0 };
+  const calls = { build: [], create: [], update: [], remove: [], workerChunks: [], progress: [], staleReplies: 0 };
   const browser = {
     runtime: {
       id: "fixture-extension",
@@ -147,6 +148,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
           return { post: { title: `Post ${id}`, origins: [], postId: id } };
         }
         if (message.type === "BUILD_POST_EXPORT") {
+          calls.build.push({ tabId, ...message });
           if (failBuild(id)) return { error: "Synthetic build failure." };
           let data = id === "101" ? "x".repeat(2 * 1024 * 1024 + 17) : id;
           if (message.format === "snapshot") data = JSON.stringify({ version: 1, postId: id, assets: [], body: data });
@@ -182,7 +184,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
       async remove(keys) { for (const key of Array.isArray(keys) ? keys : [keys]) delete sessionStore[key]; }
     } }
   };
-  const restart = () => vm.runInNewContext(cryptoSource + "\n" + cacheSource + "\n" + source, {
+  const restart = () => vm.runInNewContext(retrySource + "\n" + cryptoSource + "\n" + cacheSource + "\n" + source, {
     browser, URL, Map, Set, Promise, Uint8Array, AbortController,
     TextEncoder, TextDecoder, importScripts() {}, caches: { async open() { return cache; } }, Blob, Response,
     PatreonArchives: { install() {} },
@@ -541,4 +543,64 @@ test("cancelling an incremental refresh cannot retain old source files or publis
   assert.match((await refreshing).error, /cancelled/);
   assert.equal(disk.size, 0);
   assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
+});
+
+test("media retries transient reads only, with no partial response or broadened access", async () => {
+  let calls = 0;
+  const { send } = backgroundHarness({ fetchMedia: async (_url, options) => {
+    assert.equal(options.credentials, "omit"); assert.equal(options.redirect, "error");
+    calls++;
+    if (calls < 3) return new Response(null, { status: 503, headers: { "retry-after": "0" } });
+    return new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "image/png" } });
+  } });
+  const result = await send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/transient.png" });
+  assert.equal(calls, 3); assert.equal(result.dataUrl, "data:image/png;base64,AQID");
+});
+
+test("media access and validation failures are terminal, while broken streams retry from zero", async () => {
+  for (const status of [401, 403, 404]) {
+    let calls = 0;
+    const { send } = backgroundHarness({ fetchMedia: async () => { calls++; return new Response(null, { status }); } });
+    assert.ok((await send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/denied.png" })).error);
+    assert.equal(calls, 1);
+  }
+  let calls = 0, reads = 0;
+  const { send } = backgroundHarness({ fetchMedia: async () => {
+    calls++; const first = calls === 1;
+    if (!first) return new Response(new Uint8Array([3]), { headers: { "content-type": "image/png" } });
+    return { ok: true, headers: { get: name => name === "content-type" ? "image/png" : null }, body: { getReader: () => ({
+      async read() { if (++reads === 1) return { value: new Uint8Array([1, 2]), done: false }; throw new TypeError("Network stream failed"); },
+      async cancel() {}, releaseLock() {}
+    }) } };
+  } });
+  const result = await send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/stream.png" });
+  assert.equal(calls, 2); assert.equal(result.dataUrl, "data:image/png;base64,Aw==");
+});
+
+test("cancelling during media backoff prevents further requests", async () => {
+  let calls = 0, waiting;
+  const ready = new Promise(resolve => { waiting = resolve; });
+  const token = "fafafafa-fafa-4afa-8afa-fafafafafafa";
+  const harness = backgroundHarness({ fetchMedia: async () => { calls++; waiting(); return new Response(null, { status: 503 }); } });
+  await harness.send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
+  const hold = harness.hold("BUILD_POST_EXPORT");
+  const build = harness.send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  const { tabId, message } = await hold.entered;
+  const media = harness.send({ type: "FETCH_POST_EXPORT_IMAGE", url: "https://media.example/retry.png", transferId: message.transferId },
+    { ...harness.sender, tab: { ...harness.sender.tab, id: tabId, url: "https://www.patreon.com/posts/101" } });
+  await ready; await new Promise(setImmediate);
+  await harness.send({ type: "CANCEL_COLLECTION_EXPORT", token });
+  assert.match((await media).error, /cancelled/);
+  hold.release(); await build;
+  assert.equal(calls, 1);
+});
+
+
+test("a completed failed chapter is not rebuilt by readiness polling or a fallback worker", async () => {
+  const { send, calls } = backgroundHarness({ fastTimers: true, failBuild: () => true });
+  const token = "babababa-baba-4aba-8aba-babababababa";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: ["https://www.patreon.com/posts/101"] });
+  const result = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  assert.match(result.error, /Synthetic build failure/);
+  assert.equal(calls.build.length, 1);
 });

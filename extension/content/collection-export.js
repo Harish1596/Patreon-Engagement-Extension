@@ -337,13 +337,21 @@
       fields.add("content_json_string");
       fields.add("title");
       pageUrl.searchParams.set("fields[post]", [...fields].join(","));
-      const response = await fetch(pageUrl.href, {
-        credentials: "include",
-        signal,
-        headers: { Accept: "application/json" }
-      });
-      if (!response.ok) throw new Error(`Patreon collection request failed (${response.status}).`);
-      const payload = await response.json();
+      const payload = await globalThis.PatreonRetry.run(async ({ signal: attemptSignal }) => {
+        let response;
+        try { response = await fetch(pageUrl.href, { credentials: "include", signal: attemptSignal, headers: { Accept: "application/json" } }); }
+        catch (error) { throw globalThis.PatreonRetry.networkError(error); }
+        if (!response.ok) {
+          const error = globalThis.PatreonRetry.httpError(response, "Patreon collection request failed");
+          await response.body?.cancel().catch(() => {});
+          throw error;
+        }
+        try { return await response.json(); }
+        catch (error) { throw globalThis.PatreonRetry.networkError(error); }
+      }, { signal, onRetry: retry => {
+        report(`Collection request failed temporarily. Retry ${retry.attempt} of ${retry.attempts} in ${Math.ceil(retry.delayMs / 1000)}s…`);
+        setProgress("Waiting to retry collection request");
+      } });
       signal.throwIfAborted();
       if (!Array.isArray(payload?.data)) throw new Error("Patreon returned an invalid collection page.");
       const total = Number(payload?.meta?.pagination?.total);
@@ -517,7 +525,11 @@
     if (!discovered) {
       chooser.src = "about:blank";
       try { discovered = await apiPostUrls(signal); }
-      catch { signal.throwIfAborted(); discovered = null; }
+      catch (error) {
+        signal.throwIfAborted();
+        if (error.retryable || error.accessDenied) throw error; // Do not bypass exhausted/rate-limited or denied reads through DOM fallback.
+        discovered = null;
+      }
       if (!discovered) {
         await loadAllPostLinks(signal);
         discovered = { urls: postUrls(), locked: 0 };
@@ -918,7 +930,14 @@
         || message.operationId !== activeOperation.id || activeOperation.controller.signal.aborted) return;
       if (!Number.isSafeInteger(message.current) || !Number.isSafeInteger(message.total)
         || message.current < 0 || message.total < 1 || message.current > message.total) return;
-      if (!["prepare", "prepare-post", "build"].includes(message.phase)) return;
+      if (!["prepare", "prepare-post", "build", "retry"].includes(message.phase)) return;
+      if (message.phase === "retry") {
+        if (!Number.isSafeInteger(message.attempt) || message.attempt < 2 || message.attempt > 3
+          || !Number.isFinite(message.delayMs) || message.delayMs < 0 || message.delayMs > 60_000) return;
+        report(`Image request failed temporarily. Retry ${message.attempt} of 3 in ${Math.ceil(message.delayMs / 1000)}s…`);
+        setProgress("Waiting to retry image request");
+        respond({ reported: true }); return;
+      }
       currentPost(message.index, message.total, message.title);
       const preparing = message.phase !== "build";
       const label = preparing ? "Preparing posts" : "Fetching chapter";

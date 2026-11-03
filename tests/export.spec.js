@@ -23,6 +23,17 @@ test("collection requests cannot export a previous document during post navigati
   expect(result.stale.file).toBeUndefined();
 });
 
+// These are exporter tests with a synthetic chooser. Use the runtime delivery
+// seam (as the source-reuse case below does); installed Brave covers real gestures.
+async function chooseFormat(page, name) {
+  await expect(formatButton(page, name)).toBeVisible();
+  const result = await page.evaluate(format => {
+    const frame = document.querySelector('[data-patreon-download-panel]').shadowRoot.querySelector("iframe");
+    return deliverExtensionMessage({ type: "POST_EXPORT_CHOICE", token: new URL(frame.src).hash.slice(1), format });
+  }, name.toLowerCase());
+  expect(result.started).toBe(true);
+}
+
 async function downloadBytes(download) {
   const stream = await download.createReadStream();
   const chunks = [];
@@ -64,7 +75,7 @@ test("EPUB is a self-contained stored ZIP with post XHTML and image bytes", asyn
   await setup(page, { content });
   await downloadButton(page).click();
   const pending = page.waitForEvent("download");
-  await formatButton(page, "EPUB").click();
+  await chooseFormat(page, "EPUB");
   const download = await pending;
   expect(download.suggestedFilename()).toBe("A sample post.epub");
   const bytes = await downloadBytes(download);
@@ -99,7 +110,7 @@ test("PDF prepares a sanitized offline print view and invokes native printing", 
     observer.observe(document.documentElement, { childList: true, subtree: true });
   });
   await downloadButton(page).click();
-  await formatButton(page, "PDF").click();
+  await chooseFormat(page, "PDF");
   await expect(downloadDialog(page).getByRole("status")).toContainText("Save as PDF");
   const result = await page.evaluate(() => ({
     html: printedExportHtml, printed: exportPrintCalled,
@@ -135,7 +146,7 @@ test("remote post media requests only its exact origin and embeds returned bytes
   await downloadButton(page).click();
   const progress = downloadDialog(page).getByRole("progressbar", { name: "Post download progress" });
   const pending = page.waitForEvent("download");
-  await formatButton(page, "Markdown").click();
+  await chooseFormat(page, "Markdown");
   await expect(progress).toBeVisible();
   const markdown = (await downloadBytes(await pending)).toString("utf8");
   await expect(progress).toBeHidden();

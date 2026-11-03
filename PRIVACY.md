@@ -96,7 +96,12 @@ reading and offline-export experience.
 Feature-initiated network requests retrieve collection pagination, normal Patreon
 post pages, and user-approved inline images for the requested export. They go
 directly from the user's browser to Patreon or the displayed media origin.
-Source-cache operations are local disk reads/writes; their synthetic cache keys
+Temporary connection/time-out and selected HTTP failures may trigger up to three
+attempts for the same collection-API or inline-image read. Backoff and available
+Retry-After headers delay repeat requests; long server waits stay manual.
+Cancellation stops active reads and retry waits. Retries do not request broader
+permissions, send media credentials, or add network destinations. Source-cache
+operations are local disk reads/writes; their synthetic cache keys
 do not cause network requests. The extension does not
 transmit exported post content or images to the developer, analytics services,
 or any other intermediary. No information is sold, shared, or made available

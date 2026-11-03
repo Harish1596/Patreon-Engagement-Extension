@@ -1,5 +1,5 @@
 /* Fetches post media only after the user grants the exact image origin. */
-importScripts("../shared/zip.js", "retention.js", "disk-crypto.js", "post-cache.js", "epub-book.js", "archives.js");
+importScripts("../shared/zip.js", "../shared/retry.js", "retention.js", "disk-crypto.js", "post-cache.js", "epub-book.js", "archives.js");
 globalThis.PatreonDiskCrypto = globalThis.PatreonExportCrypto.create();
 globalThis.PatreonRetention = globalThis.PatreonExportRetention.create();
 globalThis.PatreonArchives.install();
@@ -217,7 +217,12 @@ globalThis.PatreonArchives.install();
           || (result?.post || result?.file)?.postId === message.expectedPostId;
         if (result && !result.error && identityMatches) return result;
         lastError = new Error(result?.error || "The post is not ready for export.");
-      } catch (error) { lastError = error; }
+        // Readiness polling must not restart a completed, failed export (which
+        // may already have exhausted its own bounded network retries).
+        if (message.type === "BUILD_POST_EXPORT" && result?.error && !/not finished loading|not ready for export/i.test(result.error)) {
+          lastError.postFailure = true; throw lastError;
+        }
+      } catch (error) { if (error.postFailure) throw error; lastError = error; }
       if (signal?.aborted) throw new Error("The collection export was cancelled.");
       await cancellable(delay(250), signal);
     }
@@ -273,6 +278,8 @@ globalThis.PatreonArchives.install();
     for (let index = 0; index < session.posts.length; index++) {
       if (selectedIndex !== undefined && index !== selectedIndex) continue;
       const post = session.posts[index];
+      session.buildIndex = index;
+      session.operationId = operationId;
       if (cancelledCollections.has(token)) throw new Error("The collection export was cancelled.");
       let result;
       let usedTabId;
@@ -293,8 +300,9 @@ globalThis.PatreonArchives.install();
           session.activePost = { tabId: post.tabId, transferId };
           result = await askPost(post.tabId, request, 60, session.controller.signal);
           usedTabId = post.tabId;
-        } catch {
+        } catch (error) {
           checkCancelled(session);
+          if (error.postFailure) throw error;
           result = await askWorkerPost(session, post.url, request);
           usedTabId = session.workerTabId;
         }
@@ -661,16 +669,21 @@ globalThis.PatreonArchives.install();
     }
     const limit = Number.isSafeInteger(message.maxBytes) && message.maxBytes > 0
       ? Math.min(message.maxBytes, MAX_IMAGE_BYTES) : MAX_IMAGE_BYTES;
-    const timeout = setTimeout(() => controller.abort(new Error("The image request timed out.")), 30_000);
-    (async () => {
-      const release = await mediaSlot(controller.signal);
+    globalThis.PatreonRetry.run(async ({ signal }) => {
+      const release = await mediaSlot(signal);
       try {
-        controller.signal.throwIfAborted();
+        signal.throwIfAborted();
         if (!await call(api.permissions, "contains", { origins: [origin] })) {
           throw new Error("Media access was not granted for this image origin.");
         }
-        const response = await fetch(parsed.href, { credentials: "omit", redirect: "error", signal: controller.signal });
-        if (!response.ok) throw new Error(`Image request failed (${response.status}).`);
+        let response;
+        try { response = await fetch(parsed.href, { credentials: "omit", redirect: "error", signal }); }
+        catch (error) { throw globalThis.PatreonRetry.networkError(error); }
+        if (!response.ok) {
+          const error = globalThis.PatreonRetry.httpError(response, "Image request failed");
+          await response.body?.cancel().catch(() => {});
+          throw error;
+        }
         const type = response.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
         if (!type?.startsWith("image/")) throw new Error("The media response was not an image.");
         const declaredSize = Number(response.headers.get("content-length"));
@@ -683,8 +696,10 @@ globalThis.PatreonArchives.install();
         let size = 0;
         try {
           while (true) {
-            controller.signal.throwIfAborted();
-            const { value, done } = await reader.read();
+            signal.throwIfAborted();
+            let next;
+            try { next = await reader.read(); } catch (error) { throw globalThis.PatreonRetry.networkError(error); }
+            const { value, done } = next;
             if (done) break;
             size += value.byteLength;
             if (size > limit) throw new Error("An inline image is too large to export safely.");
@@ -702,10 +717,20 @@ globalThis.PatreonArchives.install();
         const bytes = new Uint8Array(size);
         let offset = 0;
         for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-        respond({ dataUrl: `data:${type};base64,${base64(bytes)}`, type });
+        return { dataUrl: `data:${type};base64,${base64(bytes)}`, type };
       } finally { release(); }
-    })().catch((error) => respond({ error: error.message || "Unable to fetch post media." })).finally(() => {
-      clearTimeout(timeout);
+    }, { signal: controller.signal, onRetry: async retry => {
+      const active = [...collections].find(([, session]) => session.activePost?.tabId === sender.tab.id
+        && session.activePost?.transferId === message.transferId);
+      if (active) {
+        const [token, session] = active;
+        const index = session.buildIndex;
+        await reportCollectionProgress(session, token, "retry", 0, session.posts.length, "", {
+          operationId: session.operationId, index: Math.max(0, index), ...retry
+        });
+      }
+      await call(api.tabs, "sendMessage", sender.tab.id, { type: "POST_EXPORT_RETRY", transferId: message.transferId, ...retry }).catch(() => {});
+    } }).then(respond).catch((error) => respond({ error: controller.signal.aborted ? "The post media request was cancelled." : error.message || "Unable to fetch post media." })).finally(() => {
       controller.abort();
       if (mediaKey) {
         mediaRequests.get(mediaKey)?.delete(controller);
