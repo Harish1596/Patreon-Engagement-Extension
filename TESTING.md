@@ -29,6 +29,38 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Large collection batches, November 3, 2026: **62 Chrome export cases,
+7 Brave cases including the installed extension, and 69 tooling cases passed**.
+Syntax covers 54 JavaScript files; whitespace checks pass. Commands:
+
+```sh
+npx playwright test tests/collection-batches.spec.js tests/collection-retry.spec.js tests/collection-refresh.spec.js tests/collection-report.spec.js tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js tests/export.spec.js tests/export-security.spec.js
+npm run test:brave -- tests/collection-batches.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+Synthetic 101-post fixtures verify two automatically downloaded parts for Markdown
+ZIP, EPUB ZIP and Single EPUB. They inspect ordered global filenames, chapter
+counts, each book's local TOC/navigation, reports spanning parts, failed later-part
+retry without repeating earlier chapters, cancellation after an earlier handoff,
+and switching formats after a later failure. Discovery refuses 1,001 posts before
+preflight; worker fixtures prepare/restore 1,000 metadata records and build the
+last indexed chapter after restart. Installed Brave retains real native-download,
+worker-restart and expiry coverage using its smaller fixture; it does not exercise
+native multi-part downloads or a live large Patreon collection.
+
+Collections are capped at 1,000 discovered posts, with at most 100 prepared
+chapters per output part. Existing single-part names remain unchanged. Source
+cache and archive quotas remain 512 MiB and 1 GiB respectively; these are disk
+payload limits, not RAM guarantees. Parts are split by chapter count, not measured
+bytes. An image-heavy part can still exceed the archive budget or browser quota;
+errors remain retryable with committed chapters retained. Earlier native downloads
+can temporarily consume the shared archive budget until completion/interruption.
+Cancellation stops remaining work without retracting earlier handoffs. Completion
+of a native download is still distinct from the report's Download started state.
+
 Automatic network retries, November 3, 2026: **56 Chrome export cases,
 14 Brave focused cases including the installed extension, and 68 tooling cases
 passed**. Syntax covers 53 JavaScript files; whitespace checks pass. Commands:

@@ -604,3 +604,16 @@ test("a completed failed chapter is not rebuilt by readiness polling or a fallba
   assert.match(result.error, /Synthetic build failure/);
   assert.equal(calls.build.length, 1);
 });
+
+test("maximum collection metadata restores and builds a chapter beyond the first batch", async () => {
+  const { send, restart } = backgroundHarness();
+  const token = "11111111-1111-4111-8111-111111111111";
+  const urls = Array.from({ length: 1000 }, (_, index) => `https://www.patreon.com/posts/${201 + index}`);
+  assert.equal((await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls })).count, 1000);
+  restart();
+  assert.equal((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).count, 1000);
+  const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "markdown", index: 999 });
+  assert.equal(built.files[0].title, "Post 1200");
+  const excessive = Array.from({ length: 1001 }, (_, index) => `https://www.patreon.com/posts/${201 + index}`);
+  assert.match((await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: excessive })).error, /invalid post list/);
+});

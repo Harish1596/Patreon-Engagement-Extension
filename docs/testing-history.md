@@ -1348,3 +1348,26 @@ fixtures verify UI recovery, wait cancellation, exhaustion without fallback and
 manual 401/403/long-wait errors. Installed Brave injects a temporary API failure
 and verifies real recovery/downloads. These fixtures do not establish live Patreon
 or network-service behavior.
+
+
+## November 3, 2026 — Download large collections in ordered parts
+
+Discovery/prepared metadata now support up to 1,000 posts, while each generated
+ZIP or EPUB book contains at most 100 prepared chapters. The controller downloads
+numbered parts automatically in collection order. Chapter filenames in separate
+ZIPs use global numbering; each EPUB book has self-contained local navigation.
+Later-part retry reuses staged successful chapters without repeating earlier
+handoffs. Reports preserve earlier included rows, cancellation affects remaining
+work, and selecting a new format starts from the first chapter. Collections up to
+100 chapters retain their previous output names. Source and archive disk budgets
+remain unchanged; splitting is by chapter count, with manual storage-error retry
+still required for unusually large parts or overlapping native downloads.
+
+Verification passed: 62 Chrome export cases, 7 Brave cases including the installed
+extension, 69 tooling cases, syntax for 54 JavaScript files and whitespace checks.
+Synthetic 101-post cases cover all formats, part contents/order, independent EPUB
+TOCs/navigation, later failures/retry/cancellation, format changes and refusal
+above the discovery bound. A worker fixture prepares/restores 1,000 metadata
+records and builds index 999 after restart. Installed Brave verifies the existing
+smaller native-download/cache/expiry flow; large native collection handoffs and
+live Patreon collections were not exercised. Tests use sanitized synthetic posts.

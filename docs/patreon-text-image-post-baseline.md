@@ -1588,3 +1588,35 @@ never become fixed runtime expectations based on this inventory.
 
 No extra capture is required to use this text-and-image baseline. Extend its
 evidence when the next feature or post variation actually needs it.
+
+
+**November 3 large collection batches:** Discovery and prepared session metadata
+now accept up to 1,000 collection posts, superseding the earlier 100-post discovery
+bound recorded above. API and DOM discoveries exceeding that
+bound fail visibly rather than falling back to a potentially partial collection.
+The output writer retains its 100-chapter limit: the content controller processes
+ordered batches and automatically hands each completed part to the browser before
+starting the next. Larger collections show a numbered-parts warning in the dialog.
+Markdown/EPUB separate files produce numbered ZIPs; Single EPUB produces numbered
+books. Collections with at most 100 prepared posts keep the existing filenames.
+ZIP chapter filenames retain global collection numbering; each book has local
+chapter paths, spine, TOC and previous/next links confined to that part.
+
+The current checkpoint identifies the total collection, offset and current part.
+Retry resumes that part's failed chapters or packaging without rebuilding earlier
+handed-off parts. Choosing a different format restarts at the first chapter.
+Reports preserve earlier included rows; cancellation marks only remaining posts
+cancelled and explicitly preserves earlier handoffs. Progress includes the part
+and global chapter positions. Source cache ownership, two-hour expiry, sequential
+inactive worker, encrypted retry files and disk-backed native handoff are unchanged.
+No new DOM selector, access rule or permission is introduced.
+
+Splitting is by chapter count, not adaptive byte estimates. The existing 512 MiB
+source-cache and shared 1 GiB archive disk budgets remain enforced; image-heavy
+parts or overlapping native downloads can still exhaust temporary space and need
+manual retry after space becomes available. This does not guarantee a RAM ceiling.
+Synthetic fixtures cover 101 chapters across all three formats, ordered independent
+parts, later-part retry/cancellation, format changes and the discovery bound.
+Worker fixtures cover metadata restore at 1,000 posts and the final indexed build.
+Installed Brave regression coverage uses its smaller native-download fixture;
+no live Patreon collection of more than 100 posts was inspected in this task.

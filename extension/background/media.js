@@ -107,7 +107,7 @@ globalThis.PatreonArchives.install();
         || !Number.isSafeInteger(value.ownerTabId) || !Number.isSafeInteger(value.ownerWindowId)
         || !Number.isFinite(value.expires) || value.expires <= Date.now()
         || !Number.isSafeInteger(value.skipped) || value.skipped < 0
-        || !Array.isArray(value.posts) || !value.posts.length || value.posts.length > 100
+        || !Array.isArray(value.posts) || !value.posts.length || value.posts.length > 1000
         || !value.posts.every(post => validPostUrl(post?.url) && typeof post.title === "string"
           && (post.tabId === null || Number.isSafeInteger(post.tabId))
           && Array.isArray(post.origins) && post.origins.every(origin => typeof origin === "string"))) {
@@ -115,7 +115,7 @@ globalThis.PatreonArchives.install();
         continue;
       }
       const skippedPosts = Array.isArray(value.skippedPosts) ? value.skippedPosts.filter(post => validPostUrl(post?.url)
-        && typeof post.title === "string" && typeof post.reason === "string").slice(0, 100) : [];
+        && typeof post.title === "string" && typeof post.reason === "string").slice(0, 1000) : [];
       collections.set(token, { ...value, skippedPosts, workerTabId: null });
     }
     if (expired.length) await call(api.storage.session, "remove", expired);
@@ -328,7 +328,7 @@ globalThis.PatreonArchives.install();
   async function prepareCollection(message, sender) {
     const urls = Array.isArray(message.urls) ? [...new Set(message.urls)] : [];
     if (typeof message.token !== "string" || !/^[0-9a-f-]{36}$/i.test(message.token)
-      || !urls.length || urls.length > 100 || urls.some(url => !validPostUrl(url))) {
+      || !urls.length || urls.length > 1000 || urls.some(url => !validPostUrl(url))) {
       throw new Error("The collection supplied an invalid post list.");
     }
     const existingSession = collections.get(message.token);
@@ -338,7 +338,7 @@ globalThis.PatreonArchives.install();
     }
     const previous = existingSession?.expires > Date.now() ? existingSession : null;
     const revisions = new Map();
-    if (Array.isArray(message.revisions) && message.revisions.length <= 100) {
+    if (Array.isArray(message.revisions) && message.revisions.length <= 1000) {
       for (const item of message.revisions) {
         if (urls.includes(item?.url) && /^[a-f0-9]{64}$/.test(item?.revision || "")) revisions.set(item.url, item.revision);
       }

@@ -89,6 +89,7 @@
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const observedApiRequests = [];
   const MAX_TRANSFER_CHARS = 1024 * 1024;
+  const BATCH_POSTS = 100;
 
   function clearDiscovery() {
     clearTimeout(discoveryTimer);
@@ -154,7 +155,7 @@
 
   function counts(operation) {
     if (!checkpoint) return;
-    detail("counts", `Completed ${checkpoint.entries.filter(Boolean).length} of ${checkpoint.count}`
+    detail("counts", `${checkpoint.total > BATCH_POSTS ? `Part ${Math.floor(checkpoint.offset / BATCH_POSTS) + 1} of ${Math.ceil(checkpoint.total / BATCH_POSTS)} · ` : ""}Completed ${checkpoint.entries.filter(Boolean).length} of ${checkpoint.count}`
       + (operation.cached.size ? ` · ${operation.cached.size} cached` : "")
       + (operation.failed.size ? ` · ${operation.failed.size} failed` : ""));
   }
@@ -191,8 +192,9 @@
     if (!busy || !operation || operation.handedOff) return;
     const ownerHost = host;
     operation.controller.abort();
-    if (downloadReport) for (const post of downloadReport.posts) if (post.status !== "skipped" && post.status !== "download-started") { post.status = "cancelled"; post.reason = "Export cancelled. No collection file was downloaded."; }
-    reportState("Cancelled. Nothing downloaded.");
+    if (downloadReport) for (const post of downloadReport.posts) if (post.status !== "skipped" && post.status !== "download-started") { post.status = "cancelled"; post.reason = "Export cancelled before this post was downloaded."; }
+    reportState(downloadReport?.posts.some(post => post.status === "download-started")
+      ? "Cancelled remaining parts. Earlier downloads were already handed to the browser." : "Cancelled. Nothing downloaded.");
     const dropping = dropCheckpoint();
     finishOperation(operation);
     const token = requestToken;
@@ -392,7 +394,7 @@
       }
       setProgress("Finding collection posts", seen.size, expectedTotal);
       detail("counts", `Found ${seen.size}${expectedTotal === null ? "" : ` of ${expectedTotal}`} posts`);
-      if (seen.size > 100) throw new Error("This collection contains more than 100 posts.");
+      if (seen.size > 1000) throw Object.assign(new Error("This collection contains more than 1,000 posts. Choose a smaller collection."), { limitExceeded: true });
       pageUrl = nextCollectionApiUrl(payload, template, collectionId, campaignId);
       if (!pageUrl) {
         if (expectedTotal !== null && seen.size !== expectedTotal) {
@@ -527,7 +529,7 @@
       try { discovered = await apiPostUrls(signal); }
       catch (error) {
         signal.throwIfAborted();
-        if (error.retryable || error.accessDenied) throw error; // Do not bypass exhausted/rate-limited or denied reads through DOM fallback.
+        if (error.retryable || error.accessDenied || error.limitExceeded) throw error; // Do not bypass exhausted/rate-limited or denied reads through DOM fallback.
         discovered = null;
       }
       if (!discovered) {
@@ -541,6 +543,7 @@
       discoveryTimer = setTimeout(clearDiscovery, COLLECTION_CACHE_MS);
     }
     const { urls, locked } = discovered;
+    if (urls.length + (locked || 0) > 1000) throw new Error("This collection contains more than 1,000 posts. Choose a smaller collection.");
     if (!urls.length && locked) {
       if (refresh) { await discardPreparation(true); checkOperation(operation); }
       prepareDownloadReport({ postUrls: [], skippedPosts: [] }, discovered);
@@ -580,7 +583,7 @@
     }
     if (route !== preparationRoute || !host?.isConnected) return;
     checkOperation(operation);
-    if (checkpoint && (checkpoint.count !== result.count
+    if (checkpoint && ((checkpoint.total || checkpoint.count) !== result.count
       || checkpoint.signature !== JSON.stringify(result.postUrls))) await dropCheckpoint();
     checkOperation(operation);
     prepareDownloadReport(result, discovered);
@@ -588,8 +591,9 @@
     loadChooser();
     const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
     const lockedMessage = locked ? ` ${locked} locked ${locked === 1 ? "post was" : "posts were"} skipped.` : "";
+    const batches = result.count > BATCH_POSTS ? ` Downloads will be split into ${Math.ceil(result.count / BATCH_POSTS)} numbered parts of up to ${BATCH_POSTS} posts.` : "";
     const reused = refresh && result.reused ? ` ${result.reused} unchanged cached ${result.reused === 1 ? "post was" : "posts were"} reused.` : "";
-    report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${lockedMessage}${skipped}${reused}`, prefix ? "success" : "");
+    report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${lockedMessage}${skipped}${reused}${batches}`, prefix ? "success" : "");
     setProgress();
     setBusy(false);
     finishOperation(operation);
@@ -599,7 +603,8 @@
   function showRetry() {
     const complete = checkpoint.entries.filter(Boolean).length;
     const remaining = checkpoint.count - complete;
-    report(`${complete} of ${checkpoint.count} posts retained. ${remaining ? `${remaining} failed.` : "Packaging failed."} ${checkpoint.error || ""} Retry to resume.`, "error");
+    const part = checkpoint.total > BATCH_POSTS ? `Part ${Math.floor(checkpoint.offset / BATCH_POSTS) + 1} of ${Math.ceil(checkpoint.total / BATCH_POSTS)}. ` : "";
+    report(`${part}${complete} of ${checkpoint.count} posts retained. ${remaining ? `${remaining} failed.` : "Packaging failed."} ${checkpoint.error || ""} Retry to resume.`, "error");
     const retry = shadow.querySelector(".retry");
     retry.textContent = remaining ? "Retry failed posts" : "Retry packaging";
     retry.hidden = false;
@@ -650,8 +655,9 @@
     return { ...metadata, data: chunks.join("") };
   }
 
-  async function run(format) {
+  async function run(format, start = checkpoint?.offset || 0, continuation = false) {
     if (busy) return;
+    if (checkpoint && checkpoint.format !== format) start = 0;
     const book = format === "epub-book";
     const outputFormat = book ? "epub" : format;
     const label = outputFormat === "epub" ? "EPUB" : "Markdown";
@@ -671,29 +677,35 @@
         throw new Error(prepared?.error || "The collection session is unavailable. Reopen Download Collection.");
       }
       checkOperation(operation);
-      if (!downloadReport || downloadReport.mode !== format || !checkpoint || checkpoint.format !== format) {
+      if (!downloadReport || downloadReport.mode !== format || (!checkpoint && !continuation) || (checkpoint && checkpoint.format !== format)) {
         resetDownloadReport();
         prepareDownloadReport(prepared, discoveryCache?.discovered);
       }
       downloadReport.mode = format;
       downloadReport.format = format === "epub-book" ? "Single EPUB" : `${label} files (ZIP)`;
       // Retry state comes from committed disk entries, not previous failed attempts.
-      for (const post of downloadReport.posts) if (post.status !== "skipped") { post.status = "ready"; post.reason = ""; }
-      reportState("Building chapters. No collection file downloaded yet.");
+      for (const post of downloadReport.posts) if (post.status !== "skipped" && post.status !== "download-started") { post.status = "ready"; post.reason = ""; }
+      reportState(start ? "Building the next part. Earlier parts were handed to the browser." : "Building chapters. No collection file downloaded yet.");
       const signature = JSON.stringify(prepared.postUrls);
-      if (!checkpoint || checkpoint.format !== format || checkpoint.count !== prepared.count || checkpoint.signature !== signature) {
+      if (!checkpoint || checkpoint.format !== format || (checkpoint.total || checkpoint.count) !== prepared.count || checkpoint.signature !== signature) {
         await dropCheckpoint();
         checkOperation(operation);
-        checkpoint = { id: crypto.randomUUID(), format, count: prepared.count, signature, entries: [], error: "" };
+        if (start >= prepared.count) start = 0;
+        checkpoint = { id: crypto.randomUUID(), format, offset: start, total: prepared.count,
+          count: Math.min(BATCH_POSTS, prepared.count - start), signature, entries: [], error: "" };
       }
+      const offset = checkpoint.offset || 0;
+      const part = Math.floor(offset / BATCH_POSTS) + 1;
+      const parts = Math.ceil(prepared.count / BATCH_POSTS);
+      const suffix = parts > 1 ? ` - Part ${String(part).padStart(3, "0")} of ${String(parts).padStart(3, "0")}` : "";
       let staged;
       try { staged = await archive.request("GET", { id: checkpoint.id }, signal); }
       catch { checkOperation(operation); }
       if (!staged) {
         // Rebuild disk files only if the browser lost their temporary directory.
         await archive.request("CREATE", { id: checkpoint.id, count: checkpoint.count,
-          filename: `${fileStem(collectionTitle())}.${book ? "epub" : "zip"}`,
-          ...(book ? { book: { title: collectionTitle(), source: `${location.origin}${location.pathname}`,
+          filename: `${fileStem(collectionTitle())}${suffix}.${book ? "epub" : "zip"}`,
+          ...(book ? { book: { title: `${collectionTitle()}${suffix}`, source: `${location.origin}${location.pathname}`,
             downloadedAt: new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "long" }).format(new Date()) } } : {}) }, signal);
         checkpoint.entries = [];
       } else {
@@ -701,40 +713,41 @@
       }
       counts(operation);
       for (let index = 0; index < checkpoint.count; index++) {
-        if (checkpoint.entries[index]) { updateReportPost(prepared.postUrls[index], "prepared", "Retained chapter reused."); continue; }
+        const postIndex = offset + index;
+        if (checkpoint.entries[index]) { updateReportPost(prepared.postUrls[postIndex], "prepared", "Retained chapter reused."); continue; }
         try {
-          currentPost(index, checkpoint.count, prepared.postTitles?.[index]);
+          currentPost(postIndex, prepared.count, prepared.postTitles?.[postIndex]);
           detail("bytes", "");
-          report(`Building post ${index + 1} of ${checkpoint.count}…`);
-          setProgress("Building posts", checkpoint.entries.filter(Boolean).length, checkpoint.count);
+          report(`Building post ${postIndex + 1} of ${prepared.count}…`);
+          setProgress("Building posts", offset + checkpoint.entries.filter(Boolean).length, prepared.count);
           const result = await waitFor(call(api.runtime, "sendMessage", {
-            type: "BUILD_COLLECTION_EXPORT", token: requestToken, format: "snapshot", index, operationId: operation.id
+            type: "BUILD_COLLECTION_EXPORT", token: requestToken, format: "snapshot", index: postIndex, operationId: operation.id
           }), signal);
           checkOperation(operation);
           if (!result?.files?.length) throw new Error(result?.error || "The post did not produce a file.");
-          currentPost(index, checkpoint.count, result.files[0].title);
+          currentPost(postIndex, prepared.count, result.files[0].title);
           if (result.files[0].cached) operation.cached.add(index);
           counts(operation);
           report(result.files[0].cached ? "Reading cached chapter…" : "Receiving chapter…");
-          let file = await receiveFile(requestToken, result.files[0], index, signal, operation);
+          let file = await receiveFile(requestToken, result.files[0], postIndex, signal, operation);
           if (file.extension !== "snapshot") throw new Error("The collection returned an invalid source snapshot.");
           report(`Formatting ${label} chapter…`);
           setProgress("Formatting chapter");
-          file = await fileFromSnapshot(JSON.parse(file.data), outputFormat, prepared.postUrls[index], book ? { index, count: checkpoint.count } : undefined);
+          file = await fileFromSnapshot(JSON.parse(file.data), outputFormat, prepared.postUrls[postIndex], book ? { index, count: checkpoint.count } : undefined);
           checkOperation(operation);
-          checkpoint.entries[index] = await archive.store(checkpoint.id, index, decodeFile(file, index, checkpoint.count), signal, progress => {
+          checkpoint.entries[index] = await archive.store(checkpoint.id, index, decodeFile(file, postIndex, prepared.count), signal, progress => {
             if (activeOperation !== operation || signal.aborted) return;
             byteProgress("Compressing and saving chapter", progress.read, progress.total, progress.done);
             detail("bytes", `${bytes(progress.read)} of ${bytes(progress.total)} · Compressed ${bytes(progress.stored)}`);
           });
           checkOperation(operation);
-          updateReportPost(prepared.postUrls[index], "prepared", "Chapter prepared and saved for packaging.");
+          updateReportPost(prepared.postUrls[postIndex], "prepared", "Chapter prepared and saved for packaging.");
           counts(operation);
         } catch (error) {
           checkOperation(operation);
-          checkpoint.error = `Post ${index + 1}: ${error.message || "Export failed."}`;
+          checkpoint.error = `Post ${postIndex + 1}: ${error.message || "Export failed."}`;
           operation.failed.add(index);
-          updateReportPost(prepared.postUrls[index], "failed", error.message || "Export failed.");
+          updateReportPost(prepared.postUrls[postIndex], "failed", error.message || "Export failed.");
           counts(operation);
         }
       }
@@ -743,7 +756,8 @@
         setBusy(false);
         finishOperation(operation);
         loadChooser();
-        reportState("Some chapters failed. Nothing downloaded. Retry failed posts to continue.");
+        reportState(offset ? "Some chapters failed in this part. Earlier part downloads remain available. Retry failed posts to continue."
+          : "Some chapters failed. Nothing downloaded. Retry failed posts to continue.");
         showRetry();
         return;
       }
@@ -758,12 +772,20 @@
       reportState("Download started. Browser completion has not been confirmed.");
       setBusy(true);
       // The browser now owns the disk-backed archive until completion/interrupt.
+      const next = offset + checkpoint.count;
       checkpoint = null;
       const finished = await call(api.runtime, "sendMessage", {
         type: "FINISH_COLLECTION_EXPORT", token: requestToken
       });
       if (!finished?.finished) throw new Error(finished?.error || "The collection transfer could not be completed.");
-      await prepareSession(book ? "EPUB book download started." : `${label} ZIP download started.`, false, operation);
+      if (next < prepared.count) {
+        // Native downloads own earlier files. A fresh operation makes remaining
+        // parts cancellable without undoing those already handed to the browser.
+        finishOperation(operation); setBusy(false);
+        return run(format, next, true);
+      }
+      await prepareSession(parts > 1 ? `${parts} ${book ? "EPUB book" : `${label} ZIP`} part downloads started.`
+        : book ? "EPUB book download started." : `${label} ZIP download started.`, false, operation);
     } catch (error) {
       if (signal.aborted || activeOperation !== operation) return;
       reportState(`Collection download failed: ${cleanReportText(error.message || "Export failed.")} Chapters marked Prepared are retained for retry.`);
@@ -915,7 +937,7 @@
           || message.bytesCopied < 0 || message.bytesTotal <= 0 || message.bytesCopied > message.bytesTotal) {
           respond({ error: "Invalid archive progress." }); return;
         }
-        currentPost(message.index, message.total, message.name, "File");
+        currentPost(message.index + (checkpoint.offset || 0), checkpoint.total || message.total, message.name, "File");
         if (message.stage === "finalize") {
           report(checkpoint.format === "epub-book" ? "Finalizing EPUB…" : "Finalizing ZIP…");
           setProgress(checkpoint.format === "epub-book" ? "Finalizing EPUB" : "Finalizing ZIP");
@@ -941,7 +963,7 @@
       currentPost(message.index, message.total, message.title);
       const preparing = message.phase !== "build";
       const label = preparing ? "Preparing posts" : "Fetching chapter";
-      const current = !preparing && checkpoint ? checkpoint.entries.filter(Boolean).length : message.current;
+      const current = !preparing && checkpoint ? (checkpoint.offset || 0) + checkpoint.entries.filter(Boolean).length : message.current;
       report(`${label}… ${current} of ${message.total}.`);
       setProgress(label, current, message.total);
       if (preparing) detail("counts", `Checked ${message.current} of ${message.total} posts`);
