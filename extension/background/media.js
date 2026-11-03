@@ -1,5 +1,5 @@
 /* Fetches post media only after the user grants the exact image origin. */
-importScripts("../shared/zip.js", "retention.js", "disk-crypto.js", "post-cache.js", "archives.js");
+importScripts("../shared/zip.js", "retention.js", "disk-crypto.js", "post-cache.js", "epub-book.js", "archives.js");
 globalThis.PatreonDiskCrypto = globalThis.PatreonExportCrypto.create();
 globalThis.PatreonRetention = globalThis.PatreonExportRetention.create();
 globalThis.PatreonArchives.install();
@@ -498,7 +498,7 @@ globalThis.PatreonArchives.install();
 
     if (message.type === "DELIVER_COLLECTION_EXPORT") {
       const session = collectionFor(message, sender);
-      const validFormat = ["epub", "markdown"].includes(message.format);
+      const validFormat = ["epub", "markdown", "epub-book"].includes(message.format);
       if (!session || (!validFormat && typeof message.error !== "string")) {
         respond({ error: "The collection export request expired or is invalid. Reopen Download." });
         return;

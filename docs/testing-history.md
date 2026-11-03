@@ -1225,3 +1225,16 @@ script effect or external request and verifies normalized output. Installed Brav
 covers native downloads and encrypted source reuse after worker restart. These
 synthetic/installed checks do not establish live Patreon or third-party reader
 compatibility.
+
+
+## November 3, 2026 — Stream a single EPUB from encrypted chapter retries
+
+The packaged writer decrypts/inflates one staged chapter at a time and emits
+stored EPUB resources under per-chapter directories, with a collection title
+page, TOC, metadata, manifest and ordered spine. It validates resource sizes,
+CRCs and allowed paths, and uses the existing native-download/retention flow.
+Single EPUB and separate ZIP jobs share the same temporary payload budget.
+All 54 tooling cases passed, including restart, bounded reads, quota failure,
+invalid paths/metadata, and owner closure during book assembly. These Node
+fixtures establish the streaming writer contract; browser/UI integration is
+recorded separately. No EPUB-reader certification or live Patreon claim is made.

@@ -12,6 +12,17 @@
     const uint32 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xffffffff;
     const validEntry = entry => !entry || (typeof entry.name === "string" && !/[/\\\x00]/.test(entry.name)
       && uint32(entry.crc) && uint32(entry.size) && uint32(entry.compressedSize) && uint32(entry.diskSize) && uuid(entry.transferId));
+    const validChapter = entry => typeof entry.title === "string" && entry.title.length <= 4000
+      && typeof entry.creator === "string" && entry.creator.length <= 2000 && typeof entry.language === "string"
+      && entry.language.length <= 100 && /^[a-z0-9-]+$/i.test(entry.language);
+    function validBook(book) {
+      try {
+        const url = new URL(book.source);
+        return typeof book.title === "string" && book.title.length <= 4000
+          && typeof book.downloadedAt === "string" && book.downloadedAt.length <= 200
+          && url.origin === "https://www.patreon.com" && /^\/collection\/[^/]+\/?$/.test(url.pathname) && !url.search && !url.hash;
+      } catch { return false; }
+    }
     let offscreen;
     function call(target, method, ...args) {
       if (globalThis.browser?.runtime) return target[method](...args);
@@ -98,8 +109,8 @@
       }
     }
     async function persist(job) {
-      const { id, owner, count, filename, entries, expires, downloadId } = job;
-      await call(api.storage.session, "set", { [prefix + id]: { version: 2, id, owner, count, filename, entries, expires, ...(downloadId === undefined ? {} : { downloadId }) } });
+      const { id, owner, count, filename, entries, expires, downloadId, book } = job;
+      await call(api.storage.session, "set", { [prefix + id]: { version: 2, id, owner, count, filename, entries, expires, ...(downloadId === undefined ? {} : { downloadId }), ...(book ? { book } : {}) } });
       if (jobs.get(id) !== job) await call(api.storage.session, "remove", prefix + id);
       retention?.changed();
     }
@@ -137,6 +148,7 @@
           || !Number.isSafeInteger(value.owner) || !Number.isSafeInteger(value.count) || value.count < 1 || value.count > 100
           || !Array.isArray(value.entries) || value.entries.length > value.count || !value.entries.every(validEntry) || typeof value.filename !== "string"
           || (value.downloadId !== undefined && !uint32(value.downloadId))
+          || (value.book !== undefined && (!validBook(value.book) || !value.entries.every(entry => !entry || validChapter(entry))))
           || /[/\\\x00]/.test(value.filename) || !Number.isFinite(value.expires) || (value.expires <= Date.now() && value.downloadId === undefined)) {
           await call(api.storage.session, "remove", key); continue;
         }
@@ -229,34 +241,52 @@
           current, total: job.count, index, name: job.entries[index].name, bytesCopied, bytesTotal, stage }).catch(() => {});
       }
       try {
-        for (let index = 0; index < job.count; index++) {
-          check(job);
-          const entry = job.entries[index];
-          await progress(index, index, true);
-          const name = new TextEncoder().encode(entry.name);
-          const file = await (await disk.getFileHandle(`${index}.deflate`)).getFile();
-          if (file.size !== entry.diskSize || !uint32(offset + 30 + name.length + entry.compressedSize)) throw new Error("The archive is incomplete or exceeds the 4 GiB ZIP limit.");
-          await outputWrite(zipHeader(entry.compressedSize, entry.size, entry.crc, name.length, offset, timestamp, 8));
-          await outputWrite(name);
-          for await (const value of chapterBytes(file, job, index)) {
-            await outputWrite(value);
-            bytesCopied += value.length;
-            await progress(index, index);
+        if (job.book) {
+          await globalThis.PatreonEpubBook.write({ job, output: outputWrite, chapterBytes, check,
+            fileFor: async index => {
+              const file = await (await disk.getFileHandle(`${index}.deflate`)).getFile();
+              if (file.size !== job.entries[index].diskSize) throw new Error("The encrypted chapter is incomplete.");
+              return file;
+            },
+            progress: async (index, copied, total, stage) => {
+              check(job);
+              const now = Date.now();
+              if (stage !== "finalize" && now - lastUpdate < 250 && copied !== total) return;
+              lastUpdate = now;
+              await call(api.tabs, "sendMessage", job.owner, { type: "COLLECTION_ARCHIVE_PROGRESS", id: job.id, operationId,
+                current: index + 1, total: job.count, index, name: job.entries[index].title, bytesCopied: copied, bytesTotal: total, stage }).catch(() => {});
+            }
+          });
+        } else {
+          for (let index = 0; index < job.count; index++) {
+            check(job);
+            const entry = job.entries[index];
+            await progress(index, index, true);
+            const name = new TextEncoder().encode(entry.name);
+            const file = await (await disk.getFileHandle(`${index}.deflate`)).getFile();
+            if (file.size !== entry.diskSize || !uint32(offset + 30 + name.length + entry.compressedSize)) throw new Error("The archive is incomplete or exceeds the 4 GiB ZIP limit.");
+            await outputWrite(zipHeader(entry.compressedSize, entry.size, entry.crc, name.length, offset, timestamp, 8));
+            await outputWrite(name);
+            for await (const value of chapterBytes(file, job, index)) {
+              await outputWrite(value);
+              bytesCopied += value.length;
+              await progress(index, index);
+            }
+            central.push(zipHeader(entry.compressedSize, entry.size, entry.crc, name.length, offset, timestamp, 8, true), name);
+            offset += 30 + name.length + entry.compressedSize;
+            await progress(index, index + 1, true);
           }
-          central.push(zipHeader(entry.compressedSize, entry.size, entry.crc, name.length, offset, timestamp, 8, true), name);
-          offset += 30 + name.length + entry.compressedSize;
-          await progress(index, index + 1, true);
+          const centralSize = central.reduce((sum, bytes) => sum + bytes.length, 0);
+          if (!uint32(offset + centralSize + 22)) throw new Error("The archive exceeds the 4 GiB ZIP limit.");
+          for (const bytes of central) { check(job); await outputWrite(bytes); }
+          const end = new Uint8Array(22);
+          const view = new DataView(end.buffer);
+          view.setUint32(0, 0x06054b50, true);
+          view.setUint16(8, job.count, true); view.setUint16(10, job.count, true);
+          view.setUint32(12, centralSize, true); view.setUint32(16, offset, true);
+          await outputWrite(end);
+          await progress(job.count - 1, job.count, true, "finalize");
         }
-        const centralSize = central.reduce((sum, bytes) => sum + bytes.length, 0);
-        if (!uint32(offset + centralSize + 22)) throw new Error("The archive exceeds the 4 GiB ZIP limit.");
-        for (const bytes of central) { check(job); await outputWrite(bytes); }
-        const end = new Uint8Array(22);
-        const view = new DataView(end.buffer);
-        view.setUint32(0, 0x06054b50, true);
-        view.setUint16(8, job.count, true); view.setUint16(10, job.count, true);
-        view.setUint32(12, centralSize, true); view.setUint32(16, offset, true);
-        await outputWrite(end);
-        await progress(job.count - 1, job.count, true, "finalize");
         check(job);
         await output.close();
         usage.set(diskKey(job, "archive.zip"), usage.get(diskKey(job, "archive.pending")) || 0);
@@ -284,8 +314,9 @@
         if (cancelled.has(message.id)) throw new Error("The archive was cancelled.");
         if (job) throw new Error("This archive already exists.");
         if (!Number.isSafeInteger(message.count) || message.count < 1 || message.count > 100
-          || typeof message.filename !== "string" || !message.filename.endsWith(".zip") || /[/\\\x00]/.test(message.filename)) throw new Error("The archive metadata is invalid.");
-        job = { id: message.id, owner: sender.tab.id, count: message.count, filename: message.filename,
+          || typeof message.filename !== "string" || !message.filename.endsWith(message.book ? ".epub" : ".zip") || /[/\\\x00]/.test(message.filename)) throw new Error("The archive metadata is invalid.");
+        if (message.book !== undefined && !validBook(message.book)) throw new Error("The book metadata is invalid.");
+        job = { ...(message.book ? { book: { title: message.book.title, source: message.book.source, downloadedAt: message.book.downloadedAt } } : {}), id: message.id, owner: sender.tab.id, count: message.count, filename: message.filename,
           entries: [], expires: Date.now() + ttl, controller: new AbortController(), queue: Promise.resolve() };
         jobs.set(job.id, job);
         try { await folder(job); check(job); await persist(job); check(job); return { created: true }; }
@@ -310,11 +341,13 @@
         if (!Number.isSafeInteger(index) || index < 0 || index >= job.count) throw new Error("The archive chapter index is invalid.");
         if (message.type === "COLLECTION_ARCHIVE_BEGIN") {
           if (!uuid(message.transferId) || typeof message.name !== "string" || /[/\\\x00]/.test(message.name) || new TextEncoder().encode(message.name).length > 65535) throw new Error("The archive chapter name is invalid.");
+          if (job.book && !validChapter(message.metadata || {})) throw new Error("The chapter metadata is invalid.");
           await abortWriter(job);
           job.entries[index] = null;
           const stream = await (await (await folder(job)).getFileHandle(`${index}.deflate`, { create: true })).createWritable();
           try { check(job); } catch (error) { await stream.abort().catch(() => {}); throw error; }
-          job.writer = { index, stream, bytes: 0, name: message.name, transferId: message.transferId };
+          job.writer = { index, stream, bytes: 0, name: message.name, transferId: message.transferId,
+            ...(job.book ? { title: message.metadata.title, creator: message.metadata.creator, language: message.metadata.language } : {}) };
           return { begun: true };
         }
         const writer = job.writer;
@@ -346,7 +379,8 @@
           const pendingKey = diskKey(job, `${index}.pending`);
           const diskSize = usage.get(pendingKey) || 0;
           usage.set(diskKey(job, `${index}.deflate`), diskSize); usage.delete(pendingKey);
-          job.entries[index] = { name: writer.name, crc: message.crc, size: message.size, compressedSize: writer.bytes, diskSize, transferId: writer.transferId };
+          job.entries[index] = { name: writer.name, crc: message.crc, size: message.size, compressedSize: writer.bytes, diskSize, transferId: writer.transferId,
+            ...(job.book ? { title: writer.title, creator: writer.creator, language: writer.language } : {}) };
           job.writer = null;
           job.expires = Date.now() + ttl;
           await persist(job);

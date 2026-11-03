@@ -39,7 +39,7 @@
       }
     }
     try {
-      await request("BEGIN", { id, index, name: entry.name, transferId }, signal);
+      await request("BEGIN", { id, index, name: entry.name, metadata: entry.metadata, transferId }, signal);
       notify();
       const input = blob.stream().pipeThrough(new TransformStream({
         async transform(bytes, controller) {

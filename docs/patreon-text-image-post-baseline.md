@@ -1,6 +1,6 @@
 # Patreon post-page reference: text posts with inline images
 
-Last maintained: November 2, 2026. Current hotfix: **1.1.1** (live confirmation pending).
+Last maintained: November 3, 2026. Current hotfix: **1.1.1** (live confirmation pending).
 Post export is an unreleased development feature with synthetic verification;
 live Patreon export verification is pending.
 Feature baseline: **1.1.0**, renumbered from
@@ -866,6 +866,25 @@ download or print handoff starts and on preparation errors, while the live statu
 message retains the result.
 
 ## Collection export boundary (unreleased)
+
+**November 3 single-book writer:** A new packaged worker module assembles one
+EPUB from independently staged, encrypted chapter EPUBs. It decrypts/inflates a
+chapter as a stream, validates stored-resource sizes/CRCs and safe resource names,
+and writes a single outer EPUB with chapter-specific image directories. The
+first physical entry is the uncompressed `mimetype`, with no extra fields. The
+writer adds a collection title page, EPUB navigation document, OPF manifest/spine,
+creator/source/download-time metadata and shared styles. Only central-directory
+and publication metadata accumulate across chapters; file bodies/images are
+streamed. Staged chapter input stays bounded and validated against its recorded
+size/CRC. The existing archive budget, expiry, native handoff and cleanup apply to
+both `.zip` and `.epub` outputs. This follows the [EPUB ZIP container contract](https://www.w3.org/TR/epub-33/#sec-zip-container),
+without claiming third-party reader certification.
+
+Synthetic Node disk fixtures verify streaming assembly after worker restart,
+quota failure without partial plaintext output, rejected nested paths/invalid
+metadata, and owner closure while assembly is in progress. Earlier November 2
+separate-file ZIP observations below remain historical evidence for that mode.
+
 
 **Intended behavior:** On a pathname matching `/collection/{identifier}`, a
 fixed extension-owned **Download Collection** control offers EPUB and Markdown.

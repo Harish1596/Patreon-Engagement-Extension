@@ -10,11 +10,12 @@ const { readZip } = require("../helpers/zip");
 const extension = path.resolve(__dirname, "../../extension");
 const source = fs.readFileSync(path.join(extension, "shared/zip.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "background/disk-crypto.js"), "utf8")
+  + "\n" + fs.readFileSync(path.join(extension, "background/epub-book.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "background/archives.js"), "utf8");
 const id = "11111111-1111-4111-8111-111111111111";
 const transferId = "22222222-2222-4222-8222-222222222222";
 
-function harness(t, { maxBytes, deliver } = {}) {
+function harness(t, { maxBytes, deliver, onProgress } = {}) {
   const disk = fs.mkdtempSync(path.join(os.tmpdir(), "patreon-archive-test-"));
   t.after(() => fs.rmSync(disk, { force: true, recursive: true }));
   const records = {};
@@ -70,7 +71,7 @@ function harness(t, { maxBytes, deliver } = {}) {
   }
   const browser = {
     runtime: { id: "fixture-extension", onMessage: { addListener(value) { listener = value; } } },
-    tabs: { async sendMessage(tabId, message) { if (message.type === "COLLECTION_ARCHIVE_PROGRESS") progress.push(message); return { reported: true, handedOff: true }; }, onRemoved: { addListener(value) { removed = value; } } },
+    tabs: { async sendMessage(tabId, message) { if (message.type === "COLLECTION_ARCHIVE_PROGRESS") { progress.push(message); onProgress?.(message); } return { reported: true, handedOff: true }; }, onRemoved: { addListener(value) { removed = value; } } },
     storage: { session: {
       async get() { return structuredClone(records); },
       async set(value) { Object.assign(records, structuredClone(value)); },
@@ -79,7 +80,7 @@ function harness(t, { maxBytes, deliver } = {}) {
   };
   const restart = async () => {
     for (const writer of [...writers]) await writer.abort();
-    const scope = { browser, URL, AbortController, Uint8Array, DataView, TextEncoder, TextDecoder, setTimeout, crypto: require("node:crypto").webcrypto,
+    const scope = { browser, URL, AbortController, Uint8Array, DataView, TextEncoder, TextDecoder, ReadableStream, DecompressionStream, setTimeout, crypto: require("node:crypto").webcrypto,
       Date: class extends Date { static now() { return Date.now() + elapsed; } },
       atob: value => Buffer.from(value, "base64").toString("binary") };
     vm.runInNewContext(source, scope);
@@ -97,12 +98,12 @@ function harness(t, { maxBytes, deliver } = {}) {
     closeOwner: () => removed(1), downloadCount: () => downloads, largestRead: () => largestRead };
 }
 
-async function store(h, scope, index, text) {
+async function store(h, scope, index, text, metadata) {
   const raw = Buffer.from(text);
   const compressed = deflateRawSync(raw);
   let crc = scope.PatreonZip.updateCrc32(0xffffffff, raw);
   crc = (crc ^ 0xffffffff) >>> 0;
-  assert.equal((await h.send("BEGIN", { index, transferId, name: `${index + 1} - Chapter.md` })).begun, true);
+  assert.equal((await h.send("BEGIN", { index, transferId, name: `${index + 1} - Chapter.md`, metadata })).begun, true);
   assert.equal((await h.send("CHUNK", { index, transferId, offset: 1, data: compressed.toString("base64") })).error.includes("order"), true);
   assert.equal((await h.send("CHUNK", { index, transferId, offset: 0, data: compressed.toString("base64") })).written, true);
   assert.equal((await h.send("END", { index, transferId, size: raw.length, compressedSize: compressed.length, crc })).stored, true);
@@ -232,4 +233,72 @@ test("startup removes legacy plaintext retry files instead of adopting them", as
   await h.restart();
   assert.equal(fs.existsSync(folder), false);
   assert.equal(h.records["collection-archive:" + id], undefined);
+});
+
+
+function storedZip(scope, entries) {
+  const parts = [], central = [], timestamp = scope.PatreonZip.dosTimestamp();
+  let offset = 0;
+  for (const [name, content] of entries) {
+    const bytes = Buffer.from(content), encoded = Buffer.from(name);
+    const crc = (scope.PatreonZip.updateCrc32(0xffffffff, bytes) ^ 0xffffffff) >>> 0;
+    parts.push(scope.PatreonZip.zipHeader(bytes.length, bytes.length, crc, encoded.length, offset, timestamp, 0), encoded, bytes);
+    central.push(scope.PatreonZip.zipHeader(bytes.length, bytes.length, crc, encoded.length, offset, timestamp, 0, true), encoded);
+    offset += 30 + encoded.length + bytes.length;
+  }
+  const end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50); end.writeUInt16LE(entries.length, 8); end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(central.reduce((sum, bytes) => sum + bytes.length, 0), 12); end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...parts, ...central, end]);
+}
+const book = { title: "Synthetic book", source: "https://www.patreon.com/collection/500", downloadedAt: "Synthetic download time" };
+const chapterMetadata = { title: "Synthetic chapter", creator: "Fixture Creator", language: "en" };
+
+test("single EPUB assembly streams encrypted retry chapters after worker restart", async t => {
+  const h = harness(t);
+  let scope = await h.restart();
+  assert.equal((await h.send("CREATE", { count: 1, filename: "Synthetic.epub", book })).created, true);
+  const chapter = storedZip(scope, [["mimetype", "application/epub+zip"], ["EPUB/styles.css", "body{color:black}"],
+    ["EPUB/post.xhtml", '<html xmlns="http://www.w3.org/1999/xhtml"><body>' + "Synthetic text. ".repeat(100_000) + '</body></html>']]);
+  await store(h, scope, 0, chapter, chapterMetadata);
+  scope = await h.restart();
+  assert.equal((await h.send("PACKAGE")).started, true);
+  const entries = readZip(fs.readFileSync(path.join(h.disk, "patreon-archives-v1", id, "archive.zip")));
+  assert.equal(entries[0].name, "mimetype"); assert.equal(entries[0].method, 0);
+  assert.ok(entries.find(entry => entry.name === "EPUB/chapters/001/post.xhtml").data.length > 1_000_000);
+  assert.ok(h.largestRead() <= 64 * 1024);
+});
+
+test("single EPUB staging obeys the shared quota and leaves no partial plaintext download", async t => {
+  const h = harness(t, { maxBytes: 6000 });
+  const scope = await h.restart();
+  await h.send("CREATE", { count: 1, filename: "Synthetic.epub", book });
+  await store(h, scope, 0, storedZip(scope, [["mimetype", "application/epub+zip"], ["EPUB/styles.css", "body{}"], ["EPUB/post.xhtml", "x".repeat(10000)]]), chapterMetadata);
+  assert.match((await h.send("PACKAGE")).error, /storage is full/);
+  assert.equal(h.downloadCount(), 0);
+  assert.equal(fs.existsSync(path.join(h.disk, "patreon-archives-v1", id, "archive.zip")), false);
+  assert.ok((await h.send("GET")).entries[0]);
+});
+
+test("single EPUB assembly rejects unexpected nested archive paths and invalid collection metadata", async t => {
+  const h = harness(t);
+  const scope = await h.restart();
+  assert.match((await h.send("CREATE", { count: 1, filename: "Synthetic.epub", book: { ...book, source: "https://example.invalid/collection/500" } })).error, /metadata/);
+  await h.send("CREATE", { count: 1, filename: "Synthetic.epub", book });
+  await store(h, scope, 0, storedZip(scope, [["../../outside", "untrusted"]]), chapterMetadata);
+  assert.match((await h.send("PACKAGE")).error, /unexpected resource/);
+  assert.equal(h.downloadCount(), 0);
+  assert.equal(fs.existsSync(path.join(h.disk, "patreon-archives-v1", id, "archive.zip")), false);
+});
+
+
+test("closing the owner during streamed book assembly aborts without a plaintext download", async t => {
+  let closed = false;
+  const h = harness(t, { onProgress: () => { if (!closed) { closed = true; h.closeOwner(); } } });
+  const scope = await h.restart();
+  await h.send("CREATE", { count: 1, filename: "Synthetic.epub", book });
+  await store(h, scope, 0, storedZip(scope, [["mimetype", "application/epub+zip"], ["EPUB/styles.css", "body{}"], ["EPUB/post.xhtml", "text".repeat(10000)]]), chapterMetadata);
+  assert.ok((await h.send("PACKAGE")).error);
+  assert.equal(h.downloadCount(), 0);
+  for (let attempt = 0; attempt < 50 && fs.existsSync(path.join(h.disk, "patreon-archives-v1", id)); attempt++) await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(fs.existsSync(path.join(h.disk, "patreon-archives-v1", id)), false);
 });

@@ -29,6 +29,14 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Single-book writer, November 3, 2026: **54 tooling cases passed**. New worker/disk
+fixtures exercise an EPUB assembled from encrypted retry chapters after worker
+restart, files exposing only bounded streams, publication quota exhaustion,
+unexpected nested paths/invalid metadata, and owner closure during assembly.
+These checks validate the writer contract; browser/UI evidence is recorded in
+the subsequent collection-book checkpoint.
+
+
 Markdown newline correction, November 2, 2026: **14 Chrome post/security cases,
 15 Brave post/security/installed cases and 50 tooling cases passed**. Syntax
 checks cover 46 JavaScript files; whitespace checks pass. Focused commands:

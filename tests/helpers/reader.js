@@ -23,7 +23,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
   await page.route("https://fixture-extension.invalid/export/collection-chooser.html**", (route) => route.fulfill({
     contentType: "text/html",
     body: `<!doctype html><html><body><main aria-label="Collection export formats">
-      <button data-format="epub">EPUB</button><button data-format="markdown">Markdown</button>
+      <button data-format="epub-book">Single EPUB</button><button data-format="epub">EPUB</button><button data-format="markdown">Markdown</button>
       </main><script>
       const token = location.hash.slice(1);
       for (const button of document.querySelectorAll("button")) button.onclick = () => parent.postMessage({
@@ -122,7 +122,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             };
             if (result.error) return result;
             const files = result.files.map((file, index) => {
-              if (message.format !== "snapshot") return file;
+              if (message.format !== "snapshot" || file.extension === "snapshot") return file;
               let text = file.data;
               if (file.extension === "epub") {
                 const binary = Uint8Array.from(atob(file.data), char => char.charCodeAt(0));
@@ -246,6 +246,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
   for (const name of contentScripts.js) await page.addScriptTag({ path: path.join(extensionRoot, name) });
   await page.addScriptTag({ path: path.join(extensionRoot, "background/disk-crypto.js") });
   await page.evaluate(() => { globalThis.PatreonDiskCrypto = PatreonExportCrypto.create(); });
+  await page.addScriptTag({ path: path.join(extensionRoot, "background/epub-book.js") });
   await page.addScriptTag({ path: path.join(extensionRoot, "background/archives.js") });
   await page.evaluate(() => {
     globalThis.archiveTestBackend = PatreonArchives.install({ download: async (job, file) => {
