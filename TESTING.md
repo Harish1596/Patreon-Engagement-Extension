@@ -29,6 +29,42 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Incremental collection refresh, November 3, 2026: **36 Chrome collection/
+refresh/report/book/progress/streaming cases, 12 Brave refresh/report/book/installed
+cases and 60 tooling cases passed**. One existing Chrome cancellation/restart
+case timed out waiting for its synthetic chooser download during the broad run;
+its isolated rerun passed (35 broad-run passes plus that isolated pass). Syntax
+covers 50 JavaScript files; whitespace checks pass. Commands:
+
+```sh
+npx playwright test tests/collection-refresh.spec.js tests/collection-report.spec.js tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js
+npm run test:brave -- tests/collection-refresh.spec.js tests/collection-report.spec.js tests/collection-book.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+Worker/cache cases reconcile new/changed/removed/reordered posts, preserve a live
+unchanged source across worker restart, reject cross-owner refresh, recheck missing
+or expired bytes/revisions, retain original source deadlines, and prevent cancelled
+refreshes from publishing late state. Browser cases verify refreshed API body
+fingerprints, same owner token/order, new membership locks and absent evidence.
+Installed Brave waits for an initial API performance entry, asserts persisted
+revisions, downloads cached ZIP/book outputs across worker restarts, then refreshes
+without opening post tabs and confirms unchanged-source counts. An early native
+fixture ran before its initial API entry, correctly failing to qualify for reuse;
+waiting for that evidence made the intended path deterministic. A worker expiry
+fixture also exposed that expired retained entries should be pruned during
+reconciliation; the cache now prunes them before retaining the requested IDs.
+
+These fixtures do not establish authenticated live Patreon compatibility or that
+its private collection endpoint always provides full structured bodies. Without
+explicit access and usable content evidence the extension revalidates normally.
+Refresh still downloads pagination data to compute comparisons; it saves post-page
+and image retrieval when cached sources qualify. No raw body/media URL is persisted
+in revision metadata, and reused sources never receive a fresh expiry timestamp.
+
+
 Collection download report, November 3, 2026: **34 Chrome collection/report/
 book/progress/streaming cases, 6 Brave report/installed cases and 56 tooling
 cases passed**. Syntax checks cover 49 JavaScript files; whitespace checks pass.

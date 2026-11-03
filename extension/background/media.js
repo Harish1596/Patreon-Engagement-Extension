@@ -323,7 +323,22 @@ globalThis.PatreonArchives.install();
       || !urls.length || urls.length > 100 || urls.some(url => !validPostUrl(url))) {
       throw new Error("The collection supplied an invalid post list.");
     }
-    if (collections.has(message.token)) throw new Error("This collection is already prepared or being prepared.");
+    const existingSession = collections.get(message.token);
+    if (existingSession && (!message.refresh || existingSession.ownerTabId !== sender.tab.id
+      || existingSession.preparing || existingSession.building)) {
+      throw new Error("This collection is already prepared, busy, or belongs to another tab.");
+    }
+    const previous = existingSession?.expires > Date.now() ? existingSession : null;
+    const revisions = new Map();
+    if (Array.isArray(message.revisions) && message.revisions.length <= 100) {
+      for (const item of message.revisions) {
+        if (urls.includes(item?.url) && /^[a-f0-9]{64}$/.test(item?.revision || "")) revisions.set(item.url, item.revision);
+      }
+    }
+    const reusable = new Map();
+    for (const post of previous?.posts || []) {
+      if (post.revision && revisions.get(post.url) === post.revision) reusable.set(post.url, post);
+    }
     cancelledCollections.delete(message.token);
     const session = {
       ownerTabId: sender.tab.id,
@@ -332,17 +347,31 @@ globalThis.PatreonArchives.install();
       posts: [],
       skipped: 0,
       skippedPosts: [],
+      reused: 0,
       preparing: true,
       controller: new AbortController(),
       expires: Date.now() + COLLECTION_CACHE_MS
     };
     collections.set(message.token, session);
     try {
+      // Keep the same owner namespace and original expiry for unchanged sources.
+      // Remove changed, removed, locked or unverifiable sources before revalidation.
+      await sourceCache.retain(message.token, new Set([...reusable.keys()].map(url => /(?:\/|-)(\d+)\/?$/.exec(new URL(url).pathname)[1])), session.controller.signal);
+      checkCancelled(session);
       await reportCollectionProgress(session, message.token, "prepare", 0, urls.length, "", { operationId: message.operationId });
       for (let index = 0; index < urls.length; index++) {
         const url = urls[index];
         await reportCollectionProgress(session, message.token, "prepare-post", index, urls.length, "", { operationId: message.operationId, index });
         const expectedPostId = /(?:\/|-)(\d+)\/?$/.exec(new URL(url).pathname)[1];
+        const prior = reusable.get(url);
+        if (prior && await sourceCache.has(message.token, expectedPostId)) {
+          checkCancelled(session);
+          session.posts.push({ ...prior }); session.reused++;
+          await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length, "",
+            { operationId: message.operationId, index, title: prior.title, cached: true });
+          continue;
+        }
+        checkCancelled(session);
         const request = { type: "DESCRIBE_POST_EXPORT", expectedPostId };
         const existing = [...knownPosts].find(([, postUrl]) => postUrl === url);
         try {
@@ -359,6 +388,7 @@ globalThis.PatreonArchives.install();
             tabId,
             url,
             title: result.post.title,
+            ...(revisions.has(url) ? { revision: revisions.get(url) } : {}),
             origins: result.post.origins
           });
         } catch (error) {
@@ -386,6 +416,7 @@ globalThis.PatreonArchives.install();
       cancelledCollections.delete(message.token);
       return {
         registered: true,
+        reused: session.reused,
         count: session.posts.length,
         postUrls: session.posts.map(post => post.url),
         postTitles: session.posts.map(post => post.title),

@@ -87,6 +87,27 @@
           return true;
         }, false);
       },
+      retain(token, postIds, signal) {
+        return run(async cache => {
+          await entries(cache);
+          const prefix = `/${encodeURIComponent(token)}/`;
+          for (const request of await cache.keys()) {
+            if (signal?.aborted) return;
+            const path = new URL(request.url).pathname;
+            if (path.startsWith(prefix) && !postIds.has(path.slice(prefix.length))) {
+              await cache.delete(request); deadlines.delete(request.url);
+            }
+          }
+          onChange();
+        });
+      },
+      has(token, postId) {
+        return run(async cache => {
+          const response = await cache.match(key(token, postId));
+          return response?.headers.get("x-encrypted") === "1"
+            && Number(response.headers.get("x-expires")) > now();
+        }, false);
+      },
       clear(token) {
         return run(async cache => {
           const prefix = `/${encodeURIComponent(token)}/`;

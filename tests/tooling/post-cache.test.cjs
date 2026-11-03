@@ -130,3 +130,14 @@ test("a worker restart restores the session key, while a lost browser-session ke
   assert.equal(await create().get("a", "1"), null);
   assert.equal(records.size, 0);
 });
+
+test("source reconciliation preserves deadlines and removes only changed or removed posts for its owner", async () => {
+  const { create, records, clock } = fixture(); const cache = create();
+  await cache.put("a", "1", file("1")); await cache.put("a", "2", file("2")); await cache.put("b", "1", file("1"));
+  const deadline = cache.deadline(); clock(90 * 60_000);
+  await cache.retain("a", new Set(["2"]));
+  assert.equal(records.size, 2); assert.equal(await cache.has("a", "1"), false);
+  assert.equal(await cache.has("a", "2"), true); assert.equal(await cache.has("b", "1"), true);
+  assert.equal(cache.deadline(), deadline);
+  clock(121 * 60_000); assert.equal(await cache.has("a", "2"), false);
+});

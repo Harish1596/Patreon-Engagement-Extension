@@ -92,6 +92,8 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             });
           }
           if (message.type === "PREPARE_COLLECTION_EXPORT") {
+            globalThis.collectionPrepareRequests ||= [];
+            globalThis.collectionPrepareRequests.push(structuredClone(message));
             globalThis.requestedCollectionUrls = message.urls;
             globalThis.collectionPrepareCount++;
             const titles = message.urls.map((url, index) => globalThis.collectionBuildResult?.files[index]?.title || ["First post", "Second post", "Third post"][index]);

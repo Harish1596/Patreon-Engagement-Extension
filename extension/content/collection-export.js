@@ -326,6 +326,7 @@
     const seen = new Set();
     const locked = new Set();
     const titles = new Map();
+    const revisions = new Map();
     let expectedTotal = null;
     let pageUrl = template;
     for (let page = 0; page < 100; page++) {
@@ -333,6 +334,8 @@
       report(`Reading collection pages… ${seen.size} found.`);
       const fields = new Set((pageUrl.searchParams.get("fields[post]") || "").split(",").filter(Boolean));
       fields.add("current_user_can_view");
+      fields.add("content_json_string");
+      fields.add("title");
       pageUrl.searchParams.set("fields[post]", [...fields].join(","));
       const response = await fetch(pageUrl.href, {
         credentials: "include",
@@ -356,6 +359,28 @@
         seen.add(url);
         if (typeof item.attributes?.title === "string") titles.set(url, cleanReportText(item.attributes.title));
         if (item.attributes?.current_user_can_view === false) locked.add(url);
+        // A full structured body plus explicit access is evidence of sameness;
+        // timestamps/teasers alone cannot establish whether a chapter was edited.
+        const attributes = item.attributes;
+        revisions.delete(url);
+        if (attributes?.current_user_can_view === true && typeof attributes.content_json_string === "string"
+          && attributes.content_json_string.trim()) {
+          try {
+            const content = JSON.parse(attributes.content_json_string);
+            if (content && typeof content === "object" && Object.keys(content).length) {
+              const references = [item.relationships?.images?.data, item.relationships?.authors?.data].flat().filter(Boolean);
+              const related = (Array.isArray(payload.included) ? payload.included : []).filter(resource => references.some(reference =>
+                reference.id === resource.id && reference.type === resource.type))
+                .map(resource => [resource.type, resource.id, resource.attributes]).sort((a, b) => `${a[0]}:${a[1]}`.localeCompare(`${b[0]}:${b[1]}`));
+              const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify([
+                content, attributes.title, attributes.post_type, item.relationships?.images?.data,
+                item.relationships?.authors?.data, attributes.post_file, attributes.embed, related
+              ])));
+              signal.throwIfAborted();
+              revisions.set(url, [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join(""));
+            }
+          } catch { signal.throwIfAborted(); /* Missing/invalid full content forces a normal recheck. */ }
+        }
       }
       setProgress("Finding collection posts", seen.size, expectedTotal);
       detail("counts", `Found ${seen.size}${expectedTotal === null ? "" : ` of ${expectedTotal}`} posts`);
@@ -367,6 +392,7 @@
         }
         if (!seen.size) throw new Error("Patreon returned no collection posts.");
         return { urls: [...seen].filter(url => !locked.has(url)), locked: locked.size,
+          revisions: [...revisions].filter(([url]) => !locked.has(url)).map(([url, revision]) => ({ url, revision })),
           skippedPosts: [...locked].map(url => ({ url, title: titles.get(url) || "", reason: "Locked for your current membership." })) };
       }
     }
@@ -476,10 +502,15 @@
     setBusy(true);
     setProgress("Finding collection posts");
     report(prefix || "Finding accessible posts in this collection…");
-    if (refresh || (discoveryCache && discoveryCache.expires <= Date.now())) {
-      clearDiscovery();
-      resetDownloadReport();
-      await discardPreparation(refresh);
+    if (refresh) {
+      clearDiscovery(); resetDownloadReport();
+      // Generated chapter order/navigation can change, so discard output files;
+      // the worker reconciles reusable source records in the existing namespace.
+      await dropCheckpoint();
+      checkOperation(operation);
+    } else if (discoveryCache && discoveryCache.expires <= Date.now()) {
+      clearDiscovery(); resetDownloadReport();
+      await discardPreparation(true);
       checkOperation(operation);
     }
     let discovered = discoveryCache?.discovered;
@@ -499,13 +530,17 @@
     }
     const { urls, locked } = discovered;
     if (!urls.length && locked) {
+      if (refresh) { await discardPreparation(true); checkOperation(operation); }
       prepareDownloadReport({ postUrls: [], skippedPosts: [] }, discovered);
       reportState("No accessible posts. Nothing downloaded.");
       throw new Error(`${locked === 1 ? "The only post is" : `All ${locked} posts are`} locked for your current membership. Nothing was downloaded.`);
     }
-    if (!urls.length) throw new Error("No post links were found in this collection.");
+    if (!urls.length) {
+      if (refresh) { await discardPreparation(true); checkOperation(operation); }
+      throw new Error("No post links were found in this collection.");
+    }
     let result;
-    if (requestToken) {
+    if (requestToken && !refresh) {
       try {
         const existing = await waitFor(call(api.runtime, "sendMessage", {
           type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
@@ -519,10 +554,11 @@
     checkOperation(operation);
     if (!result) {
       chooser.src = "about:blank";
-      requestToken = crypto.randomUUID();
+      if (!refresh || !requestToken) requestToken = crypto.randomUUID();
       setProgress("Preparing posts", 0, urls.length);
       result = await waitFor(call(api.runtime, "sendMessage", {
-        type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls, operationId: operation.id
+        type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls, refresh,
+        revisions: discovered.revisions || [], operationId: operation.id
       }), signal);
       if (!result?.registered) {
         prepareDownloadReport({ ...result, postUrls: [], skipped: result?.skippedPosts?.length || 0 }, discovered);
@@ -540,7 +576,8 @@
     loadChooser();
     const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
     const lockedMessage = locked ? ` ${locked} locked ${locked === 1 ? "post was" : "posts were"} skipped.` : "";
-    report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${lockedMessage}${skipped}`, prefix ? "success" : "");
+    const reused = refresh && result.reused ? ` ${result.reused} unchanged cached ${result.reused === 1 ? "post was" : "posts were"} reused.` : "";
+    report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${lockedMessage}${skipped}${reused}`, prefix ? "success" : "");
     setProgress();
     setBusy(false);
     finishOperation(operation);

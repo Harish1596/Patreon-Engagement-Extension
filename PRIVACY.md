@@ -134,7 +134,14 @@ replaces its appearance preferences with site defaults; it preserves the Reader
 enablement and engagement visibility choices. Disabling Reader retains its
 appearance preferences.
 Collection source entries are scoped to the prepared collection session and are
-removed on Refresh collection, Cancel, or closure of its owning tab. Expired
+removed on Cancel or closure of its owning tab. Refresh collection removes
+changed, removed, newly locked or unverifiable sources while retaining verified
+unchanged entries without renewing their original expiry. Full structured content
+and relevant title/media/author fields from refreshed collection responses are
+hashed locally for comparison; only SHA-256 fingerprints are added to prepared
+browser-session metadata, not raw response content or signed URLs. Missing access
+or full-content evidence triggers normal post revalidation. Generated retry files
+and the page-local report are reset on refresh. Expired
 entries are not reused. A browser alarm deletes expired sources, prepared metadata,
 and idle archive files without waiting for another export. Closing the last normal
 or popup browser window clears export data; browser startup purges leftovers.

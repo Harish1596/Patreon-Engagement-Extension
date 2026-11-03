@@ -1290,3 +1290,31 @@ screenshots were reviewed and the Impeccable detector returned no findings. The
 new skip handler's intermediate shadowing regression and the locked test's missing
 performance entry were corrected before the final passing runs. No live Patreon
 or native download-completion verification is claimed.
+
+
+## November 3, 2026 — Incrementally refresh collection sources
+
+Refresh now retains the existing owner/token source namespace while rereading
+collection order and access. SHA-256 fingerprints of usable structured body/title
+and available media/author context qualify only explicitly accessible posts for
+reuse. Live matching source bytes keep their original expiry; new, edited,
+uncached, expired or unverifiable posts are prepared again. Removed or newly
+locked posts lose their sources. Generated retry files/report reset so order,
+book navigation and access changes cannot preserve stale outputs. Cancellation,
+owner cleanup and cache/disk bounds still apply. Missing evidence and DOM-only
+fallback revalidate fully; API pagination data is still fetched on refresh.
+
+Passing verification: 36 Chrome collection/refresh/report/book/progress/streaming
+cases, 12 Brave refresh/report/book/installed cases, 60 tooling cases, syntax for
+50 JavaScript files and whitespace checks. Worker fixtures cover reconciliation,
+restart, deadline preservation, cross-owner rejection and cancellation. Browser
+fixtures cover fingerprints, same-token order changes and locks/unknown access.
+Installed Brave verifies persisted revisions and no new tabs during unchanged
+refresh after cached downloads/worker restarts. Its first attempt raced the initial
+API resource record; the fixture now waits for evidence before preparation. An
+expiry fixture prompted pruning expired retained records during reconciliation.
+One existing Chrome cancellation/restart fixture timed out waiting for a synthetic
+download in the broad run; its isolated rerun passed, alongside the 35 other broad
+passes. No authenticated live private-API compatibility or universal revision
+availability is claimed. No raw response content or signed URL is stored in
+revision metadata.

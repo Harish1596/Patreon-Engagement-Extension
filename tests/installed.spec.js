@@ -28,10 +28,16 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     });
     await context.route("https://www.patreon.com/**", (route) => {
       const pathname = new URL(route.request().url()).pathname;
+      if (pathname === "/api/posts") return route.fulfill({ contentType: "application/json", body: JSON.stringify({
+        data: [201, 202].map(id => ({ id: String(id), type: "post", attributes: {
+          current_user_can_view: true, title: `Collection post ${id === 201 ? "one" : "two"}`,
+          content_json_string: JSON.stringify({ type: "doc", content: [{ type: "text", text: `Synthetic body ${id}` }] })
+        } })), meta: { pagination: { total: 2 } }
+      }) });
       if (pathname.startsWith("/collection/")) return route.fulfill({
         contentType: "text/html",
         body: `<!doctype html><html><head><title>Test collection | Patreon</title></head><body><main>
-          <h1>Test collection</h1>
+          <h1>Test collection</h1><script>fetch('/api/posts?filter%5Bcollection_id%5D=555');</script>
           <a class="IhO0fW_gridCard" href="/posts/201?collection=555">Collection post one</a>
           <a class="IhO0fW_gridCard" href="/posts/202?collection=555">Collection post two</a>
           <a class="IhO0fW_gridCard" href="/posts/201?collection=555">Duplicate link</a>
@@ -159,8 +165,13 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await collection.goto("https://www.patreon.com/collection/555");
     const collectionDownload = collection.getByRole("button", { name: "Download Collection", exact: true });
     await expect(collectionDownload).toBeVisible();
+    await expect.poll(() => collection.evaluate(() => performance.getEntriesByType("resource").some(entry => entry.name.includes("/api/posts?")))).toBe(true);
     await collectionDownload.click();
     await expect(collection.getByRole("status")).toContainText("posts are ready", { timeout: 20_000 });
+    await expect.poll(() => popup.evaluate(async () => {
+      const sessions = Object.entries(await chrome.storage.session.get(null)).filter(([key]) => key.startsWith("collection-export:"));
+      return sessions[0]?.[1].posts.map(post => Boolean(post.revision));
+    })).toEqual([true, true]);
     const collectionMarkdown = collection.frameLocator('iframe[title="Collection export formats"]')
       .getByRole("button", { name: "Markdown", exact: true });
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
@@ -261,6 +272,8 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       return count;
     })).toBe(0);
     await expect.poll(() => popup.evaluate(() => chrome.offscreen.hasDocument())).toBe(false);
+    await collection.getByRole("button", { name: "Refresh collection", exact: true }).click();
+    await expect(collection.getByRole("status")).toContainText("2 unchanged cached posts were reused");
     context.off("page", countPostTab);
     expect(openedPostTabs).toBe(0);
     const preferencesBeforeExpiry = await popup.evaluate(() => chrome.storage.local.get(null));

@@ -483,3 +483,62 @@ test("an entirely unsupported collection returns individual skip details without
   assert.equal(result.skippedPosts.length, 1);
   assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
 });
+
+test("incremental refresh retains only unchanged live sources in new collection order across worker restarts", async () => {
+  const { send, calls, disk, restart, advanceTime, sessionStore, sender } = backgroundHarness();
+  const token = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const url = id => `https://www.patreon.com/posts/${id}`;
+  const revision = (id, digit = "a") => ({ url: url(id), revision: digit.repeat(64) });
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: [101, 102, 103].map(url), revisions: [101, 102, 103].map(id => revision(id)) });
+  for (let index = 0; index < 3; index++) await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index });
+  assert.equal(disk.size, 3);
+  const originalExpiry = [...disk].find(([key]) => key.endsWith("/103"))[1].headers.get("x-expires");
+  advanceTime(90); restart();
+  const created = calls.create.length;
+  const refreshed = await send({ type: "PREPARE_COLLECTION_EXPORT", token, refresh: true,
+    urls: [103, 102, 104].map(url), revisions: [revision(103), revision(102, "b"), revision(104)] });
+  assert.equal(refreshed.reused, 1);
+  assert.deepEqual(Array.from(refreshed.postUrls), [103, 102, 104].map(url));
+  assert.equal(calls.create.length, created + 1);
+  assert.equal(disk.size, 1); // Removed 101 and edited 102 were deleted immediately.
+  assert.equal([...disk.keys()][0].endsWith("/103"), true);
+  assert.equal([...disk.values()][0].headers.get("x-expires"), originalExpiry);
+  assert.equal((await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 })).files[0].cached, true);
+  assert.equal((await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 1 })).files[0].cached, false);
+  assert.ok((await send({ type: "PREPARE_COLLECTION_EXPORT", token, refresh: true, urls: [url(103)], revisions: [revision(103)] }, { ...sender, tab: { ...sender.tab, id: 99 } })).error);
+  assert.equal((await send({ type: "GET_COLLECTION_EXPORT_REQUEST", token })).count, 3);
+  advanceTime(31);
+  const expired = await send({ type: "PREPARE_COLLECTION_EXPORT", token, refresh: true, urls: [url(103)], revisions: [revision(103)] });
+  assert.equal(expired.reused, 0);
+  assert.equal(disk.size, 0);
+  assert.ok(Object.keys(sessionStore).some(key => key.startsWith("collection-export:")));
+});
+
+test("incremental refresh rechecks unchanged posts without source bytes or reliable revision metadata", async () => {
+  const { send, calls, disk } = backgroundHarness();
+  const token = "dddddddd-dddd-4ddd-8ddd-dddddddddddd", url = "https://www.patreon.com/posts/101";
+  const revisions = [{ url, revision: "a".repeat(64) }];
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: [url], revisions });
+  const created = calls.create.length;
+  assert.equal((await send({ type: "PREPARE_COLLECTION_EXPORT", token, refresh: true, urls: [url], revisions })).reused, 0);
+  assert.equal(calls.create.length, created + 1);
+  await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  assert.equal(disk.size, 1);
+  assert.equal((await send({ type: "PREPARE_COLLECTION_EXPORT", token, refresh: true, urls: [url] })).reused, 0);
+  assert.equal(disk.size, 0);
+});
+
+test("cancelling an incremental refresh cannot retain old source files or publish late preparation", async () => {
+  const { send, hold, disk, sessionStore } = backgroundHarness();
+  const token = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", url = "https://www.patreon.com/posts/101";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: [url], revisions: [{ url, revision: "a".repeat(64) }] });
+  await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  const held = hold("DESCRIBE_POST_EXPORT");
+  const refreshing = send({ type: "PREPARE_COLLECTION_EXPORT", token, refresh: true, urls: [url], revisions: [{ url, revision: "b".repeat(64) }] });
+  await held.entered;
+  assert.equal((await send({ type: "CANCEL_COLLECTION_EXPORT", token })).cancelled, true);
+  held.release();
+  assert.match((await refreshing).error, /cancelled/);
+  assert.equal(disk.size, 0);
+  assert.equal(Object.keys(sessionStore).filter(key => key.startsWith("collection-export:")).length, 0);
+});

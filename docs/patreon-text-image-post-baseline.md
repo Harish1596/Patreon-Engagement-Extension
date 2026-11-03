@@ -867,6 +867,42 @@ message retains the result.
 
 ## Collection export boundary (unreleased)
 
+**November 3 incremental refresh:** Refresh collection now reconciles the existing
+owner/token namespace instead of cancelling it before discovery. API pagination
+is reread for fresh order/access. The request asks for the already observed
+`content_json_string`, `title` and `current_user_can_view` fields. A valid nonempty
+structured body plus boolean-true access yields a SHA-256 fingerprint over body,
+title, available post/embed/file/image/author references and returned related
+image/author attributes. Only the digest is sent/stored with prepared metadata;
+raw response content and signed URLs are not added to session storage. Publication
+time alone is not used as an edit detector. The public [Patreon Post API reference](https://docs.patreon.com/#post-v2)
+does not establish a reliable published-post edit timestamp for this private
+collection integration; fingerprint behavior is synthetic evidence, not a live
+API contract or proof of unchanged inaccessible fields.
+
+The worker accepts refresh only for the same owner, rejects concurrent prepare/
+build work, and preserves cached sources only for matching revisions. Reusing
+preparation requires a live source entry too; uncached/expired records are
+rechecked. Removed, changed, locked or unverifiable records are deleted before
+preparation. Retained encrypted records keep their original two-hour deadlines;
+reads and refreshes do not rewrite/renew them. The discovered order becomes the
+new post order. Generated retry checkpoints and reports reset on explicit refresh,
+including when all posts become locked/empty. Missing/invalid full-content or
+access evidence, private API failure and DOM fallback cause conservative full
+revalidation. Previously skipped posts are retried, not treated as cached successes.
+
+Synthetic worker/cache cases cover new/edited/removed/reordered posts, unchanged
+source hits after restart, independent-owner rejection, uncached/expired sources,
+fixed deadlines, and cancellation with late replies. Browser cases inspect
+fingerprint/order/token messages and access changes; installed Brave verifies
+unchanged-source refresh opens no post tabs after cached book/ZIP downloads.
+The native fixture waits for its initial API performance entry before asserting
+revisions; the first attempt lacked that discovery evidence. Earlier November 1/2
+statements below that Refresh deletes all source data are superseded by this
+behavior; their historical checkpoint observations are preserved. Changed generated
+output is still rebuilt, and the existing cache/disk/access bounds remain in place.
+
+
 **November 3 download reports:** The existing collection dialog now includes a
 collapsible Download report with per-post title/canonical link, status and reason,
 plus an explicit Save report action for a standalone plain-text file. Reports

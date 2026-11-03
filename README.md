@@ -187,8 +187,24 @@ only locked posts shows a message without opening worker tabs.
 
 Discovered links, access flags, and preparation results are cached for
 two hours on the current collection page. Reopening the panel or downloading
-another format reuses them. Select **Refresh collection** to pick up new chapters
-or membership changes immediately. Expired discovery is refreshed on the next
+another format reuses them. Select **Refresh collection** to pick up new chapters,
+edits, ordering or membership changes immediately. Refresh rereads collection
+pagination and compares full-content fingerprints. An unchanged accessible post
+with a live cached source reuses its text and images without reopening its post
+tab. Only new, changed, uncached or expired posts need page preparation/retrieval.
+Removed or newly locked posts are dropped. Reused source entries keep their
+original two-hour expiry; refreshing does not renew them.
+
+The comparison requires an explicit access flag and valid full structured body
+from Patreon's collection response. Titles, body content, available media/author
+references and related attributes contribute to the fingerprint. When that data
+is missing, malformed or available only as a teaser, the extension rechecks the
+post conservatively. The DOM-only fallback therefore performs a full recheck.
+Refresh still retrieves collection API pages to detect changes; it avoids repeated
+post-page/image retrieval when sources are verified unchanged. Generated ZIP/EPUB
+retry files and the previous report are cleared so the new collection order,
+book navigation and access results cannot reuse stale output. The status reports
+how many unchanged cached posts were reused. Expired discovery is refreshed on the next
 opening; navigating away or reloading clears the page cache. Prepared metadata
 uses browser session storage so idle background-worker restarts do not invalidate
 the format buttons; it is removed on cancellation, owner-tab closure, or expiry,
@@ -201,8 +217,9 @@ format can avoid reopening post tabs and fetching their images again. The source
 cache uses session-key AES-256-GCM encryption, survives background-worker restarts,
 and has a shared 512 MiB limit; older
 entries may be evicted to stay within it. Expired, evicted, or unavailable storage
-falls back to normal fetching. Refresh collection, Cancel, and closing the owner
-tab clear that collection's source entries. No signed image URLs are stored in
+falls back to normal fetching. Cancel and closing the owner tab clear that
+collection's source entries. Refresh collection reconciles them, retaining only
+verified unchanged, unexpired sources. No signed image URLs are stored in
 them, and no cached data is sent to another service. Download time remains fresh
 for each output.
 Expiry cleanup runs automatically through a browser alarm, including while the
