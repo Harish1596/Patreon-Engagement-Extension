@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: November 2, 2026
+Last updated: November 3, 2026
 
 Patreon Reader (the "extension") is designed to provide its single
 purpose without collecting or transmitting personal information. All processing
@@ -26,7 +26,7 @@ create user-requested local exports:
 - When the user explicitly exports a post, it temporarily processes the rendered
   post title, displayed creator name, source URL, formatted body, links, and
   inline-image URLs in memory to create the selected PDF, EPUB, or Markdown
-  output. PDF also records the local export time. It excludes comments and
+  output. Exports also record the local download time. It excludes comments and
   surrounding page UI. A small, format-independent copy may stay in page memory
   for two hours so another format can reuse the same text and images. Changes
   to the displayed post invalidate that copy; it is limited to 16 MiB and is
@@ -34,7 +34,9 @@ create user-requested local exports:
   output rather than taken from the cached copy.
 - When the user explicitly exports a collection, it reads the post links rendered
   in that collection and temporarily opens or reuses those Patreon post pages to
-  create separate EPUB or Markdown files inside one local ZIP. Extension-created
+  create either one EPUB book or separate EPUB/Markdown files inside a local ZIP.
+  A single book also processes the collection title and builds local chapter
+  navigation and a table of contents. Extension-created
   tabs are closed after preparation or individual chapter generation, and on
   cancellation. Discovered links and prepared metadata are cached for two hours;
   prepared metadata uses local browser-session storage to survive worker restarts.
@@ -47,7 +49,8 @@ create user-requested local exports:
   nor source cache is sent to the developer or another service. The extension
   does not request broad browser-history or tab-access permission.
 - Collection export compresses generated chapters into encrypted extension-private
-  retry files and streams decrypted chunks into a temporary ZIP on local disk.
+  retry files and streams decrypted chunks into a temporary ZIP or EPUB on local
+  disk. Both modes use the same retention, encryption and archive payload budget.
   It retains only filenames,
   sizes, checksums, owner IDs, and expiry/download IDs in browser-session storage.
   A hidden extension document creates a local Blob URL for the finished file;
@@ -147,7 +150,7 @@ Completed files retained for retry stay encrypted in extension-private temporary
 disk storage. All archive jobs share a 1 GiB payload budget for encrypted retry
 files, pending writes and staged/final ZIPs, separate from the 512 MiB source-cache
 budget. Browser filesystem metadata/overhead and user-saved files are outside those
-payload limits. The browser download requires a temporary plaintext ZIP during
+payload limits. The browser download requires a temporary plaintext ZIP or EPUB during
 assembly/handoff and until completion or interruption. Failed packaging/handoffs
 remove it; a forced quit can leave it for startup/browser cleanup. There is no
 guaranteed crash-time erasure. Refresh, Cancel, format changes, and owner-tab

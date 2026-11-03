@@ -886,8 +886,27 @@ metadata, and owner closure while assembly is in progress. Earlier November 2
 separate-file ZIP observations below remain historical evidence for that mode.
 
 
+**November 3 single-book UI:** The collection chooser now groups Single EPUB
+under One book and the existing EPUB/Markdown buttons under Separate files (ZIP).
+The iframe is taller to fit both groups and retains the surrounding light/dark
+background. Single EPUB uses the same discovery/access checks and cached sources,
+with a separate retry checkpoint from the ZIP modes. Each chapter is rendered
+through the existing snapshot sanitizer and staged independently, with stable
+chapter paths for images/styles and previous/next/Contents links. A direct `.epub`
+download is named from the collection title; it has no outer ZIP of chapter books.
+The title page includes Creator, Download time and Source. Completion reports EPUB
+book download started; assembly, finalization and handoff progress use EPUB labels.
+The hidden downloader supplies the EPUB or ZIP MIME explicitly via a disk-backed
+Blob slice, so the browser uses the correct saved extension. The installed
+regression checks both native extensions after an initial ZIP-MIME mismatch was
+caught and corrected.
+Mode changes discard only generated retry files, while source caching remains
+available. Book preparation has the existing 100-post and temporary-storage limits.
+No Patreon DOM selectors, local-only data boundary or media permissions changed.
+
 **Intended behavior:** On a pathname matching `/collection/{identifier}`, a
-fixed extension-owned **Download Collection** control offers EPUB and Markdown.
+fixed extension-owned **Download Collection** control offers Single EPUB or
+separate EPUB/Markdown ZIP files.
 Its dialog shows an extension-owned progress bar from discovery through ZIP
 packaging. Discovery and packaging are indeterminate when no trustworthy total is
 available; preparation, generation, and page-side file receipt report completed

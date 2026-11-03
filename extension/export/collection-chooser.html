@@ -8,8 +8,15 @@
   </head>
   <body>
     <main aria-label="Collection export formats">
-      <button type="button" data-format="epub" disabled>EPUB</button>
-      <button type="button" data-format="markdown" disabled>Markdown</button>
+      <section aria-label="One book">
+        <p>One book</p>
+        <button type="button" data-format="epub-book" disabled>Single EPUB</button>
+      </section>
+      <section aria-label="Separate files">
+        <p>Separate files (ZIP)</p>
+        <div class="formats"><button type="button" data-format="epub" disabled>EPUB</button>
+        <button type="button" data-format="markdown" disabled>Markdown</button></div>
+      </section>
     </main>
     <script src="collection-chooser.js"></script>
   </body>

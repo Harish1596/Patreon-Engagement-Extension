@@ -29,6 +29,39 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Single EPUB collection download, November 3, 2026: **43 Chrome cases, 44 Brave
+cases (including the installed extension), and 54 tooling cases passed**. Syntax
+checks cover 48 JavaScript files; whitespace checks pass. Reproduce with:
+
+```sh
+npx playwright test tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js tests/export.spec.js tests/export-security.spec.js
+npm run test:brave -- tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js tests/export.spec.js tests/export-security.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+New fixtures download a single `.epub`, independently check it with `unzip -t`,
+verify first-entry stored mimetype/no extra fields, parse all XML, inspect the
+manifest/spine/TOC, resolve chapter image/style/navigation paths, and confirm
+creator/source/download-time metadata and sanitized images. Repeated images
+share a resource within a chapter. Mode switching retains separate-file ZIPs.
+Failed chapters retry independently; packaging retry reuses staged files with
+whole-file reads forbidden. Cancellation suppresses late downloads and clears
+staging. Node disk fixtures cover streaming/restart, quota errors, rejected paths
+and owner closure during inflation/assembly. Installed Brave downloads all three
+collection modes using encrypted cached sources across worker restarts, without
+opening post tabs again.
+
+The first native filename check caught a ZIP MIME hint on the finished book;
+the offscreen handoff now uses a disk-backed Blob slice with explicit EPUB/ZIP
+MIME. The full Brave rerun passed and checks the saved extensions. These checks
+do not establish live authenticated Patreon behavior or certification in EPUB
+readers. The 100-post, 1 GiB temporary-archive and 512 MiB source-cache limits
+still apply; source conversion needs memory, and final ZIP/EPUB backing files
+are temporarily plaintext until download cleanup.
+
+
 Single-book writer, November 3, 2026: **54 tooling cases passed**. New worker/disk
 fixtures exercise an EPUB assembled from encrypted retry chapters after worker
 restart, files exposing only bounded streams, publication quota exhaustion,

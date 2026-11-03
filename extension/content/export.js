@@ -444,8 +444,10 @@
     return new Blob([...parts, ...central, end], { type });
   }
 
-  function makeEpub(post) {
+  function makeEpub(post, chapter) {
     const content = renderHtml(post.body, post.assets, asset => asset.path);
+    const folder = index => String(index + 1).padStart(3, "0");
+    const navigation = chapter ? `<nav aria-label="Chapter navigation"><p>${chapter.index ? `<a href="../${folder(chapter.index - 1)}/post.xhtml">Previous chapter</a> · ` : ""}<a href="../../nav.xhtml">Contents</a>${chapter.index + 1 < chapter.count ? ` · <a href="../${folder(chapter.index + 1)}/post.xhtml">Next chapter</a>` : ""}</p></nav>` : "";
     const metadata = `<dl class="metadata"><div><dt>Creator</dt><dd>${escapeText(post.author)}</dd></div><div><dt>Download time</dt><dd>${escapeText(post.downloadedAt)}</dd></div><div><dt>Source</dt><dd><a href="${escapeAttribute(post.sourceUrl)}">${escapeText(post.sourceUrl)}</a></dd></div></dl>`;
     const imageItems = post.assets.map((asset, index) => `<item id="image-${index + 1}" href="${asset.path}" media-type="${escapeAttribute(asset.type)}" />`).join("\n");
     const identifier = `urn:uuid:${crypto.randomUUID()}`;
@@ -454,7 +456,7 @@
       { name: "META-INF/container.xml", data: `<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="EPUB/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>` },
       { name: "EPUB/styles.css", data: "body{font-family:serif;line-height:1.55;max-width:42em;margin:auto}.metadata{margin:0 0 1.5em;padding:0 0 1em;border-bottom:1px solid #999;font:80%/1.45 sans-serif}.metadata div{display:grid;grid-template-columns:8em minmax(0,1fr);gap:1em;margin:.35em 0}.metadata dt{font-weight:bold}.metadata dd{margin:0;overflow-wrap:anywhere}img{display:block;max-width:100%;height:auto;margin:1em auto}a{text-decoration:underline}blockquote{border-left:.2em solid #888;padding-left:1em}" },
       { name: "EPUB/nav.xhtml", data: `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Contents</title></head><body><nav epub:type="toc" xmlns:epub="http://www.idpf.org/2007/ops"><ol><li><a href="post.xhtml">${escapeText(post.title)}</a></li></ol></nav></body></html>` },
-      { name: "EPUB/post.xhtml", data: `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${escapeText(post.title)}</title><link rel="stylesheet" type="text/css" href="styles.css"/></head><body>${metadata}<h1>${escapeText(post.title)}</h1>${content}</body></html>` },
+      { name: "EPUB/post.xhtml", data: `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${escapeText(post.title)}</title><link rel="stylesheet" type="text/css" href="${chapter ? "../../styles.css" : "styles.css"}"/></head><body>${metadata}<h1>${escapeText(post.title)}</h1>${content}${navigation}</body></html>` },
       { name: "EPUB/package.opf", data: `<?xml version="1.0" encoding="utf-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">${identifier}</dc:identifier><dc:title>${escapeText(post.title)}</dc:title><dc:creator>${escapeText(post.author)}</dc:creator><dc:source>${escapeText(post.sourceUrl)}</dc:source><dc:language>${escapeText(post.language)}</dc:language><meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d{3}Z$/, "Z")}</meta></metadata><manifest><item id="content" href="post.xhtml" media-type="application/xhtml+xml"/><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="css" href="styles.css" media-type="text/css"/>${imageItems}</manifest><spine><itemref idref="content"/></spine></package>` },
       ...post.assets.map(asset => ({ name: `EPUB/${asset.path}`, data: asset.bytes }))
     ];
@@ -472,19 +474,23 @@
     return portableFileFor(post, format);
   }
 
-  async function portableFileFor(post, format) {
+  async function portableFileFor(post, format, chapter) {
     if (format === "markdown") {
       return { title: post.title, extension: "md", encoding: "text", data: markdownFor(post) };
     }
-    const bytes = new Uint8Array(await makeEpub(post).arrayBuffer());
-    return { title: post.title, extension: "epub", encoding: "base64", data: base64(bytes) };
+    const bytes = new Uint8Array(await makeEpub(post, chapter).arrayBuffer());
+    return { title: post.title, creator: post.author, language: post.language, extension: "epub", encoding: "base64", data: base64(bytes) };
   }
 
-  async function fileFromSnapshot(snapshot, format, expectedUrl) {
+  async function fileFromSnapshot(snapshot, format, expectedUrl, chapter) {
     if (!["epub", "markdown"].includes(format) || snapshot?.postId !== postId(expectedUrl)) {
       throw new Error("The cached post does not match the requested chapter.");
     }
-    return portableFileFor(hydrateSnapshot(snapshot), format);
+    if (chapter && (format !== "epub" || !Number.isSafeInteger(chapter.index) || !Number.isSafeInteger(chapter.count)
+      || chapter.count < 1 || chapter.count > 100 || chapter.index < 0 || chapter.index >= chapter.count)) {
+      throw new Error("The collection chapter position is invalid.");
+    }
+    return portableFileFor(hydrateSnapshot(snapshot), format, chapter);
   }
 
   async function printPdf(post) {

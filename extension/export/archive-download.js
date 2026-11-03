@@ -14,7 +14,10 @@
       const root = await navigator.storage.getDirectory();
       const folder = await (await root.getDirectoryHandle("patreon-archives-v1")).getDirectoryHandle(message.id);
       const file = await (await folder.getFileHandle("archive.zip")).getFile();
-      const url = URL.createObjectURL(file);
+      const mime = message.mime || "application/zip";
+      if (!["application/zip", "application/epub+zip"].includes(mime)) throw new Error("Unsupported archive type.");
+      // slice() keeps the disk backing while supplying the correct download MIME.
+      const url = URL.createObjectURL(file.slice(0, file.size, mime));
       const previous = urls.get(message.id);
       if (previous) URL.revokeObjectURL(previous);
       urls.set(message.id, url);

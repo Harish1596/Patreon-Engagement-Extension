@@ -1238,3 +1238,29 @@ All 54 tooling cases passed, including restart, bounded reads, quota failure,
 invalid paths/metadata, and owner closure during book assembly. These Node
 fixtures establish the streaming writer contract; browser/UI integration is
 recorded separately. No EPUB-reader certification or live Patreon claim is made.
+
+
+## November 3, 2026 — Offer a single EPUB book alongside separate-file ZIPs
+
+The collection chooser groups Single EPUB under One book and retains the EPUB/
+Markdown buttons under Separate files (ZIP). Single EPUB reuses source snapshots
+and sanitization, builds independently retryable chapters, then saves one book
+with collection title/creator/source/download-time metadata, ordered TOC/spine,
+local images/styles, and previous/next/Contents chapter links. New EPUB labels
+cover assembly, finalization and handoff. Switching modes drops generated retry
+files but preserves reusable sources. No Patreon selectors or new permissions
+were introduced. The hidden downloader uses an explicit EPUB MIME on a disk-backed
+Blob slice; the initial installed filename assertion caught the inherited ZIP
+MIME, which was fixed before the full successful rerun.
+
+Verification passed: 43 Chrome browser cases, 44 Brave cases including installed
+extension downloads, 54 tooling cases, syntax checks for 48 JavaScript files and
+whitespace checks. Fixtures verify real ZIP CRCs with `unzip -t`, stored-first
+mimetype, XML validity, manifest/spine/TOC order, local resource/navigation targets,
+metadata escaping, image sanitization, mode switching, independent chapter retry,
+packaging retry with whole-file reads forbidden, cancellation and cleanup.
+Installed Brave verifies all three collection modes, correct saved extensions,
+source reuse across worker restarts, no new post tabs and expiry cleanup. No
+live authenticated Patreon or EPUB-reader interoperability certification is
+claimed. Existing post/storage limits and temporary plaintext final-file
+limitations apply to books as well as ZIP downloads.

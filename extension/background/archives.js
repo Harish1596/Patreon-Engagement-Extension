@@ -195,7 +195,7 @@
         })().finally(() => { offscreen = null; });
         await offscreen;
         check(job);
-        const blob = await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_OPEN", id: job.id });
+        const blob = await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_OPEN", id: job.id, mime: job.book ? "application/epub+zip" : "application/zip" });
         if (!blob?.url?.startsWith(`blob:${api.runtime.getURL("")}`)) throw new Error(blob?.error || "The archive download could not be opened.");
         check(job);
         const handoff = await call(api.tabs, "sendMessage", job.owner, { type: "COLLECTION_ARCHIVE_HANDOFF", id: job.id, operationId });

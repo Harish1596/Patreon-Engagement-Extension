@@ -137,13 +137,30 @@ already rendered for the user. A granted origin can remain in the browser's
 extension settings until the user revokes it, but it is used only for a later
 user-requested export containing images from that origin.
 
-### Download separate posts from a collection
+### Download a collection
 
-On a Patreon `/collection/...` page, select **Download Collection** and choose
-EPUB or Markdown. The extension creates one ZIP named after the collection. Each
-accessible text post becomes a separate, numbered file in the order its link
-appears on the collection page; repeated links are removed. Unavailable, locked,
-or unsupported posts are skipped and reported before export.
+On a Patreon `/collection/...` page, select **Download Collection**. After
+preparation, choose:
+
+- **Single EPUB** under **One book**: downloads one `.epub` named after the
+  collection, with a title page, Creator/Download time/Source metadata, an ordered
+  table of contents, and previous/next chapter links. Images are packaged inside
+  the book. Open it directly in an EPUB reader; no outer ZIP needs extracting.
+- **EPUB** or **Markdown** under **Separate files (ZIP)**: creates the existing
+  collection ZIP with one numbered file per accessible text post.
+
+Both options preserve the discovered collection order and reuse the same cached
+sources. Repeated post links are removed. Unavailable, locked, or unsupported
+posts are skipped and reported before export. A chapter that fails later must
+be retried before the complete book or ZIP is saved; completed encrypted chapters
+are retained for retry. Switching between book and separate-file modes reuses
+source text/images but rebuilds the format-specific files.
+
+The single book is assembled one chapter at a time in temporary storage, using
+the same progress, cancellation, two-hour retention and shared archive budget.
+It does not retain a complete book in page memory. Per-chapter source conversion
+still requires memory. EPUB reader compatibility and live Patreon behavior need
+user verification.
 When Patreon's collection API explicitly marks a post as inaccessible, it is
 excluded before worker preparation and reported separately as a locked post.
 Missing access flags still use normal preparation checks. A collection containing

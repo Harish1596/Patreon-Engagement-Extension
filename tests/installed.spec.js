@@ -169,7 +169,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     fs.mkdirSync(downloadDirectory, { recursive: true });
     await workerControl.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: downloadDirectory, eventsEnabled: true });
     const receivedIds = new Set();
-    async function downloadCollectionZip(click) {
+    async function downloadCollectionZip(click, extension = ".zip") {
       await click();
       let result;
       await expect.poll(async () => {
@@ -179,6 +179,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       }, { timeout: 20_000 }).toBe(true);
       receivedIds.add(result.id);
       expect(result.filename.startsWith(downloadDirectory + path.sep)).toBe(true);
+      expect(result.filename.endsWith(extension)).toBe(true);
       return fs.readFileSync(result.filename);
     }
     async function suspendExportWorker() {
@@ -236,6 +237,17 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       expect(images).toHaveLength(1);
       expect(images[0].data.toString()).toContain("<svg");
     }
+    await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    await suspendExportWorker();
+    const bookBytes = await downloadCollectionZip(() => collection.frameLocator('iframe[title="Collection export formats"]')
+      .getByRole("button", { name: "Single EPUB", exact: true }).click(), ".epub");
+    const bookEntries = readZip(bookBytes);
+    expect(bookEntries[0].name).toBe("mimetype");
+    expect(bookEntries.filter(entry => entry.name.endsWith("post.xhtml")).map(entry => entry.name)).toEqual([
+      "EPUB/chapters/001/post.xhtml", "EPUB/chapters/002/post.xhtml"
+    ]);
+    expect(bookEntries.find(entry => entry.name === "EPUB/nav.xhtml").data.toString()).toContain("Collection post two");
+    expect(bookEntries.find(entry => entry.name === "EPUB/chapters/001/post.xhtml").data.toString()).toContain("Collection body one.");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     await expect.poll(() => popup.evaluate(async () => {
       const root = await navigator.storage.getDirectory();

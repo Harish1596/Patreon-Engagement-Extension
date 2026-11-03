@@ -482,7 +482,8 @@
       data = file.data;
     }
     const number = String(index + 1).padStart(Math.max(3, String(total).length), "0");
-    return { name: `${number} - ${fileStem(file.title)}.${file.extension}`, data };
+    return { name: `${number} - ${fileStem(file.title)}.${file.extension}`, data,
+      metadata: { title: file.title, creator: file.creator || "Not available", language: file.language || "und" } };
   }
 
   async function receiveFile(token, metadata, index, signal, operation) {
@@ -519,11 +520,14 @@
 
   async function run(format) {
     if (busy) return;
+    const book = format === "epub-book";
+    const outputFormat = book ? "epub" : format;
+    const label = outputFormat === "epub" ? "EPUB" : "Markdown";
     const operation = beginOperation();
     const signal = operation.controller.signal;
     setBusy(true);
-    setProgress(`Building ${format === "epub" ? "EPUB" : "Markdown"} files`);
-    report(`Building ${format === "epub" ? "EPUB" : "Markdown"} files…`);
+    setProgress(book ? "Building EPUB book" : `Building ${label} files`);
+    report(book ? "Building EPUB book…" : `Building ${label} files…`);
     try {
       let prepared = await waitFor(call(api.runtime, "sendMessage", {
         type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
@@ -547,7 +551,9 @@
       if (!staged) {
         // Rebuild disk files only if the browser lost their temporary directory.
         await archive.request("CREATE", { id: checkpoint.id, count: checkpoint.count,
-          filename: `${fileStem(collectionTitle())}.zip` }, signal);
+          filename: `${fileStem(collectionTitle())}.${book ? "epub" : "zip"}`,
+          ...(book ? { book: { title: collectionTitle(), source: `${location.origin}${location.pathname}`,
+            downloadedAt: new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "long" }).format(new Date()) } } : {}) }, signal);
         checkpoint.entries = [];
       } else {
         checkpoint.entries = staged.entries;
@@ -571,9 +577,9 @@
           report(result.files[0].cached ? "Reading cached chapter…" : "Receiving chapter…");
           let file = await receiveFile(requestToken, result.files[0], index, signal, operation);
           if (file.extension !== "snapshot") throw new Error("The collection returned an invalid source snapshot.");
-          report(`Formatting ${format === "epub" ? "EPUB" : "Markdown"} chapter…`);
+          report(`Formatting ${label} chapter…`);
           setProgress("Formatting chapter");
-          file = await fileFromSnapshot(JSON.parse(file.data), format, prepared.postUrls[index]);
+          file = await fileFromSnapshot(JSON.parse(file.data), outputFormat, prepared.postUrls[index], book ? { index, count: checkpoint.count } : undefined);
           checkOperation(operation);
           checkpoint.entries[index] = await archive.store(checkpoint.id, index, decodeFile(file, index, checkpoint.count), signal, progress => {
             if (activeOperation !== operation || signal.aborted) return;
@@ -597,8 +603,8 @@
         showRetry();
         return;
       }
-      report("Packaging collection ZIP…");
-      setProgress("Packaging collection ZIP");
+      report(book ? "Assembling EPUB book…" : "Packaging collection ZIP…");
+      setProgress(book ? "Assembling EPUB book" : "Packaging collection ZIP");
       const packaged = await archive.request("PACKAGE", { id: checkpoint.id, operationId: operation.id }, signal);
       checkOperation(operation);
       if (!packaged.started) throw new Error("The collection download could not be started.");
@@ -610,7 +616,7 @@
         type: "FINISH_COLLECTION_EXPORT", token: requestToken
       });
       if (!finished?.finished) throw new Error(finished?.error || "The collection transfer could not be completed.");
-      await prepareSession(`${format === "epub" ? "EPUB" : "Markdown"} ZIP download started.`, false, operation);
+      await prepareSession(book ? "EPUB book download started." : `${label} ZIP download started.`, false, operation);
     } catch (error) {
       if (signal.aborted || activeOperation !== operation) return;
       report(error.message || "The collection could not be exported.", "error");
@@ -635,7 +641,7 @@
     host = element("div", { "data-patreon-collection-download": "" });
     shadow = host.attachShadow({ mode: "open" });
     const style = element("style");
-    style.textContent = `:host{all:initial}*{box-sizing:border-box}.trigger{position:fixed;right:20px;bottom:20px;z-index:2147483646;border:1px solid #dedee3;border-radius:999px;padding:10px 16px;color:#202026;background:#fff;box-shadow:0 8px 30px #0003;font:650 14px/1.4 system-ui,sans-serif;cursor:pointer}.trigger:hover{background:#f4f4f6}section{position:fixed;right:20px;bottom:74px;z-index:2147483647;width:340px;max-width:calc(100vw - 24px);padding:18px;border:1px solid #dedee3;border-radius:16px;color:#202026;background:#fff;box-shadow:0 12px 48px #0003;font:14px/1.45 system-ui,sans-serif}[hidden]{display:none!important}header{display:flex;align-items:start;justify-content:space-between;gap:12px}h2{margin:0;font-size:18px}p{margin:6px 0 14px;color:#686872;font-size:12px}.close{padding:5px 9px;border:1px solid #dedee3;border-radius:8px;color:inherit;background:#f4f4f6;font:inherit;cursor:pointer}.close:disabled{opacity:.5;cursor:default}iframe{display:block;width:100%;height:42px;border:0}progress{display:block;width:100%;height:8px;margin:12px 0 0;accent-color:#b82d47}#collection-export-status{min-height:38px;margin:10px 0 0}[data-tone=error]{color:#a32037}[data-tone=success]{color:#216e39}:focus-visible{outline:2px solid #b82d47;outline-offset:2px}@media(prefers-color-scheme:dark){.trigger,section{color:#f2f2f5;background:#232326;border-color:#48484e}.trigger:hover,.close{background:#323237}.close{border-color:#505058}p{color:#b4b4be}[data-tone=error]{color:#ff9bac}[data-tone=success]{color:#82d99b}}`;
+    style.textContent = `:host{all:initial}*{box-sizing:border-box}.trigger{position:fixed;right:20px;bottom:20px;z-index:2147483646;border:1px solid #dedee3;border-radius:999px;padding:10px 16px;color:#202026;background:#fff;box-shadow:0 8px 30px #0003;font:650 14px/1.4 system-ui,sans-serif;cursor:pointer}.trigger:hover{background:#f4f4f6}section{position:fixed;right:20px;bottom:74px;z-index:2147483647;width:340px;max-width:calc(100vw - 24px);padding:18px;border:1px solid #dedee3;border-radius:16px;color:#202026;background:#fff;box-shadow:0 12px 48px #0003;font:14px/1.45 system-ui,sans-serif}[hidden]{display:none!important}header{display:flex;align-items:start;justify-content:space-between;gap:12px}h2{margin:0;font-size:18px}p{margin:6px 0 14px;color:#686872;font-size:12px}.close{padding:5px 9px;border:1px solid #dedee3;border-radius:8px;color:inherit;background:#f4f4f6;font:inherit;cursor:pointer}.close:disabled{opacity:.5;cursor:default}iframe{display:block;width:100%;height:136px;border:0}progress{display:block;width:100%;height:8px;margin:12px 0 0;accent-color:#b82d47}#collection-export-status{min-height:38px;margin:10px 0 0}[data-tone=error]{color:#a32037}[data-tone=success]{color:#216e39}:focus-visible{outline:2px solid #b82d47;outline-offset:2px}@media(prefers-color-scheme:dark){.trigger,section{color:#f2f2f5;background:#232326;border-color:#48484e}.trigger:hover,.close{background:#323237}.close{border-color:#505058}p{color:#b4b4be}[data-tone=error]{color:#ff9bac}[data-tone=success]{color:#82d99b}}`;
     trigger = element("button", {
       type: "button", class: "trigger", "aria-haspopup": "dialog", "aria-expanded": "false"
     }, "Download Collection");
@@ -649,7 +655,7 @@
     header.append(dismiss);
     chooser = element("iframe", { title: "Collection export formats", src: "about:blank" });
     dialog.append(header,
-      element("p", {}, "Creates a ZIP with one file per accessible text post, in collection order."),
+      element("p", {}, "Download one EPUB book or a ZIP of separate files, in collection order."),
       chooser,
       element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
       element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
@@ -743,8 +749,8 @@
       if (message.type === "COLLECTION_ARCHIVE_HANDOFF") {
         activeOperation.handedOff = true;
         setBusy(true);
-        report("Starting ZIP download…");
-        setProgress("Starting ZIP download");
+        report(checkpoint.format === "epub-book" ? "Starting EPUB download…" : "Starting ZIP download…");
+        setProgress(checkpoint.format === "epub-book" ? "Starting EPUB download" : "Starting ZIP download");
         respond({ handedOff: true });
       } else {
         if (!Number.isSafeInteger(message.current) || !Number.isSafeInteger(message.total)
@@ -755,9 +761,9 @@
         }
         currentPost(message.index, message.total, message.name, "File");
         if (message.stage === "finalize") {
-          report("Finalizing ZIP…");
-          setProgress("Finalizing ZIP");
-        } else byteProgress("Packaging collection ZIP", message.bytesCopied, message.bytesTotal);
+          report(checkpoint.format === "epub-book" ? "Finalizing EPUB…" : "Finalizing ZIP…");
+          setProgress(checkpoint.format === "epub-book" ? "Finalizing EPUB" : "Finalizing ZIP");
+        } else byteProgress(checkpoint.format === "epub-book" ? "Assembling EPUB book" : "Packaging collection ZIP", message.bytesCopied, message.bytesTotal);
         detail("bytes", `${bytes(message.bytesCopied)} of ${bytes(message.bytesTotal)} packaged`);
         respond({ reported: true });
       }
@@ -790,7 +796,7 @@
       respond({ reported: true });
       return;
     }
-    if (!["epub", "markdown"].includes(message.format)) {
+    if (!["epub", "markdown", "epub-book"].includes(message.format)) {
       respond({ error: "The collection export format is invalid." });
       return;
     }
