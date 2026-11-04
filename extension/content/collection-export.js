@@ -509,11 +509,13 @@
     }
     if (!value) { const details = shadow?.querySelector(".progress-details"); if (details) details.open = false; }
     const close = shadow?.querySelector(".close");
-    if (close) close.disabled = value;
+    if (close) close.disabled = false;
     const refresh = shadow?.querySelector(".refresh");
-    if (refresh) refresh.disabled = value;
+    if (refresh) { refresh.disabled = value; refresh.hidden = value; }
     const cancel = shadow?.querySelector(".cancel");
     if (cancel) { cancel.hidden = !value || activeOperation?.handedOff; cancel.disabled = false; }
+    shadow?.querySelector(".format-options")?.setAttribute("aria-hidden", String(value));
+    if (value && shadow?.activeElement === chooser) (cancel.hidden ? close : cancel)?.focus();
     renderDownloadReport();
   }
 
@@ -835,11 +837,11 @@
   }
 
   function close(restoreFocus = false) {
-    if (!open || busy) return;
+    if (!open) return;
     open = false;
     dialog.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
-    chooser.src = "about:blank";
+    if (!busy) chooser.src = "about:blank";
     if (restoreFocus) trigger.focus();
   }
 
@@ -873,7 +875,7 @@
       type: "button", class: "trigger", "aria-haspopup": "dialog", "aria-expanded": "false"
     }, "Download Collection");
     dialog = element("section", {
-      role: "dialog", "aria-modal": "true", "aria-labelledby": "collection-export-heading", hidden: ""
+      role: "dialog", "aria-modal": "false", "aria-labelledby": "collection-export-heading", tabindex: "-1", hidden: ""
     });
     const header = element("header");
     header.append(element("h2", { id: "collection-export-heading" }, "Download Collection"));
@@ -887,9 +889,10 @@
     dismiss.replaceChildren(closeIcon);
     header.append(dismiss);
     chooser = element("iframe", { title: "Collection export formats", src: "about:blank" });
-    dialog.append(header,
-      element("p", { class: "intro" }, "Choose one book or separate chapter files."),
-      chooser,
+    const body = element("div", { class: "collection-body" });
+    const formatOptions = element("div", { class: "format-options" });
+    formatOptions.append(element("p", { class: "intro" }, "Choose one book or separate chapter files."), chooser);
+    body.append(formatOptions,
       element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
       element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
     const details = element("details", { class: "progress-details", hidden: "" });
@@ -898,7 +901,7 @@
       details.append(element("p", { [`data-progress-${name}`]: "", ...(name === "elapsed" ? {} : { hidden: "" }) }));
     }
     style.textContent += ".progress-details p{margin:4px 0;font-size:12px;overflow-wrap:anywhere}.progress-details [data-progress-current]{color:inherit;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.progress-details{margin-top:12px}.progress-details summary{color:#80808c;font-size:12px;cursor:pointer}.progress-details[open] summary{margin-bottom:8px}section{max-height:calc(100vh - 98px);max-height:calc(100dvh - 98px);overflow:auto}";
-    dialog.append(details);
+    body.append(details);
     const refresh = element("button", { type: "button", class: "close refresh" }, "Refresh collection");
     refresh.addEventListener("click", () => {
       if (busy) return;
@@ -918,14 +921,17 @@
     const saveReport = element("button", { type: "button", class: "close" }, "Save report");
     saveReport.addEventListener("click", saveDownloadReport); reportView.append(saveReport);
     style.textContent += ".download-report{margin-top:14px;border-top:1px solid #dedee3;padding-top:10px}.download-report summary{cursor:pointer;font-weight:650;font-size:13px}.download-report ol{max-height:220px;overflow:auto;padding-left:22px;margin:8px 0;font-size:12px}.download-report li{margin:10px 0;overflow-wrap:anywhere}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline}.download-report strong{font-size:12px}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}}";
-    dialog.append(reportView);
+    body.append(reportView);
     controls.append(refresh, cancel, restart, retry);
-    dialog.append(controls);
+    dialog.append(header, body, controls);
+    style.textContent += `section{display:flex;flex-direction:column;overflow:hidden}header,.controls{flex:none}.collection-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.controls{border-top:1px solid #dedee3;padding-top:12px}.format-options[aria-hidden=true]{height:0;overflow:hidden;visibility:hidden}.retry{font-weight:650}@media(prefers-color-scheme:dark){.controls{border-color:#48484e}}`;
     trigger.addEventListener("click", () => {
       if (open) return close(true);
       open = true;
       dialog.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
+      dialog.focus();
+      if (busy) return;
       prepareSession().catch(showPreparationError);
     });
     shadow.append(style, trigger, dialog);

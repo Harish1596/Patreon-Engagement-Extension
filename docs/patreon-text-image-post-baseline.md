@@ -1699,3 +1699,14 @@ selector evidence or repaired behaviour. A measured disclosure text colour also
 falls below ordinary-text contrast in both themes. The archived critique linked
 from TESTING.md records priorities and limits. Runtime, CSP and permissions remain
 unchanged; implementation work requires a subsequent user request.
+
+
+**November 4 P1 critique remediation:** The collection tool is now explicitly a
+nonmodal labelled dialog. Opening focuses the panel; dismissal restores its
+trigger. Close/Escape can dismiss during work without cancelling; reopening uses
+the same active operation. Cancel remains the explicit stop action. A dedicated
+scrollable body leaves the action footer visible, and unavailable format choices
+compact during busy work while the permission frame remains mounted. Synthetic
+375×667 cases now verify Cancel and expanded-report Retry geometry. These changes
+supersede the two P1 observations above; they introduce no Patreon DOM selector,
+permission or cache-lifecycle change and have not yet been checked on a live page.

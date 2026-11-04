@@ -29,6 +29,15 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection control remediation, November 4, 2026: **10 Chrome cases passed** via
+`npx playwright test tests/collection-controls.spec.js tests/collection-menu.spec.js tests/collection-progress.spec.js`.
+The three new cases first failed on the original implementation. They now verify
+nonmodal focus entry/return, visible Cancel at 375×667, dismiss/reopen without
+re-preparation, and visible Retry with an expanded report and retained chapters.
+This checkpoint addresses the two P1 findings; the three P2 findings remain in the
+approved follow-up task. Syntax and whitespace checks pass. No live account was
+inspected in these fixtures.
+
 Independent UI critique, November 4, 2026: two isolated reviewers inspected
 sanitised rendered fixtures and source. Heuristic assessment: **28/40 (Good)**,
 with two P1 interaction issues: offscreen busy/recovery actions and modal semantics

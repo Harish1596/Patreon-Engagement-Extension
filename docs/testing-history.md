@@ -1465,3 +1465,19 @@ styles supplied the evidence. The temporary server was stopped and browsers clos
 No runtime code or access/CSP policy changed, and no live account or formal
 screen-reader conformance assessment was performed. Runtime suites were not rerun.
 The critique snapshot and documentation checks were committed with this review.
+
+
+## November 4, 2026 — Keep collection recovery controls visible
+
+Addressed the two approved P1 findings with a scrollable body and separate action
+footer, compact busy choices, nonmodal semantics and explicit focus entry/return.
+Close/Escape dismiss the panel while work continues; reopening a busy panel reuses
+its operation rather than preparing again. Cancel retains its stopping behavior.
+The permission frame stays mounted while its busy presentation is compacted.
+
+RED/GREEN verification: the three new collection-control regressions failed on
+focus/geometry first, then passed with seven existing menu/progress cases (10
+Chrome cases). Fixtures cover 375×667 Cancel/Retry visibility, expanded reports,
+retained chapters, and busy dismissal/reopen. The remaining P2 findings are a
+separate authorised task. This checkpoint does not establish live Patreon or
+formal assistive-technology conformance.
