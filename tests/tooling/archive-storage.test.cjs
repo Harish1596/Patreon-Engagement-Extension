@@ -8,7 +8,9 @@ const { Readable } = require("node:stream");
 const { deflateRawSync } = require("node:zlib");
 const { readZip } = require("../helpers/zip");
 const extension = path.resolve(__dirname, "../../extension");
-const source = fs.readFileSync(path.join(extension, "shared/zip.js"), "utf8")
+const source = fs.readFileSync(path.join(extension, "shared/pdf.js"), "utf8")
+  + "\n" + fs.readFileSync(path.join(extension, "background/pdf-book.js"), "utf8")
+  + "\n" + fs.readFileSync(path.join(extension, "shared/zip.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "background/disk-crypto.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "background/epub-book.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "background/archives.js"), "utf8");
@@ -96,6 +98,7 @@ function harness(t, { maxBytes, deliver, onProgress, native = false, initialStat
       atob: value => Buffer.from(value, "base64").toString("binary") };
     vm.runInNewContext(source, scope);
     scope.PatreonDiskCrypto = scope.PatreonExportCrypto.create();
+    scope.PatreonPdfRenderService = require("../helpers/pdf-render.cjs");
     controller = scope.PatreonArchives.install({ root: async () => directory(disk), ...(maxBytes === undefined ? {} : { maxBytes }),
       ...(native ? {} : { download: async () => { downloads++; if (deliver) return deliver(); return { started: true }; } }) });
     await controller.ready;
@@ -113,12 +116,12 @@ function harness(t, { maxBytes, deliver, onProgress, native = false, initialStat
     closeOwner: () => removed(1), downloadCount: () => downloads, largestRead: () => largestRead };
 }
 
-async function store(h, scope, index, text, metadata) {
+async function store(h, scope, index, text, metadata, name = `${index + 1} - Chapter.md`) {
   const raw = Buffer.from(text);
   const compressed = deflateRawSync(raw);
   let crc = scope.PatreonZip.updateCrc32(0xffffffff, raw);
   crc = (crc ^ 0xffffffff) >>> 0;
-  assert.equal((await h.send("BEGIN", { index, transferId, name: `${index + 1} - Chapter.md`, metadata })).begun, true);
+  assert.equal((await h.send("BEGIN", { index, transferId, name, metadata })).begun, true);
   assert.equal((await h.send("CHUNK", { index, transferId, offset: 1, data: compressed.toString("base64") })).error.includes("order"), true);
   assert.equal((await h.send("CHUNK", { index, transferId, offset: 0, data: compressed.toString("base64") })).written, true);
   assert.equal((await h.send("END", { index, transferId, size: raw.length, compressedSize: compressed.length, crc })).stored, true);
@@ -380,4 +383,63 @@ test("missing browser history is unconfirmed rather than a false terminal result
   const [message] = h.notifications.filter(item => item.type === "COLLECTION_ARCHIVE_RESULT");
   assert.equal(message.state, "unavailable");
   assert.match(message.reason, /could not be confirmed/);
+});
+
+test("single PDF packaging restores encrypted chapters and writes a direct PDF", async t => {
+  const h = harness(t);
+  let scope = await h.restart();
+  assert.equal((await h.send("CREATE", { count: 2, filename: "Synthetic.pdf", book: { ...book, format: "pdf" } })).created, true);
+  for (let n = 0; n < 2; n++) await store(h, scope, n, JSON.stringify({ version: 1, title: n ? 'Second chapter' : 'First chapter',
+    author: 'Fixture Creator', sourceUrl: `https://www.patreon.com/posts/${101 + n}`, language: 'en', downloadedAt: 'Today',
+    assets: [], body: { tag: 'p', children: [`Body ${n + 1}`] } }), { ...chapterMetadata, title: n ? 'Second chapter' : 'First chapter' });
+  scope = await h.restart();
+  assert.equal((await h.send("PACKAGE")).started, true);
+  const bytes = fs.readFileSync(path.join(h.disk, "patreon-archives-v1", id, "archive.zip"));
+  assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');
+  const { inspectPdf } = require('../helpers/pdf');
+  const pdf = await inspectPdf(bytes);
+  assert.equal(pdf.pages.length, 3);
+  assert.ok(pdf.pages[0].text.includes('Contents'));
+  assert.ok(pdf.pages[1].text.includes('First chapter'));
+  assert.ok(pdf.pages[2].text.includes('Second chapter'));
+  assert.equal(new Set(pdf.pages[0].annotations.filter(x => x.dest).map(x => JSON.stringify(x.dest))).size, 2);
+});
+
+test("PDF ZIP keeps independently parseable numbered chapter files", async t => {
+  const h = harness(t), scope = await h.restart();
+  await h.send('CREATE', { count: 2, filename: 'PDF collection.zip' });
+  const { render } = require('../helpers/pdf-render.cjs');
+  for (let n = 0; n < 2; n++) {
+    const bytes = await render([{ version: 1, title: `Post ${n + 1}`, author: 'Creator', language: 'en',
+      sourceUrl: `https://www.patreon.com/posts/${101 + n}`, assets: [], body: { tag: 'p', children: [`Body ${n + 1}`] } }]);
+    await store(h, scope, n, bytes, undefined, `00${n + 1} - Post ${n + 1}.pdf`);
+  }
+  assert.equal((await h.send('PACKAGE')).started, true);
+  const entries = readZip(fs.readFileSync(path.join(h.disk, 'patreon-archives-v1', id, 'archive.zip')));
+  assert.deepEqual(entries.map(x => x.name), ['001 - Post 1.pdf', '002 - Post 2.pdf']);
+  const { inspectPdf } = require('../helpers/pdf');
+  for (let n = 0; n < 2; n++) assert.ok((await inspectPdf(entries[n].data)).pages[0].text.includes(`Body ${n + 1}`));
+});
+
+test("PDF packaging cancellation stops the worker before any download handoff", async t => {
+  let h;
+  h = harness(t, { onProgress: message => { if (message.stage === 'render') setTimeout(() => h.closeOwner(), 1); } });
+  const scope = await h.restart();
+  await h.send('CREATE', { count: 1, filename: 'Cancelled.pdf', book: { ...book, format: 'pdf' } });
+  await store(h, scope, 0, JSON.stringify({ version: 1, title: 'Synthetic chapter', author: 'Creator', language: 'en',
+    sourceUrl: 'https://www.patreon.com/posts/101', assets: [], body: { tag: 'p', children: ['Some content'] } }), chapterMetadata);
+  assert.match((await h.send('PACKAGE')).error, /cancel|abort/i);
+  assert.equal(h.downloadCount(), 0);
+});
+
+test("failed PDF packaging retains encrypted chapters for retry", async t => {
+  const h = harness(t), scope = await h.restart();
+  await h.send('CREATE', { count: 1, filename: 'Retry.pdf', book: { ...book, format: 'pdf' } });
+  await store(h, scope, 0, JSON.stringify({ version: 1, title: 'Synthetic chapter', author: 'Creator', language: 'en',
+    sourceUrl: 'https://www.patreon.com/posts/101', assets: [], body: { tag: 'p', children: ['Retained content'] } }), chapterMetadata);
+  h.fail(true);
+  assert.match((await h.send('PACKAGE')).error, /quota/);
+  assert.ok((await h.send('GET')).entries[0]);
+  h.fail(false);
+  assert.equal((await h.send('PACKAGE')).started, true);
 });

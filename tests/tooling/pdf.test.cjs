@@ -64,3 +64,28 @@ test('real worker rejects unsupported glyphs and oversized image headers', async
   const image = Buffer.alloc(24); image.writeUInt32BE(0x89504e47); image.writeUInt32BE(10000, 16); image.writeUInt32BE(10000, 20);
   await assert.rejects(render([adapter().chapter({ ...snapshot, body: { tag: 'img', image: 0 }, assets: [{ dataUrl: 'data:image/png;base64,' + image.toString('base64') }] })]), /pixel/);
 });
+test('linked inline images survive PDF mapping and embed image data', async () => {
+  const { createCanvas } = require('@napi-rs/canvas');
+  const canvas = createCanvas(8, 8); canvas.getContext('2d').fillRect(0, 0, 8, 8);
+  const input = adapter().chapter({ ...snapshot, body: { tag: 'p', children: ['Before ', { tag: 'a', href: 'https://example.com/image',
+    children: [{ tag: 'img', image: 0 }] }, ' after'] }, assets: [{ dataUrl: canvas.toDataURL('image/png') }] });
+  const doc = adapter().definition([input]);
+  assert.ok(JSON.stringify(doc).includes('data:image/png;base64,'), 'Linked image must not disappear inside an inline link');
+  const data = await render([input]);
+  const { inspectPdf } = require('../helpers/pdf');
+  const pdf = await inspectPdf(data);
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  assert.ok(pdf.pages[0].operators.includes(pdfjs.OPS.paintImageXObject));
+});
+test('PNG inflation is bounded by declared pixels inside the packaged worker', async () => {
+  const zlib = require('node:zlib');
+  const crc32 = value => { let crc = 0xffffffff; for (const byte of value) { crc ^= byte; for (let n = 0; n < 8; n++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0); } return (crc ^ 0xffffffff) >>> 0; };
+  function chunk(name, data) {
+    const size = Buffer.alloc(4); size.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(name), data]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([size, body, crc]);
+  }
+  const header = Buffer.alloc(13); header.writeUInt32BE(1, 0); header.writeUInt32BE(1, 4); header[8] = 8; header[9] = 6;
+  const image = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), chunk('IHDR', header), chunk('IDAT', zlib.deflateSync(Buffer.alloc(100_000))), chunk('IEND', Buffer.alloc(0))]);
+  await assert.rejects(render([adapter().chapter({ ...snapshot, body: { tag: 'img', image: 0 }, assets: [{ dataUrl: 'data:image/png;base64,' + image.toString('base64') }] })]), /inflated PNG/);
+});

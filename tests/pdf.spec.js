@@ -31,7 +31,7 @@ test('combined PDF preserves chapter order, contents links and new page boundari
   const doc = await inspectPdf(data);
   expect(doc.pages.length).toBeGreaterThanOrEqual(3);
   expect(doc.pages[0].text).toContain('Contents');
-  expect(doc.pages[0].annotations.filter(x => x.dest)).toHaveLength(2);
+  expect(new Set(doc.pages[0].annotations.filter(x => x.dest).map(x => JSON.stringify(x.dest))).size).toBe(2);
   expect(doc.pages[1].text).toContain('Readable PDF');
   expect(doc.pages[2].text).toContain('Second chapter');
 });

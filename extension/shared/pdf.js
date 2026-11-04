@@ -62,6 +62,7 @@
       { toc: { title: { text: 'Contents', style: 'heading' } }, margin: [0, 16, 0, 12] });
     function inline(node, style = {}) {
       if (typeof node === 'string') return [{ text: node, ...style }];
+      if (node.tag === 'img') return [{ pdfImage: node.image, ...style }];
       const next = { ...style };
       if (['strong', 'b'].includes(node.tag)) next.bold = true;
       if (['em', 'i'].includes(node.tag)) next.italics = true;
@@ -92,7 +93,16 @@
       const result = []; let run = [];
       const flush = () => { if (run.length) result.push({ text: run, margin: [0, 0, 0, 8] }); run = []; };
       for (const child of children) {
-        if (typeof child === 'string' || inlineTags.has(child.tag)) run.push(...inline(child));
+        if (typeof child === 'string' || inlineTags.has(child.tag)) {
+          for (const fragment of inline(child)) {
+            if (fragment.pdfImage !== undefined) {
+              flush();
+              const image = blocks({ tag: 'img', image: fragment.pdfImage, children: [] }, assets)[0];
+              if (fragment.link) image.link = fragment.link;
+              result.push(image);
+            } else run.push(fragment);
+          }
+        }
         else { flush(); result.push(...blocks(child, assets)); }
       }
       flush(); return result;

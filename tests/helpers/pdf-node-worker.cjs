@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const base = path.resolve(__dirname, '../../extension/export');
-const context = { TextEncoder, TextDecoder, URL, Blob, atob, btoa, setTimeout, clearTimeout, queueMicrotask, console,
+const context = { TextEncoder, TextDecoder, URL, Blob, ReadableStream, DecompressionStream, atob, btoa, setTimeout, clearTimeout, queueMicrotask, console,
   Uint8Array, ArrayBuffer, DataView, Promise, navigator: { userAgent: 'Node PDF fixture' } };
 context.self = context; context.globalThis = context;
 context.postMessage = (message, transfer) => parentPort.postMessage(message, transfer);

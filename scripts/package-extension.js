@@ -6,7 +6,7 @@ const { spawnSync } = require("node:child_process");
 
 // Archive paths, never globs or recursively included directories.
 const FILES = Object.freeze([
-  "shared/pdf.js", "shared/pdf-client.js", "background/offscreen.js", "background/pdf-renderer.js",
+  "shared/pdf.js", "shared/pdf-client.js", "background/offscreen.js", "background/pdf-renderer.js", "background/pdf-book.js",
   "export/pdf-worker.js", "export/pdf-host.js", "export/pdf-offscreen.js",
   "vendor/pdfmake/pdfmake.min.js", "vendor/pdfmake/vfs_fonts.js", "vendor/pdfmake/coverage.js",
   "vendor/pdfmake/LICENSE", "vendor/pdfmake/ROBOTO-LICENSE", "vendor/pdfmake/README.md",

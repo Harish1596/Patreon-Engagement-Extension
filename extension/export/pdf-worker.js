@@ -42,7 +42,7 @@ function glyphs(value) {
     throw new Error(`The PDF font does not support character U+${cp.toString(16).toUpperCase()}. Use EPUB or Markdown for this text.`);
   }
 }
-async function normalize(chapter) {
+async function normalize(chapter, budget) {
   function text(node) { if (typeof node === 'string') glyphs(node); else { if (node.alt) glyphs(node.alt); node.children.forEach(text); } }
   for (const value of [chapter.title, chapter.author, chapter.downloadedAt, chapter.sourceUrl]) glyphs(value);
   text(chapter.body);
@@ -56,7 +56,10 @@ async function normalize(chapter) {
       glyphs(svg.replace(/<[^>]*>/g, ''));
       continue;
     }
-    bounded(...dimensions(data, type));
+    const [width, height] = dimensions(data, type);
+    bounded(width, height);
+    budget.pixels += width * height;
+    if (budget.pixels > 32_000_000) throw new Error("The PDF exceeds its 32-million-pixel document image budget. Export fewer posts.");
     if (type === 'png' || type === 'jpeg') continue;
     const bitmap = await createImageBitmap(new Blob([data], { type: `image/${type}` }));
     try {
@@ -75,10 +78,11 @@ self.onmessage = async event => {
     PatreonPdf.size({ chapters, book });
     if (!Array.isArray(chapters) || !chapters.length || chapters.length > 100) throw new Error('The PDF chapter count is invalid.');
     const validated = chapters.map(PatreonPdf.chapter);
-    for (const chapter of validated) await normalize(chapter);
+    const budget = { pixels: 0 };
+    for (const chapter of validated) await normalize(chapter, budget);
     if (book) { glyphs(book.title || ''); glyphs(book.downloadedAt || ''); }
     PatreonPdf.size({ chapters: validated, book });
-    const document = pdfMake.createPdf(PatreonPdf.definition(validated, book), { maxPagesNumber: 2000 });
+    const document = pdfMake.createPdf(PatreonPdf.definition(validated, book));
     // Stop accumulating as soon as output exceeds its explicit byte budget.
     const stream = await document.getStream();
     const chunks = []; let length = 0;

@@ -18,7 +18,8 @@
     function validBook(book) {
       try {
         const url = new URL(book.source);
-        return typeof book.title === "string" && book.title.length <= 4000
+        return (book.format === undefined || book.format === "pdf")
+          && typeof book.title === "string" && book.title.length <= 4000
           && typeof book.downloadedAt === "string" && book.downloadedAt.length <= 200
           && url.origin === "https://www.patreon.com" && /^\/collection\/[^/]+\/?$/.test(url.pathname) && !url.search && !url.hash;
       } catch { return false; }
@@ -215,15 +216,15 @@
       try {
         if (offscreenService) await offscreenService.acquire(`archive:${job.id}`);
         else {
-        if (!offscreen) offscreen = (async () => {
+          if (!offscreen) offscreen = (async () => {
           if (!await api.offscreen.hasDocument()) await api.offscreen.createDocument({
             url: "export/archive-download.html", reasons: ["BLOBS"], justification: "Save a disk-backed collection ZIP and release it when its download finishes."
           });
         })().finally(() => { offscreen = null; });
-        await offscreen;
+          await offscreen;
         }
         check(job);
-        const blob = await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_OPEN", id: job.id, mime: job.book ? "application/epub+zip" : "application/zip" });
+        const blob = await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_OPEN", id: job.id, mime: job.book ? (job.book.format === "pdf" ? "application/pdf" : "application/epub+zip") : "application/zip" });
         if (!blob?.url?.startsWith(`blob:${api.runtime.getURL("")}`)) throw new Error(blob?.error || "The archive download could not be opened.");
         check(job);
         const handoff = await call(api.tabs, "sendMessage", job.owner, { type: "COLLECTION_ARCHIVE_HANDOFF", id: job.id, operationId });
@@ -244,7 +245,7 @@
         if (await api.offscreen.hasDocument()) {
           await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_CLOSE", id: job.id }).catch(() => {});
           if (offscreenService) await offscreenService.release(`archive:${job.id}`);
-        else if (![...jobs.values()].some(item => item.downloading || item.blobOpen)) await api.offscreen.closeDocument();
+          else if (![...jobs.values()].some(item => item.downloading || item.blobOpen)) await api.offscreen.closeDocument();
         }
         throw error;
       }
@@ -271,7 +272,7 @@
       }
       try {
         if (job.book) {
-          await globalThis.PatreonEpubBook.write({ job, output: outputWrite, chapterBytes, check,
+          await (job.book.format === "pdf" ? globalThis.PatreonPdfBook : globalThis.PatreonEpubBook).write({ job, output: outputWrite, chapterBytes, check,
             fileFor: async index => {
               const file = await (await disk.getFileHandle(`${index}.deflate`)).getFile();
               if (file.size !== job.entries[index].diskSize) throw new Error("The encrypted chapter is incomplete.");
@@ -343,9 +344,9 @@
         if (cancelled.has(message.id)) throw new Error("The archive was cancelled.");
         if (job) throw new Error("This archive already exists.");
         if (!Number.isSafeInteger(message.count) || message.count < 1 || message.count > 100
-          || typeof message.filename !== "string" || !message.filename.endsWith(message.book ? ".epub" : ".zip") || /[/\\\x00]/.test(message.filename)) throw new Error("The archive metadata is invalid.");
+          || typeof message.filename !== "string" || !message.filename.endsWith(message.book ? (message.book.format === "pdf" ? ".pdf" : ".epub") : ".zip") || /[/\\\x00]/.test(message.filename)) throw new Error("The archive metadata is invalid.");
         if (message.book !== undefined && !validBook(message.book)) throw new Error("The book metadata is invalid.");
-        job = { ...(message.book ? { book: { title: message.book.title, source: message.book.source, downloadedAt: message.book.downloadedAt } } : {}), id: message.id, owner: sender.tab.id, count: message.count, filename: message.filename,
+        job = { ...(message.book ? { book: { title: message.book.title, source: message.book.source, downloadedAt: message.book.downloadedAt, ...(message.book.format === "pdf" ? { format: "pdf" } : {}) } } : {}), id: message.id, owner: sender.tab.id, count: message.count, filename: message.filename,
           entries: [], expires: Date.now() + ttl, controller: new AbortController(), queue: Promise.resolve() };
         jobs.set(job.id, job);
         try { await folder(job); check(job); await persist(job); check(job); return { created: true }; }

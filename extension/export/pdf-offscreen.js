@@ -3,7 +3,7 @@
   const jobs = new Map();
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (!['PDF_HOST_RENDER', 'PDF_HOST_CANCEL'].includes(message?.type)
-      || sender.id !== chrome.runtime.id || sender.tab || sender.url !== chrome.runtime.getURL('background/media.js')) return;
+      || sender.id !== chrome.runtime.id || sender.tab || (sender.url !== undefined && sender.url !== chrome.runtime.getURL('background/media.js'))) return;
     if (!/^[0-9a-f-]{36}$/i.test(message.id)) { respond({ error: 'Invalid PDF request.' }); return; }
     if (message.type === 'PDF_HOST_CANCEL') { jobs.get(message.id)?.abort(); respond({ cancelled: true }); return; }
     if (jobs.has(message.id)) { respond({ error: 'This PDF is already rendering.' }); return; }

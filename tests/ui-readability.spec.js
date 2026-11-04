@@ -27,11 +27,11 @@ for (const theme of ["light", "dark"]) {
   });
 }
 
-test("post formats explain print, ebook and editing workflows in their accessible descriptions", async ({ page }) => {
+test("post formats explain PDF, ebook and editing workflows in their accessible descriptions", async ({ page }) => {
   await setup(page);
   await page.getByRole("button", { name: "Download post", exact: true }).click();
   const frame = page.frameLocator('iframe[title="Post export formats"]');
-  await expect(frame.getByRole("button", { name: "PDF", exact: true })).toHaveAccessibleDescription(/print.*PDF/i);
+  await expect(frame.getByRole("button", { name: "PDF", exact: true })).toHaveAccessibleDescription(/download.*document.*text.*images/i);
   await expect(frame.getByRole("button", { name: "EPUB", exact: true })).toHaveAccessibleDescription(/ebook reader/i);
   await expect(frame.getByRole("button", { name: "Markdown", exact: true })).toHaveAccessibleDescription(/editable.*text/i);
 });
