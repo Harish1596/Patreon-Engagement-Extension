@@ -95,3 +95,36 @@ test('resize accepts only the current frame token and bounded height', async ({ 
     await expect(iframe).toHaveCSS('height', initial);
   }
 });
+
+for (const [width, height] of [[1280, 740], [800, 600], [360, 740]]) {
+  test(`${width}px format names stay whole and Markdown ZIP does not grow the chooser`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await fixture(page);
+    // Slight text enlargement reproduces the supplied screenshot's tight columns.
+    await frame(page).locator('body').evaluate(body => {
+      const style = document.createElement('style'); style.textContent = 'label{font-size:16px}'; body.append(style);
+    });
+    const action = frame(page).locator('#download-collection');
+    await expect(action).not.toHaveAttribute('aria-disabled', 'true');
+    const words = await frame(page).locator('.format-options label span').evaluateAll(nodes => nodes.map(node => ({
+      text: node.textContent, height: node.getBoundingClientRect().height, line: parseFloat(getComputedStyle(node).lineHeight)
+    })));
+    expect(words.every(word => word.height <= word.line + 1), JSON.stringify(words)).toBe(true);
+    const heights = [];
+    for (const format of ['EPUB', 'PDF', 'Markdown']) {
+      const radio = frame(page).getByRole('radio', { name: format, exact: true });
+      await radio.press('Space');
+      for (const packaging of ['Single file', 'Separate files (ZIP)']) {
+        await frame(page).getByRole('radio', { name: packaging, exact: true }).press('Space');
+        await expect(action).not.toHaveAttribute('aria-disabled', 'true');
+        heights.push(await frame(page).locator('main').evaluate(node => node.getBoundingClientRect().height));
+      }
+    }
+    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
+    const geometry = await frame(page).locator('body').evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
+    expect(geometry.scroll).toBeLessThanOrEqual(geometry.width);
+    await expect(action).toHaveText('Download Markdown ZIP');
+    await page.screenshot({ path: `/tmp/collection-selector-layout-${width}.png` });
+  });
+}

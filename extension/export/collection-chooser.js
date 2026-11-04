@@ -56,9 +56,9 @@
   const download = document.querySelector("#download-collection");
   const description = document.querySelector("#selection-description");
   const descriptions = {
-    epub: { single: "All chapters in one ebook for an ebook reader.", zip: "One ebook per chapter, packaged in a ZIP archive." },
-    pdf: { single: "All chapters in one PDF document.", zip: "One PDF per chapter, packaged in a ZIP archive." },
-    markdown: { single: "All chapters in one editable Markdown file.", zip: "One editable Markdown file per chapter, packaged in a ZIP archive." }
+    epub: { single: "All chapters in one ebook.", zip: "One ebook per chapter, in a ZIP." },
+    pdf: { single: "All chapters in one PDF.", zip: "One PDF per chapter, in a ZIP." },
+    markdown: { single: "All chapters in one editable file.", zip: "One editable file per chapter, in a ZIP." }
   };
   const selection = () => ({
     format: document.querySelector('input[name="format"]:checked').value,

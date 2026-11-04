@@ -1892,3 +1892,19 @@ chapter text instead of the shared 70,000-character unbroken Markdown stress wor
 CDP-managed Brave output names may differ from requested names; synthetic controller
 tests retain filename assertions, while installed PDF checks inspect saved bytes.
 No new live Patreon inspection or real media permission-prompt coverage is claimed.
+
+
+**November 5 collection selector wrapping follow-up:** A supplied screenshot shows
+Markdown splitting across two lines inside the equal-width format row, while the
+longer Markdown ZIP description adds a line and triggers additional outer scrolling.
+Synthetic reproduction at 1280/800px widths with 16px format text found split words;
+a 360px reproduction found a 19.5px selection-dependent frame height change.
+
+Format labels now use content-sized, wrapping flex items with unbroken names. They
+share a row when space permits and move whole controls to another row when needed.
+Shorter descriptions preserve output meaning and remove the Markdown ZIP height
+increase in all six tested combinations. The existing responsive outer scroll body
+still handles short windows and enlarged text; this does not promise a scrollbar-free
+panel at every zoom or height. Native radio controls, layout acknowledgement guards,
+download modes, permissions and recovery behavior are unchanged. This is supplied
+screenshot and synthetic layout evidence, not a new live Patreon selector capture.

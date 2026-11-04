@@ -29,6 +29,34 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 5, 2026 — Stable collection selector layout
+
+A supplied screenshot showed Markdown breaking mid-word and Markdown ZIP adding
+an extra description line. Equal-width format columns and the longest description
+were reproduced independently: two desktop widths split the label at 16px text,
+and a 360px fixture gained 19.5px when selections changed. All three regressions
+failed before the fix. Content-sized wrapping controls now keep names whole;
+concise descriptions keep all six tested combinations at the same frame height.
+
+Checks for this follow-up:
+
+- `npm test -- --workers=2 --output=/tmp/collection-selector-layout-chrome-results`:
+  **141 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- tests/collection-menu.spec.js tests/collection-controls.spec.js tests/ui-readability.spec.js --output=/tmp/collection-selector-layout-brave-results`:
+  **18 passed**.
+- `node --test tests/tooling/collection-chooser.test.cjs`: **9 passed**;
+  `npm run check`: **87 JavaScript files**; `git diff --check`: clean.
+- One scoped Impeccable detector scan returned no findings. Rendered desktop and
+  narrow screenshots were inspected together; tests include doubled text, keyboard
+  download, pointer actions, readable themes, resize guards and recovery controls.
+
+New cases cover 1280×740, 800×600 and 360×740, iterate all six format/packaging
+pairs, and assert unbroken format names, no selection-dependent height growth and
+no horizontal overflow. Short windows and larger text may still require outer
+scrolling; this removes the extra Markdown ZIP growth rather than promising every
+control fits every viewport. No live Patreon inspection, download-engine changes,
+new permissions, dependencies or source-cache changes were made.
+
 ## November 5, 2026 — Collection format and packaging selectors
 
 The chooser uses Format (EPUB/PDF/Markdown), Packaging (Single file/Separate files

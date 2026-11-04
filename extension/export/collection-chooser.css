@@ -32,7 +32,8 @@ button {
 .description { margin: 0; color: var(--muted); font: 13px/1.5 system-ui, sans-serif; overflow-wrap: anywhere; }
 fieldset { margin: 0; padding: 0; min-width: 0; border: 0; }
 legend { margin-bottom: 8px; padding: 0; color: var(--text); font: 600 14px/1.5 system-ui, sans-serif; }
-.format-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.format-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.format-options label { flex: 1 0 auto; white-space: nowrap; }
 .packaging-options { display: grid; gap: 6px; }
 label { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--choice); font: 14px/1.45 system-ui, sans-serif; cursor: pointer; overflow-wrap: anywhere; }
 label input { flex: 0 0 auto; margin: 0; accent-color: var(--focus); }
@@ -57,5 +58,3 @@ button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 #formats { display: grid; gap: 18px; }
 #image-permission p { margin: 0 0 10px; overflow-wrap: anywhere; }
 #allow-images { min-height: 48px; margin-top: 12px; }
-
-@media (max-width: 320px) { .format-options { grid-template-columns: 1fr; } }
