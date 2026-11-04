@@ -113,11 +113,10 @@ Reader customization and exports only the currently displayed post title,
 formatted body, links, and inline post images. It does not include comments,
 recommendation cards, membership prompts, navigation, or other surrounding UI.
 
-- **PDF** opens a clean print view and the browser print dialog. Choose
-  **Save as PDF** for native pagination and selectable text. The document lists
-  the creator, local download time, and clean Patreon source URL above the title;
-  the print template suppresses Chrome's automatic page headers and footers and
-  suggests the sanitized post title as the PDF filename.
+- **PDF** downloads a self-contained `.pdf` directly, with selectable text,
+  embedded images, clickable links and page numbers. Generation happens locally
+  in a packaged worker; no print dialog or conversion server is used. Creator,
+  local download time and clean Patreon source URL appear above the post title.
 - **EPUB** downloads a self-contained EPUB 3 file with packaged image bytes and
   visible Creator, Download time, and Source details above the title, named from
   the sanitized post title.
@@ -142,14 +141,16 @@ user-requested export containing images from that origin.
 On a Patreon `/collection/...` page, select **Download Collection**. After
 preparation, choose:
 
-- **Single EPUB** under **One book**: downloads one `.epub` named after the
+- **Single EPUB**: downloads one `.epub` named after the
   collection, with a title page, Creator/Download time/Source metadata, an ordered
   table of contents, and previous/next chapter links. Images are packaged inside
   the book. Open it directly in an EPUB reader; no outer ZIP needs extracting.
-- **EPUB** or **Markdown** under **Separate files (ZIP)**: creates the existing
-  collection ZIP with one numbered file per accessible text post.
+- **Single PDF**: downloads one `.pdf` with a linked contents page and each
+  accessible post starting on a new page, in collection order.
+- **EPUB**, **PDF**, or **Markdown** with a **ZIP** badge: downloads one numbered
+  file per accessible text post inside a ZIP archive.
 
-Both options preserve the discovered collection order and reuse the same cached
+All options preserve the discovered collection order and reuse the same cached
 sources. Repeated post links are removed. Unavailable, locked, or unsupported
 posts are skipped and reported before export. A chapter that fails later must
 be retried before the complete book or ZIP is saved; completed encrypted chapters
@@ -175,7 +176,7 @@ two hours, survives closing/reopening the dialog, and clears on Refresh
 collection, navigation/reload or expiry. Cancel updates it so it can be reviewed.
 New downloads replace the previous report. Saved report files remain yours.
 
-The single book is assembled one chapter at a time in temporary storage, using
+The single EPUB book is assembled one chapter at a time in temporary storage, using
 the same progress, cancellation, two-hour retention and shared archive budget.
 It does not retain a complete book in page memory. Per-chapter source conversion
 still requires memory. EPUB reader compatibility and live Patreon behavior need
@@ -342,13 +343,28 @@ its temporary worker when that chapter is received by the background.
 Cancellation and failures also close the active worker. Before exporting each post, the extension waits for the
 requested document to finish loading and verifies its post ID, preventing an old
 page from being exported again while the worker navigates. Image
-permissions use the same exact-origin prompt as individual post export. PDF is
-not included in this first separate-file implementation because browser-native
-Save as PDF cannot be placed into a ZIP without a dedicated PDF generator.
+permissions use the same exact-origin prompt as individual post export.
 
-Generated EPUB and Markdown data crosses extension boundaries in bounded chunks,
-then the collection page assembles the ZIP locally. No message contains a complete
-large post or the complete collection payload. The outer ZIP uses actual DEFLATE
+PDF ZIP generation renders one chapter at a time. Single PDF stages encrypted
+chapter data, then renders a combined document in a disposable extension worker.
+Collections use the existing numbered parts of up to 100 posts. A PDF is limited
+to 24 MiB of serialized input and 32 MiB of output; images are limited to 8,192
+pixels per side, 16 million pixels per image and 32 million pixels per document.
+Rendering has a two-minute deadline. A limit failure is shown explicitly; select
+individual files or a smaller collection rather than receiving a truncated PDF.
+PDF pagination/encoding holds bounded input/output buffers in worker memory;
+it does not have EPUB's fully streamed book-assembly behavior.
+
+The bundled Roboto fonts cover tested Latin, Greek and Cyrillic text, including
+bold and italic faces. Unsupported characters (including many emoji and scripts
+outside that coverage) produce an explicit error suggesting EPUB or Markdown.
+GIF/WebP/AVIF images are converted to static PNGs when the browser can decode
+them; SVGs use the existing sanitizer and a restricted vector path. PDF files
+use a light A4 reading layout independent of Reader appearance settings.
+
+Source snapshots and staged chapter data cross extension boundaries in bounded
+chunks; the background assembles disk-backed ZIP/EPUB output locally. PDF renderer messages are separate and carry bounded document data and output;
+they are capped by the PDF limits above. The outer ZIP uses actual DEFLATE
 compression for macOS archive compatibility without altering nested EPUB files.
 
 Post pages are recognized locally using this pathname structure:
@@ -380,7 +396,11 @@ div[data-tag="floating-engagement-sheet"]
 
 ## Development
 
-Runtime code has no third-party dependencies or build step. `extension.js` shares
+Runtime assets include a pinned, locally packaged pdfmake renderer and Roboto
+fonts. Install dependencies with `npm ci --ignore-scripts`; regenerate PDF assets
+with `node scripts/vendor-pdf.js` after a reviewed dependency update. The vendor
+README records provenance, licenses, hashes and the bounded PNG decoding patch.
+Loading the checked-in extension requires no runtime build or remote code. `extension.js` shares
 validated preferences and a small browser API adapter between the popup and
 content scripts. `patreon-dom.js` owns Patreon hooks, post discovery, and surface
 selection; `reader.js` owns appearance state, markers, and the isolated Shadow
@@ -394,8 +414,11 @@ extension/                   Installable source; manifest at this directory's ro
   shared/extension.js        Browser API adapter and validated preferences
   content/                   Page scripts and page-side CSS
     export.js                PDF, EPUB, and Markdown post export
-    collection-export.js     Separate-file collection ZIP export
+    collection-export.js     Combined documents and separate-file ZIP export
   background/media.js       Permission-checked inline-image retrieval
+  background/pdf-book.js    Encrypted chapter data to combined PDF
+  export/pdf-worker.js      Disposable local PDF renderer
+  vendor/pdfmake/           Packaged renderer, fonts, coverage and licenses
   popup/                     Toolbar popup HTML, JavaScript, and CSS
   icons/                     Runtime icon assets
 tests/

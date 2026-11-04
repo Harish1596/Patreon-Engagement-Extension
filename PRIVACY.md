@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: November 3, 2026
+Last updated: November 4, 2026
 
 Patreon Reader (the "extension") is designed to provide its single
 purpose without collecting or transmitting personal information. All processing
@@ -34,7 +34,7 @@ create user-requested local exports:
   output rather than taken from the cached copy.
 - When the user explicitly exports a collection, it reads the post links rendered
   in that collection and temporarily opens or reuses those Patreon post pages to
-  create either one EPUB book or separate EPUB/Markdown files inside a local ZIP.
+  create either one EPUB/PDF book or separate EPUB/PDF/Markdown files inside a local ZIP.
   A single book also processes the collection title and builds local chapter
   navigation and a table of contents. Extension-created
   tabs are closed after preparation or individual chapter generation, and on
@@ -42,15 +42,17 @@ create user-requested local exports:
   prepared metadata uses local browser-session storage to survive worker restarts.
   After a chapter is fetched for export, its sanitized text, creator, source URL,
   and distinct inline-image data are cached in extension-owned disk storage for
-  up to two hours, allowing EPUB and Markdown to reuse one source copy without
+  up to two hours, allowing EPUB, PDF and Markdown to reuse one source copy without
   reopening post tabs or retrieving images again. This shared disk cache is
   limited to 512 MiB; older entries may be evicted when it is full. Signed image
   request URLs are not included in source-cache records. Neither the metadata
   nor source cache is sent to the developer or another service. The extension
   does not request broad browser-history or tab-access permission.
 - Collection export compresses generated chapters into encrypted extension-private
-  retry files and streams decrypted chunks into a temporary ZIP or EPUB on local
-  disk. Both modes use the same retention, encryption and archive payload budget.
+  retry files and streams decrypted chunks into a temporary ZIP, EPUB or PDF on local
+  disk. Combined PDF chapter data is encrypted while staged; the renderer
+  processes bounded document data in extension-owned worker memory. Packaged
+  PDF code and fonts require no third-party conversion service or font request. Both modes use the same retention, encryption and archive payload budget.
   It retains only filenames,
   sizes, checksums, owner IDs, and expiry/download IDs in browser-session storage.
   A hidden extension document creates a local Blob URL for the finished file;

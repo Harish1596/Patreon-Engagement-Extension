@@ -29,6 +29,48 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Direct PDF downloads, November 4, 2026 (development branch): **98 Node tooling
+cases passed**, including real packaged-worker PDF generation, independent PDF.js
+parsing, real post/collection controller execution in jsdom, both collection
+outputs, encrypted retry/restart, cancellation, PNG inflation limits, shared
+offscreen leases and the 101-post split. Syntax checks cover 83 JavaScript files;
+packaging validated `dist/patreon-reader-1.1.1.zip`. A synthetic one-page sample
+with metadata, text formatting, lists, a quotation, multilingual text, hyperlinks
+and a PNG was rendered using PDF.js and visually inspected outside the repo.
+
+Commands:
+
+```sh
+npm run test:tooling
+npm run check
+npm run package -- --force
+npm test
+npm run test:brave -- tests/installed-pdf.spec.js tests/pdf.spec.js tests/collection-pdf.spec.js tests/collection-menu.spec.js
+git diff --check
+```
+
+Browser status: the full Chrome attempt has **125 launch failures and 2 skips**;
+the targeted Brave attempt has **14 launch failures**, including the native
+installed-PDF test. Every failure occurs at browser launch before page assertions
+(`Target page, context or browser has been closed`, process SIGABRT, with cleanup
+reporting `kill EPERM`). The pre-change baseline had the same launch failure.
+Browser plugin not available; repository Playwright was used. These attempts do
+not establish chooser geometry, native messaging/CSP or real installed downloads.
+The added browser cases remain pending in a working browser environment. Live
+Patreon verification is also pending. DOM tests are deliberately distinguished
+from browser tests and do not measure layout or execute the real browser APIs.
+
+PDF limits: 24 MiB serialized input, 32 MiB output, 8,192 pixels per image side,
+16 million pixels per image, 32 million raster pixels per PDF and a 120-second
+worker deadline. Test coverage includes PNG/SVG embedding and explicit unsupported
+glyph errors; GIF/WebP/AVIF browser conversion is implemented but not yet browser
+verified. Font coverage is bundled Roboto's four-face intersection, with tested
+Latin/Greek/Cyrillic text; arbitrary languages and emoji are not promised. Single
+PDF renders a bounded part in memory; only the EPUB path retains its streamed
+book-assembly contract. No total RAM ceiling, live Patreon compatibility or
+PDF/UA certification is claimed. The renderer/fonts are packaged locally and no
+conversion service receives post contents.
+
 All five UI critique findings, November 4, 2026: **84 Chrome cases, 14 Brave cases
 including the installed extension, and 74 tooling cases passed**. Syntax covers
 58 JavaScript files; whitespace checks pass. Commands:
@@ -849,7 +891,7 @@ npm run check
 npm run test:tooling
 npm test
 npm run test:brave
-npm run package
+npm run package -- --force
 ```
 
 - `check` recursively syntax-checks runtime, development scripts, and tests.
@@ -954,14 +996,14 @@ support claims are not evidence that the Reader feature passes this checklist.
   present offline, while comments, recommendations, navigation, membership UI,
   and signed source URLs are absent. Deny a media-origin prompt and confirm no
   partial file is produced. Exercise multiple image origins and redirects.
-- For PDF, choose Save as PDF and check pagination, selectable text, links, and
-  images. Confirm browser-generated date/title headers and URL/page-number footers
-  are absent, while the document metadata appears above the title and lists
+- For PDF, confirm a direct `.pdf` download without opening a print dialog;
+  check pagination, selectable/searchable text, clickable links, embedded images
+  and page numbers. Confirm the document metadata appears above the title and lists
   Creator, Download time, and Source in that order. Confirm the same visible
   details and ordering in EPUB and Markdown. Confirm all three formats default to
   the sanitized post title as their filename. Open EPUB output in at least two readers and validate it with an EPUB 3
   validator. Check Markdown data-image support in the intended viewer.
-- Open a collection and export separate EPUB and Markdown ZIPs. Confirm every
+- Open a collection and export a combined PDF plus separate PDF, EPUB and Markdown ZIPs. Confirm every
   accessible linked post appears once, in collection order, with numbered
   title-based filenames and embedded images. Confirm locked or unsupported posts
   are reported as skipped, the single temporary worker tab is reused and closed,
@@ -1016,8 +1058,8 @@ support claims are not evidence that the Reader feature passes this checklist.
 
 Responsive narrow-window behavior does not establish mobile extension support.
 Post export adds optional, on-demand HTTPS media-origin access and a packaged
-background worker. It adds no remote executable code, remote fonts, or third-party
-runtime dependency.
+background worker. The PDF renderer and fonts are bundled locally; no remote
+executable code or remote fonts are used.
 
 
 November 4, 2026 — Saved media access popup UI removal. Removed the count,

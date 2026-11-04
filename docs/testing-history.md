@@ -4,6 +4,59 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 4, 2026 — Direct PDF development checkpoint
+
+Direct PDF downloads, November 4, 2026 (development branch): **98 Node tooling
+cases passed**, including real packaged-worker PDF generation, independent PDF.js
+parsing, real post/collection controller execution in jsdom, both collection
+outputs, encrypted retry/restart, cancellation, PNG inflation limits, shared
+offscreen leases and the 101-post split. Syntax checks cover 83 JavaScript files;
+packaging validated `dist/patreon-reader-1.1.1.zip`. A synthetic one-page sample
+with metadata, text formatting, lists, a quotation, multilingual text, hyperlinks
+and a PNG was rendered using PDF.js and visually inspected outside the repo.
+
+Commands:
+
+```sh
+npm run test:tooling
+npm run check
+npm run package -- --force
+npm test
+npm run test:brave -- tests/installed-pdf.spec.js tests/pdf.spec.js tests/collection-pdf.spec.js tests/collection-menu.spec.js
+git diff --check
+```
+
+Browser status: the full Chrome attempt has **125 launch failures and 2 skips**;
+the targeted Brave attempt has **14 launch failures**, including the native
+installed-PDF test. Every failure occurs at browser launch before page assertions
+(`Target page, context or browser has been closed`, process SIGABRT, with cleanup
+reporting `kill EPERM`). The pre-change baseline had the same launch failure.
+Browser plugin not available; repository Playwright was used. These attempts do
+not establish chooser geometry, native messaging/CSP or real installed downloads.
+The added browser cases remain pending in a working browser environment. Live
+Patreon verification is also pending. DOM tests are deliberately distinguished
+from browser tests and do not measure layout or execute the real browser APIs.
+
+PDF limits: 24 MiB serialized input, 32 MiB output, 8,192 pixels per image side,
+16 million pixels per image, 32 million raster pixels per PDF and a 120-second
+worker deadline. Test coverage includes PNG/SVG embedding and explicit unsupported
+glyph errors; GIF/WebP/AVIF browser conversion is implemented but not yet browser
+verified. Font coverage is bundled Roboto's four-face intersection, with tested
+Latin/Greek/Cyrillic text; arbitrary languages and emoji are not promised. Single
+PDF renders a bounded part in memory; only the EPUB path retains its streamed
+book-assembly contract. No total RAM ceiling, live Patreon compatibility or
+PDF/UA certification is claimed. The renderer/fonts are packaged locally and no
+conversion service receives post contents.
+
+Implementation commits: `05ed965` adds local rendering and replaces printing;
+`227cc4e` adds combined PDF/PDF ZIP collections and bounded PNG decoding;
+`1d7ae2b` fixes inert wrappers and sequences offscreen lifetime after restoration.
+An independent whole-branch review found the wrapper issue; its fix passed the
+reviewer's 10-case PDF/content rerun. The startup fix passed the reviewer's
+4-case service rerun. No additional findings were reported. The
+branch is isolated from other primary-checkout work. No release/publication or
+merge into the primary checkout is implied by this checkpoint.
+
 ## Release 1.1.0 testing complete — confirmed October 25, 2026
 
 The user confirmed that **all completed testing in this history applies to

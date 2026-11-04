@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Generate PDF files locally without the browser print dialog, using packaged
+  code and fonts, selectable text, embedded images and clickable links.
+- Add Single PDF and PDF files (ZIP) to collections, preserving chapter order,
+  numbered parts, encrypted staging, retries and native download reports.
+- Enforce PDF input/output, image pixel and render-time limits, with explicit
+  errors for unsupported font characters or failed image conversion.
+
 - Automatically delete expired export sources, metadata, and idle archive files
   using browser alarms; clear export caches on last-window closure and startup.
 - Preserve saved Reader customisations, protect files backing active downloads,

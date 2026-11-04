@@ -820,7 +820,8 @@ still export but are not retained in this small memory cache. Repeated image
 sources share an asset index and EPUB image entry. EPUB decodes cached image bytes
 on demand; Markdown uses data URLs directly.
 
-PDF uses a sanitized, self-contained print view and the browser's native print
+**Historical PDF path (superseded November 4, 2026):** PDF uses a sanitized,
+self-contained print view and the browser's native print
 dialog; the user selects Save as PDF. The print view uses a temporary same-tab
 iframe so it does not depend on popup permission after the extension-frame gesture.
 During printing, both the iframe and Patreon tab temporarily use the sanitized
@@ -1060,7 +1061,8 @@ the browser's compression stream and strips the zlib wrapper to produce the raw
 DEFLATE required by ZIP. Individual EPUB containers retain their original bytes.
 See [current
 diagnostic evidence](../TESTING.md#automated-checks).
-PDF is deliberately deferred: the current post PDF path uses Chrome's interactive
+**Historical collection limitation (superseded November 4, 2026):** PDF was
+deliberately deferred: the previous post PDF path used Chrome's interactive
 Save as PDF UI and cannot package generated PDF bytes into a ZIP.
 
 The worker prepares each linked post through its normal rendered post page. Post
@@ -1737,3 +1739,47 @@ external image fetching are retained. No grant is revoked by opening the popup.
 No Patreon markup, selector or Reader boundary changes are introduced. Syntax
 and a Node VM popup smoke check pass; browser verification is blocked by Chrome
 aborting at launch, including an elevated retry. No live Patreon check was made.
+
+
+**November 4 direct PDF generation (development implementation; browser verification pending):**
+PDF now generates bytes locally through packaged pdfmake 0.3.13 and bundled
+Roboto fonts in a disposable worker owned by the extension's offscreen document.
+The previous print iframe, native print call and temporary Patreon-title mutation
+are removed. A post downloads directly as `.pdf`; collections offer Single PDF
+and individual PDF files in a ZIP. Collection order, 100-post numbered parts,
+1,000-post discovery bounds, source-cache reuse, encrypted retry staging and
+native completion/interruption reports retain their existing contracts.
+
+Single PDF stages validated inert chapter JSON in encrypted retry files, checks
+size/CRC while inflating it, then generates a combined document with linked
+contents, chapter page breaks and page numbers. It uses bounded renderer buffers;
+it does not inherit EPUB's fully streamed assembly or promise a total RAM cap.
+PDF ZIP renders chapters sequentially. Documents use a light A4 layout with 51pt
+margins and keep creator/download-time/source metadata and embedded images.
+No new Patreon selector, access rule or permission is introduced; offscreen
+leases coordinate archive Blob URLs and active PDF workers. Cancellation stops
+its worker and rejects late file handoffs. Rendering code/fonts are local and
+library URL requests are disabled.
+
+Limits: 24 MiB serialized input per PDF, 32 MiB PDF output, 8,192 pixels per image
+side, 16 million pixels per image, 32 million raster pixels per document, and a
+120-second rendering deadline. PNG inflation is separately bounded from declared
+dimensions in a reproducible vendor patch, avoiding library-created Blob workers.
+GIF/WebP/AVIF conversion uses browser decoding and static PNG output; SVG remains
+sanitized/restricted vector content. Font coverage is the intersection of the four
+bundled Roboto faces; Latin/Greek/Cyrillic fixtures pass, while unsupported glyphs
+produce an explicit error rather than silently disappearing. Decoding support is
+browser dependent and is not established for every image format by Node tests.
+
+Evidence: real packaged-worker PDFs are parsed independently with PDF.js, and a
+rendered sample page was visually inspected. Synthetic DOM tests drive the real
+post/collection controllers through extraction, rendering, encrypted staging,
+ZIP or direct-PDF handoff, failed-post retry and 101-post parts. Tooling covers
+packaging retry, cancellation, restoration, owner validation, image embedding,
+PNG inflation limits and shared offscreen leases. These are synthetic results,
+not live Patreon or installed-extension verification. Chrome and Brave test
+launches abort in the current environment before any page assertion; native
+messaging/CSP, browser conversion and chooser layout still require browser QA.
+The collection chooser adds two existing-style choices and raises its accepted
+measured height bound from 600 to 2,048px, retaining the outer panel's scrolling
+and fixed recovery controls. No rendered browser layout pass is claimed.

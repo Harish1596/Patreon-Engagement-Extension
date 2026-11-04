@@ -1,7 +1,8 @@
 # Direct PDF downloads
 
-Status: proposed design, awaiting user approval. No PDF implementation or runtime
-verification is claimed by this document.
+Status: approved by the user on November 4, 2026; implemented on
+`agent/pdf-implementation`. Current verification results and remaining browser
+limits are recorded in TESTING.md. This design is not verification evidence.
 
 ## Intent and confirmed scope
 

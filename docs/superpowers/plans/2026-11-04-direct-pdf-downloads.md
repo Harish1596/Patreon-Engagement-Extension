@@ -1,6 +1,6 @@
 # Direct PDF Downloads Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Direct local PDF downloads for posts, combined collections, and individual collection PDFs in ZIPs.
 
@@ -32,10 +32,10 @@
 
 **Interfaces:** `PatreonPdf.chapter(snapshot)` returns a validated serializable chapter; `PatreonPdf.definition(chapters, book?)` returns the pdfmake definition. Worker accepts `{chapters, book}` and returns transferable PDF bytes or a fixed error.
 
-- [ ] Write and run failing tests for real PDF bytes/text, links, formatting, fonts, images and unsafe/malformed input.
-- [ ] Vendor pinned pdfmake with fonts and license notices; document reproducible source/integrity.
-- [ ] Implement bounded tree mapping, glyph coverage validation, image normalization and pagination. Initial limits: 24 MiB serialized input, 32 MiB generated PDF, 16 million decoded pixels per image, 8,192 pixels per side, 120-second render deadline. Measure with synthetic long/image-heavy fixtures; tighten if needed.
-- [ ] Run adapter/renderer tests and inspect a rendered sample; commit.
+- [x] Write and run failing tests for real PDF bytes/text, links, formatting, fonts, images and unsafe/malformed input.
+- [x] Vendor pinned pdfmake with fonts and license notices; document reproducible source/integrity.
+- [x] Implement bounded tree mapping, glyph coverage validation, image normalization and pagination. Initial limits: 24 MiB serialized input, 32 MiB generated PDF, 16 million decoded pixels per image, 8,192 pixels per side, 120-second render deadline. Measure with synthetic long/image-heavy fixtures; tighten if needed.
+- [x] Run adapter/renderer tests and inspect a rendered sample; commit.
 
 ### Task 2: Render service and post download
 
@@ -43,10 +43,10 @@
 
 **Interfaces:** `PatreonPdfRenderer.render(chapters, book?, signal?) -> Promise<Uint8Array>`; a content client uses validated extension messages and returns PDF bytes. Offscreen leases coordinate active PDF jobs and archive Blob URLs. Cancellation terminates the matching worker. No content is stored in session metadata.
 
-- [ ] Replace native-print regression with failing direct-download assertions; add cancellation and sender-validation tests.
-- [ ] Implement bounded input/output transport, owner validation, deadlines and worker termination; route only embedded assets to the library.
-- [ ] Replace print iframe with PDF generation and existing filename/download behavior.
-- [ ] Run post export/security regressions and real installed-extension PDF download; commit.
+- [x] Replace native-print regression with failing direct-download assertions; add cancellation and sender-validation tests.
+- [x] Implement bounded input/output transport, owner validation, deadlines and worker termination; route only embedded assets to the library.
+- [x] Replace print iframe with PDF generation and existing filename/download behavior.
+- [x] Run post/security DOM and renderer regressions and commit. Installed-extension PDF test was attempted but blocked at browser startup.
 
 ### Task 3: Collection PDF modes
 
@@ -54,20 +54,25 @@
 
 **Interfaces:** collection `pdf` emits chapter PDFs staged for ZIP; `pdf-book` emits PDF-ready JSON chapters staged encrypted. `PatreonPdfBook.write({job, output, chapterBytes, fileFor, check, progress})` validates/decompresses chapters and invokes the shared renderer with job cancellation.
 
-- [ ] Write and run failing tests for both modes, chapter order, contents links, packaging retry, failed chapter retry, format changes and cancellation.
-- [ ] Add format handling, MIME, encrypted chapter staging, restoration validation and combined-document assembly. Retain bounded input and CRC validation when reading staged data.
-- [ ] Add chooser choices and labels; retain narrow-view footer controls and current frame sizing.
-- [ ] Run PDF cases, 101-post parts, archive/storage tests and existing collection regressions; commit.
+- [x] Write and run failing tests for both modes, chapter order, contents links, packaging retry, failed chapter retry, format changes and cancellation.
+- [x] Add format handling, MIME, encrypted chapter staging, restoration validation and combined-document assembly. Retain bounded input and CRC validation when reading staged data.
+- [x] Add chooser choices and labels; retain narrow-view footer controls and current frame sizing.
+- [x] Run PDF/101-post/controller/storage tooling cases and commit. Browser collection regressions were attempted but blocked at startup.
 
 ### Task 4: Verification and documentation
 
 **Files:** maintained baseline, TESTING.md, docs/testing-history.md, approved spec status and this plan.
 
-- [ ] Run full browser suite, tooling suite, syntax checks and package validation; report every unresolved failure.
-- [ ] Run installed Brave downloads for all PDF modes; inspect PDF pages and chooser screenshots at desktop and narrow sizes. Browser plugin is unavailable, so use repository Playwright.
-- [ ] Obtain an independent whole-branch review and resolve material findings with regression checks.
-- [ ] Record dated behavior, measured limits, commands/results and live-verification boundaries; commit all changes and report branch/commits.
+- [x] Run full browser suite, tooling suite, syntax checks and package validation; report every unresolved failure. Tooling: 98 passed; syntax: 83 files; package validated. Browser: 125 launch failures/2 skips, targeted Brave: 14 launch failures.
+- [ ] Verify installed Brave downloads and chooser screenshots at desktop/narrow sizes in a working browser environment. The tests exist and were attempted, but launches abort. PDF sample pages were rendered and inspected independently. Browser plugin is unavailable; repository Playwright was used.
+- [x] Obtain an independent whole-branch review and resolve material findings with regression checks.
+- [x] Record dated behavior, measured limits, commands/results and live-verification boundaries; commit all changes and report branch/commits.
 
 ## Execution record
 
 Ruling: execute natively without another approval checkpoint because the user explicitly instructed implementation after reviewing the design. Existing uncommitted primary-checkout work is excluded; implementation starts from c4032cc in the already assigned linked worktree.
+
+Independent review: the wrapper rejection issue was reproduced and fixed in
+`1d7ae2b`; the reviewer confirmed its 10-case regression run. Offscreen restoration
+sequencing was also checked independently (4 service tests). No further findings.
+Actual browser/native/CSP QA remains open; the DOM harness does not establish it.
