@@ -151,12 +151,16 @@ Fetching starts only when Download is pressed:
 - **Single Markdown**: downloads one editable `.md` with collection metadata,
   linked contents and ordered chapters, with embedded inline images.
 - **Single PDF**: downloads one `.pdf` with a linked contents page and each
-  accessible post starting on a new page, in collection order.
+  accessible post starting on a new page, oldest first.
 - **Separate files (ZIP)** with EPUB, PDF or Markdown: downloads one numbered
   file per accessible text post inside a ZIP archive.
 
-All options preserve the discovered collection order and reuse the same cached
-sources. Repeated post links are removed. Unavailable, locked, or unsupported
+All options download posts **oldest to newest** and reuse the same cached
+sources. Complete publication dates determine reading order, independently of
+Patreon's displayed sort. If publication dates are missing or invalid, including
+DOM-only discovery, numeric post IDs provide a deterministic oldest-first
+approximation. File numbering, book contents and numbered parts follow this same
+order. Repeated post links are removed. Unavailable, locked, or unsupported
 posts are skipped and reported during discovery or chapter generation. A chapter that fails later must
 be retried before the complete book or ZIP is saved; completed encrypted chapters
 are retained for retry. Switching between book and separate-file modes reuses
@@ -197,7 +201,7 @@ two hours on the current collection page. Reopening the panel, changing a select
 or downloading another format reuses valid cached data. There is no manual Refresh
 Collection step. Collection discovery and post retrieval start only when Download
 is pressed; expired or missing data is fetched as needed by that download.
-New chapters, collection ordering and access changes are picked up when discovery
+New chapters, publication-date changes and access changes are picked up when discovery
 is fetched again after expiry. Opening the chooser does not eagerly refresh it.
 
 The download progress reports cached chapters as they are reused. Navigating away

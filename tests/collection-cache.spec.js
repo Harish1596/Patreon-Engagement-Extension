@@ -44,7 +44,7 @@ test('downloads reuse metadata for two hours and rediscover current posts only a
   await download(page);
   expect(calls()).toBe(2);
   const next = await page.evaluate(() => collectionPrepareRequests[1]);
-  expect(next.urls).toEqual([103, 104, 102].map(id => `https://www.patreon.com/posts/${id}`));
+  expect(next.urls).toEqual([102, 103, 104].map(id => `https://www.patreon.com/posts/${id}`));
   expect(next.token).not.toBe(first.token);
   expect(next.deferred).toBe(true); expect(next.refresh).toBeUndefined();
 });

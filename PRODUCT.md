@@ -49,7 +49,8 @@ This is the product's mechanism and scope, not a claim of competitive uniqueness
 - A supported post offers PDF, EPUB and Markdown downloads. PDF uses the browser's
   print workflow; EPUB and Markdown are generated as downloadable files.
 - Collection pages offer EPUB books or ZIP archives of separate EPUB or Markdown
-  files. Chapter order is preserved, with numbered parts for larger collections.
+  files. Collections download oldest to newest, with numbered parts for larger
+  collections.
 - Progress, cancellation, retry and download reports support lengthy
   collection operations and repeated downloads.
 - Users may switch tabs while work runs. Background fetching and saving must not

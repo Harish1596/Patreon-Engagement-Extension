@@ -1927,3 +1927,35 @@ cases; the synthetic session fixture now models the worker's fixed two-hour meta
 expiry. A pre-fix failing UI case and post-fix screenshots distinguish removed UI
 from preserved recovery behavior. No new Patreon selector, permission or live-page
 inspection was introduced. This supersedes earlier manual-refresh UI observations.
+
+
+**November 5 oldest-first collection downloads:** The user reports reverse reading
+order and chooses oldest-to-newest independently of the collection page's selected
+sort. Investigation found that API discovery and DOM discovery retained encounter
+order; all writers preserved those indexes rather than reversing files themselves.
+This supersedes the earlier API/display/creator-order export policy above.
+
+API discovery now requests the already observed `published_at` field alongside
+access/body/title fields, collects all validated pages, then sorts accessible posts
+by publication timestamp ascending when every accessible post has a valid date.
+Numeric post IDs break timestamp ties. If dates are incomplete/invalid, the entire
+accessible list uses numeric ID order as a deterministic oldest-first approximation;
+DOM-only discovery uses the same fallback. ID comparison uses decimal length and
+lexical comparison, avoiding floating-point precision loss for large IDs. One
+policy applies to each list, avoiding inconsistent pairwise mixed-date sorting.
+Locked posts are excluded before ordering the accessible list. Revisions stay
+associated with their URL, and reports retain the established skipped-post boundary.
+
+Sorting occurs before preparation, source reuse, file numbering and 100-post parts.
+The six writers therefore share the same sequence for ZIP entries, chapter contents,
+TOCs and navigation. Cached metadata preserves that sequence across repeat formats;
+source-cache lifetime, permissions, origin guards and membership checks are unchanged.
+No extra post visits are required for ordering, and publication dates are not added
+to persisted source payloads by this change. Missing dates cannot establish exact
+publication chronology; numeric fallback is explicitly approximate.
+
+Synthetic fixtures reproduce newest-first multi-page data with duplicates and locks,
+publication order differing from ID order, all six actual output modes, cached
+repeats, invalid/missing dates, timezone-equivalent ties, large numeric IDs and 101
+posts across parts. No new live Patreon payload or DOM layout was inspected; the
+new policy is user-directed behavior verified against sanitized fixtures.

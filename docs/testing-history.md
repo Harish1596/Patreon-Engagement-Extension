@@ -4,6 +4,43 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Oldest-first collection reading order
+
+The user chose oldest-to-newest downloads. Previously API and DOM encounter order
+was preserved, so a newest-first collection became a newest-first file/book. The
+controller now orders the complete accessible list before caching/preparation and
+batching. Complete publication timestamps determine chronology; missing/invalid
+dates use numeric post IDs for the whole list as a deterministic approximation.
+Timestamp ties also use numeric IDs without floating-point conversion. Publication
+metadata is requested through the existing collection API, not extra post visits.
+
+Final checks:
+
+- `npm test -- --workers=2 --output=/tmp/collection-order-chrome-results`:
+  **152 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- tests/collection-order.spec.js tests/collection-cache.spec.js tests/installed.spec.js tests/installed-pdf.spec.js --output=/tmp/collection-order-brave-results`:
+  **14 passed**.
+- `npm run test:tooling`: **131 passed**; `npm run check`: **88 JavaScript files**;
+  `npm run package -- --force` validates the extension; `git diff --check` is clean.
+
+Two API regressions failed before the fix because the requested post URLs stayed
+newest-first. All ten new ordering cases pass. They parse actual EPUB/Markdown/PDF
+outputs across single and ZIP modes; multi-page fixtures include duplicates and a
+locked post, and deliberately publish IDs out of numeric order. Body data is keyed
+by post URL, so output assertions cannot pass merely from fixed fixture indexes.
+Cases also cover cached format changes without another discovery, missing/invalid
+dates, timezone-equivalent timestamp ties, IDs beyond Number's safe integer range,
+DOM fallback and a reversed 101-post collection split into two numbered parts.
+
+Worker storage tests retain caller-order validation: chronological policy belongs
+to discovery, while workers preserve the supplied sequence. The two-hour cache
+policy, retry behavior, memberships/origins, storage budgets and writers are retained.
+Native Brave verifies saving and worker-restart cache reuse through the installed
+extension fixture. This task used sanitized fixtures, not a new live collection
+inspection. Exact publication chronology cannot be guaranteed when dates are absent;
+the numeric-ID fallback is explicitly approximate. The old page/display-order policy
+in earlier dated checkpoints is superseded by this user-directed reading order.
+
 ## November 5, 2026 — Remove manual collection refresh
 
 Refresh Collection is removed from the page panel. Download is the sole trigger

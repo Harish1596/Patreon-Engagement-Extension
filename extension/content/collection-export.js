@@ -273,6 +273,18 @@
     return document.querySelector('main[role="main"], main, [role="main"]') || document;
   }
 
+  function oldestFirst(urls, published = new Map()) {
+    const posts = urls.map(url => ({ url, published: published.get(url),
+      id: /(?:\/|-)(\d+)\/?$/.exec(new URL(url).pathname)[1].replace(/^0+/, "") || "0" }));
+    // Complete publication dates give chronological order, including scheduled
+    // posts. Otherwise IDs are a deterministic creation-order approximation.
+    // Use one policy for the whole list so mixed dates cannot yield a cyclic sort.
+    const dated = posts.every(post => Number.isFinite(post.published));
+    return posts.sort((left, right) => (dated ? left.published - right.published : 0)
+      || left.id.length - right.id.length
+      || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0)).map(post => post.url);
+  }
+
   function postUrls() {
     const scope = collectionScope();
     const result = [];
@@ -288,7 +300,7 @@
       url.hash = "";
       if (!seen.has(url.href)) { seen.add(url.href); result.push(url.href); }
     }
-    return result;
+    return oldestFirst(result);
   }
 
   function routeCollectionId() {
@@ -342,6 +354,7 @@
     const seen = new Set();
     const locked = new Set();
     const titles = new Map();
+    const published = new Map();
     const revisions = new Map();
     let expectedTotal = null;
     let pageUrl = template;
@@ -352,6 +365,7 @@
       fields.add("current_user_can_view");
       fields.add("content_json_string");
       fields.add("title");
+      fields.add("published_at");
       pageUrl.searchParams.set("fields[post]", [...fields].join(","));
       const payload = await globalThis.PatreonRetry.run(async ({ signal: attemptSignal }) => {
         let response;
@@ -381,6 +395,8 @@
         if (item?.type !== "post" || !/^\d+$/.test(item.id)) continue;
         const url = `${location.origin}/posts/${item.id}`;
         seen.add(url);
+        const date = typeof item.attributes?.published_at === "string" ? Date.parse(item.attributes.published_at) : NaN;
+        if (Number.isFinite(date)) published.set(url, date);
         if (typeof item.attributes?.title === "string") titles.set(url, cleanReportText(item.attributes.title));
         if (item.attributes?.current_user_can_view === false) locked.add(url);
         // A full structured body plus explicit access is evidence of sameness;
@@ -415,9 +431,10 @@
           throw new Error(`Patreon returned ${seen.size} of ${expectedTotal} collection posts.`);
         }
         if (!seen.size) throw new Error("Patreon returned no collection posts.");
-        return { urls: [...seen].filter(url => !locked.has(url)), locked: locked.size,
-          revisions: [...revisions].filter(([url]) => !locked.has(url)).map(([url, revision]) => ({ url, revision })),
-          skippedPosts: [...locked].map(url => ({ url, title: titles.get(url) || "", reason: "Locked for your current membership." })) };
+        const urls = oldestFirst([...seen].filter(url => !locked.has(url)), published);
+        return { urls, locked: locked.size,
+          revisions: urls.filter(url => revisions.has(url)).map(url => ({ url, revision: revisions.get(url) })),
+          skippedPosts: oldestFirst([...locked], published).map(url => ({ url, title: titles.get(url) || "", reason: "Locked for your current membership." })) };
       }
     }
     throw new Error("This collection has too many API pages to prepare safely.");
