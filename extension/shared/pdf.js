@@ -4,8 +4,8 @@
   const MAX_OUTPUT = 32 * 1024 * 1024;
   const MAX_PIXELS = 16_000_000;
   const MAX_SIDE = 8192;
-  const tags = new Set('div p h1 h2 h3 h4 h5 h6 strong em b i u s ul ol li blockquote pre code sub sup hr figure figcaption br img a'.split(' '));
-  const inlineTags = new Set('strong em b i u s code sub sup a br'.split(' '));
+  const tags = new Set('div span p h1 h2 h3 h4 h5 h6 strong em b i u s ul ol li blockquote pre code sub sup hr figure figcaption br img a'.split(' '));
+  const inlineTags = new Set('span strong em b i u s code sub sup a br'.split(' '));
   function url(value, post = false) {
     try {
       const parsed = new URL(value);

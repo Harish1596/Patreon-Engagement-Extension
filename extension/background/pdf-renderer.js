@@ -5,6 +5,7 @@
     const active = new Map(); const cancelled = new Map();
     const uuid = value => typeof value === 'string' && /^[0-9a-f-]{36}$/i.test(value);
     async function render(chapters, book, signal, id = crypto.randomUUID()) {
+      await globalThis.PatreonArchiveService?.ready;
       signal?.throwIfAborted();
       PatreonPdf.size({ chapters, book });
       if (!Array.isArray(chapters) || !chapters.length || chapters.length > 100) throw new Error('The PDF chapter count is invalid.');

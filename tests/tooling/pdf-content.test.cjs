@@ -33,3 +33,18 @@ test('cached post PDF and combined-chapter formatting use the same source withou
   assert.equal(chapter.extension, 'pdfchapter');
   assert.equal(JSON.parse(chapter.data).title, 'Cached PDF');
 });
+test('direct PDF preserves ordinary inline wrappers without rejecting or splitting their text', async t => {
+  const fs = require('node:fs'), path = require('node:path');
+  const html = fs.readFileSync(path.resolve(__dirname, '../fixtures/text-image-post.html'), 'utf8')
+    .replace('First <strong>bold</strong> paragraph', 'Before <span><mark>ordinary wrapped text</mark></span> after');
+  const h = contentHarness(t, { html }), w = h.w;
+  w.PatreonExporter.reconcile(true); w.document.querySelector('[data-patreon-download-button]').click();
+  const shadow = () => w.document.querySelector('[data-patreon-download-panel]').shadowRoot;
+  await until(() => shadow().querySelector('iframe')?.src.includes('#'));
+  const token = new URL(shadow().querySelector('iframe').src).hash.slice(1);
+  await h.send({ type: 'POST_EXPORT_CHOICE', token, format: 'pdf' });
+  await until(() => h.downloads.length || shadow().querySelector('[data-tone="error"]'));
+  assert.equal(h.downloads.length, 1, shadow().textContent);
+  const pdf = await inspectPdf(await h.downloads[0].blob.arrayBuffer());
+  assert.ok(pdf.pages[0].text.includes('Before ordinary wrapped text after'));
+});

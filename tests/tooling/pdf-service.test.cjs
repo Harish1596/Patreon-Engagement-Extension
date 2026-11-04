@@ -51,3 +51,16 @@ test('cancel arriving before render rejects late work without opening a document
   assert.match((await h.send({ type: 'PDF_RENDER', id, chapters: [source] })).error, /cancelled/);
   assert.equal(h.stats().created, 0);
 });
+test('PDF rendering waits for archive restoration before acquiring offscreen lifetime', async () => {
+  const h = harness(); let restored;
+  h.scope.PatreonArchiveService = { ready: new Promise(resolve => { restored = resolve; }) };
+  const result = h.service.render([source]);
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(h.stats().created, 0, 'Archive leases must be restored before PDF render lifetime begins');
+  await h.scope.PatreonOffscreenService.acquire('restored-archive'); restored();
+  while (!h.stats().renders) await new Promise(resolve => setTimeout(resolve, 1));
+  h.release(); await result;
+  assert.equal(h.stats().closed, 0);
+  await h.scope.PatreonOffscreenService.release('restored-archive');
+  assert.equal(h.stats().closed, 1);
+});

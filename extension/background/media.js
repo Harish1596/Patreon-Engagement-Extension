@@ -4,7 +4,7 @@ globalThis.PatreonDiskCrypto = globalThis.PatreonExportCrypto.create();
 globalThis.PatreonRetention = globalThis.PatreonExportRetention.create();
 globalThis.PatreonOffscreenService = globalThis.PatreonOffscreen.create();
 globalThis.PatreonPdfRenderService = globalThis.PatreonPdfRenderer.install();
-globalThis.PatreonArchives.install();
+globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
 (() => {
   const api = globalThis.browser?.runtime ? globalThis.browser : globalThis.chrome;
   const retention = globalThis.PatreonRetention;

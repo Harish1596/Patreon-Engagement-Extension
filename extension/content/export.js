@@ -236,10 +236,15 @@
   // A format-independent, inert tree with one data URL per distinct image.
   // No source DOM, signed image URL, or duplicate decoded image bytes are kept.
   function snapshotFor(post) {
+    const supported = /^(?:div|span|p|h[1-6]|strong|em|b|i|u|s|ul|ol|li|blockquote|pre|code|sub|sup|hr|figure|figcaption|br|img|a)$/;
+    const inlineWrapper = /^(?:mark|small|abbr|time|font|label)$/;
     function tree(node) {
       if (node.nodeType === Node.TEXT_NODE) return node.nodeValue || "";
       if (node.nodeType !== Node.ELEMENT_NODE) return "";
-      return { tag: node.tagName.toLowerCase(),
+      const tag = node.tagName.toLowerCase();
+      // Keep neutral wrappers inert and consistent across direct and cached
+      // exports; page-specific/custom tags never become PDF instructions.
+      return { tag: supported.test(tag) ? tag : inlineWrapper.test(tag) ? "span" : "div",
         ...(node.tagName === "IMG" ? { image: Number(node.getAttribute("data-export-image")), alt: node.getAttribute("alt") || "" } : {}),
         ...(node.tagName === "A" ? { href: safeUrl(node.getAttribute("href")) } : {}),
         children: [...node.childNodes].map(tree) };
@@ -259,7 +264,7 @@
       if (typeof tree === "string") return document.createTextNode(tree);
       // Unknown elements become inert containers; never instantiate an embed,
       // script, form, or custom element from a cached tree.
-      const allowed = /^(?:div|p|h[1-6]|strong|em|b|i|u|s|ul|ol|li|blockquote|pre|code|sub|sup|hr|figure|figcaption|br|img|a)$/;
+      const allowed = /^(?:div|span|p|h[1-6]|strong|em|b|i|u|s|ul|ol|li|blockquote|pre|code|sub|sup|hr|figure|figcaption|br|img|a)$/;
       const result = element(allowed.test(tree?.tag) ? tree.tag : "div");
       if (tree?.tag === "img") {
         result.setAttribute("data-export-image", String(tree.image));
