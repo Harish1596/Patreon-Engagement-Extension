@@ -28,6 +28,7 @@ test("package has exact files and root manifest; rejects overwrites and preserve
   const output = packageExtension(root), original = fs.readFileSync(output);
   assert.equal(path.basename(output), `patreon-reader-${JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8")).version}.zip`);
   const manifest = JSON.parse(readPackage(root).files.get("manifest.json").toString("utf8"));
+  assert.equal(readPackage(root).files.has("background/markdown-book.js"), true);
   assert.equal(manifest.name, "Patreon Reader");
   assert.equal(manifest.action.default_title, "Patreon Reader");
   validateArchive(output, readPackage(root).files);

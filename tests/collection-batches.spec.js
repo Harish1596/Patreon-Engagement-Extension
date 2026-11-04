@@ -25,8 +25,7 @@ for (const format of ["Markdown", "EPUB", "Single EPUB"]) {
   test(`${format} automatically splits 101 chapters into ordered, independently readable parts`, async ({ page }) => {
     test.setTimeout(90_000);
     const downloads = await fixture(page);
-    await expect(page.getByRole("status")).toContainText("101 posts are ready");
-    await expect(page.getByRole("status")).toContainText("2 numbered parts");
+    await expect(page.getByRole("status")).toContainText("Choose a format");
     await frames(page).getByRole("button", { name: format, exact: true }).click();
     await expect.poll(() => downloads.length, { timeout: 60_000 }).toBe(2);
     await expect(page.getByRole("status")).toContainText("part downloads started");
@@ -61,7 +60,7 @@ test("later-part retry and cancellation retain the earlier handoff", async ({ pa
   test.setTimeout(90_000);
   const downloads = await fixture(page);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [100]; });
-  await expect(page.getByRole("status")).toContainText("101 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await frames(page).getByRole("button", { name: "Markdown", exact: true }).click();
   await expect(page.getByRole("button", { name: "Retry failed posts" })).toBeVisible({ timeout: 60_000 });
   expect(downloads).toHaveLength(1);
@@ -96,6 +95,7 @@ test("collections beyond the discovery bound fail visibly before preparing posts
     data: Array.from({ length: 1001 }, (_, index) => ({ id: String(101 + index), type: "post", attributes: { current_user_can_view: true } }))
   } }));
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+  await frames(page).getByRole("button", { name: "Markdown", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("more than 1,000 posts");
   expect(await page.evaluate(() => collectionPrepareCount || 0)).toBe(0);
 });
@@ -104,7 +104,7 @@ test("choosing another format after a later-part failure starts at the first cha
   test.setTimeout(90_000);
   const downloads = await fixture(page);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [100]; });
-  await expect(page.getByRole("status")).toContainText("101 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await frames(page).getByRole("button", { name: "Markdown", exact: true }).click();
   await expect(page.getByRole("button", { name: "Retry failed posts" })).toBeVisible({ timeout: 60_000 });
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; });

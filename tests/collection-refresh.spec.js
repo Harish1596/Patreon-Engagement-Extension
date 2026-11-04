@@ -15,7 +15,15 @@ async function fixture(page) {
     await route.fulfill({ json: { data: posts, meta: { pagination: { total: posts.length } } } });
   });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("3 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
+  await download(page);
+}
+
+async function download(page) {
+  const pending = page.waitForEvent("download");
+  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+  await pending;
+  await expect(page.getByRole("status")).toContainText("ZIP download started");
 }
 
 test("refresh rediscovery sends full-content fingerprints in fresh order using the existing owner token", async ({ page }) => {
@@ -28,7 +36,8 @@ test("refresh rediscovery sends full-content fingerprints in fresh order using t
     globalThis.collectionPreparationOverrides = { reused: 1 };
   });
   await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("1 unchanged cached post was reused");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
+  await download(page);
   const refreshed = await page.evaluate(() => collectionPrepareRequests[1]);
   expect(refreshed.token).toBe(first.token); expect(refreshed.refresh).toBe(true);
   expect(refreshed.urls).toEqual([103, 104, 102].map(id => `https://www.patreon.com/posts/${id}`));
@@ -45,12 +54,13 @@ test("refresh excludes newly locked posts and does not trust missing full conten
     delete refreshPosts[2].attributes.current_user_can_view;
   });
   await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("1 locked post was skipped");
+  await download(page);
   const next = await page.evaluate(() => collectionPrepareRequests[1]);
   expect(next.revisions).toEqual([]);
   expect(next.urls).toEqual([102, 103].map(id => `https://www.patreon.com/posts/${id}`));
   await page.evaluate(() => { refreshPosts.forEach(post => { post.attributes.current_user_can_view = false; }); });
   await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
+  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("All 3 posts are locked");
   expect(await page.evaluate(() => collectionExportCancelled)).toBe(true);
 });

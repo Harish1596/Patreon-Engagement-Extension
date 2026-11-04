@@ -10,10 +10,10 @@ async function fixture(page) {
     skippedPosts: [{ url: "https://www.patreon.com/posts/103?secret=private", title: "Unavailable post", reason: "No supported text body was available." }]
   }; });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("2 posts are ready");
-  await report(page).locator('summary').click();
+  await expect(page.getByRole("status")).toContainText("Choose a format");
 }
 async function reportText(page) {
+  if (await report(page).getAttribute("open") === null) await report(page).locator("summary").click();
   const pending = page.waitForEvent("download");
   await report(page).getByRole("button", { name: "Save report" }).click();
   const result = await pending, chunks = [];
@@ -24,11 +24,11 @@ async function reportText(page) {
 
 test("download report lists skipped and failed posts, redacts URLs, and updates a successful retry", async ({ page }) => {
   await fixture(page);
-  await expect(report(page)).toContainText("Unavailable post");
-  expect(await report(page).locator('img').count()).toBe(0);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [1]; });
   await formats(page).getByRole("button", { name: "Single EPUB", exact: true }).click();
   await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeVisible();
+  await expect(report(page)).toContainText("Unavailable post");
+  expect(await report(page).locator("img").count()).toBe(0);
   await expect(report(page)).toContainText("Failed · Synthetic chapter failure.");
   await expect(report(page)).toContainText("Prepared");
   await expect(report(page)).toContainText("Nothing downloaded");
@@ -47,8 +47,7 @@ test("download report lists skipped and failed posts, redacts URLs, and updates 
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   await expect(report(page)).toContainText("2 included");
   await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
-  await expect(report(page)).toContainText("Nothing downloaded yet");
-  await expect(report(page)).toContainText("0 included");
+  await expect(report(page)).toBeHidden();
 });
 
 test("packaging failure keeps prepared outcomes and sanitizes failure messages", async ({ page }) => {
@@ -70,6 +69,7 @@ test("all locked posts receive individual report rows without a download", async
       ? [...original(type), { name: "https://www.patreon.com/api/posts?filter%5Bcollection_id%5D=500" }] : original(type) });
   });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("All 2 posts are locked");
   await report(page).locator('summary').click();
   await expect(report(page).locator('li')).toHaveCount(2);

@@ -1,5 +1,5 @@
 /* Fetches post media only after the user grants the exact image origin. */
-importScripts("../shared/pdf.js", "offscreen.js", "pdf-renderer.js", "../shared/zip.js", "../shared/retry.js", "retention.js", "disk-crypto.js", "post-cache.js", "epub-book.js", "pdf-book.js", "archives.js");
+importScripts("../shared/pdf.js", "offscreen.js", "pdf-renderer.js", "../shared/zip.js", "../shared/retry.js", "retention.js", "disk-crypto.js", "post-cache.js", "epub-book.js", "markdown-book.js", "pdf-book.js", "archives.js");
 globalThis.PatreonDiskCrypto = globalThis.PatreonExportCrypto.create();
 globalThis.PatreonRetention = globalThis.PatreonExportRetention.create();
 globalThis.PatreonOffscreenService = globalThis.PatreonOffscreen.create();
@@ -90,9 +90,9 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
     checkCancelled(session);
     // Session storage survives worker suspension, but is cleared with the browser
     // session. Never put post bodies, file transfers, or media URLs here.
-    const { ownerTabId, ownerWindowId, posts, skipped, skippedPosts = [], expires } = session;
+    const { ownerTabId, ownerWindowId, posts, skipped, skippedPosts = [], expires, deferred = false } = session;
     await call(api.storage.session, "set", {
-      [COLLECTION_SESSION_PREFIX + token]: { version: 1, ownerTabId, ownerWindowId, posts, skipped, skippedPosts, expires }
+      [COLLECTION_SESSION_PREFIX + token]: { version: 1, ownerTabId, ownerWindowId, posts, skipped, skippedPosts, expires, deferred }
     });
     if (session.controller?.signal.aborted) await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
     checkCancelled(session);
@@ -179,7 +179,10 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
   async function closeWorker(session) {
     const tabId = session.workerTabId;
     session.workerTabId = null;
-    if (tabId) await closeTabs([tabId]);
+    if (tabId) {
+      for (const post of session.posts || []) if (post.tabId === tabId) post.tabId = null;
+      await closeTabs([tabId]);
+    }
   }
 
   async function navigateWorker(session, url) {
@@ -296,6 +299,43 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
           continue;
         }
       }
+      if (session.deferred) {
+        if (post.skipped) throw Object.assign(new Error("No supported text body was available. The post may be locked, unsupported, or not fully loaded."), { skipPost: true });
+        let description;
+        try {
+          if (post.tabId) {
+            try { description = await askPost(post.tabId, { type: "DESCRIBE_POST_EXPORT", expectedPostId }, 60, session.controller.signal); }
+            catch { checkCancelled(session); post.tabId = null; }
+          }
+          if (!description) {
+            description = await askWorkerPost(session, post.url, { type: "DESCRIBE_POST_EXPORT", expectedPostId });
+            post.tabId = session.workerTabId;
+          }
+        } catch (error) {
+          checkCancelled(session);
+          throw Object.assign(new Error("No supported text body was available. The post may be locked, unsupported, or not fully loaded."), { skipPost: true });
+        }
+        checkCancelled(session);
+        const origins = description.post.origins;
+        if (!Array.isArray(origins) || origins.length > 20 || origins.some(origin => {
+          try {
+            const parsed = new URL(origin);
+            return parsed.protocol !== "https:" || origin !== `${parsed.origin}/*`
+              || parsed.hostname.includes("*") || parsed.username || parsed.password;
+          } catch { return true; }
+        })) throw new Error("The post supplied invalid image hosts.");
+        post.title = description.post.title;
+        post.origins = [...new Set(origins)];
+        if (post.origins.length && !await call(api.permissions, "contains", { origins: post.origins })) {
+          const allowed = await cancellable(call(api.tabs, "sendMessage", session.ownerTabId, {
+            type: "COLLECTION_MEDIA_PERMISSION", token, operationId, index, title: post.title
+          }), session.controller.signal);
+          checkCancelled(session);
+          if (!allowed?.granted || !await call(api.permissions, "contains", { origins: post.origins })) {
+            throw Object.assign(new Error("Image access was not granted. Allow images to download this chapter."), { permissionDenied: true });
+          }
+        }
+      }
       const request = { type: "BUILD_POST_EXPORT", format, transferId, expectedPostId };
       if (post.tabId) {
         try {
@@ -359,6 +399,7 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
       skippedPosts: [],
       reused: 0,
       preparing: true,
+      deferred: message.deferred === true,
       controller: new AbortController(),
       expires: Date.now() + COLLECTION_CACHE_MS
     };
@@ -368,52 +409,59 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
       // Remove changed, removed, locked or unverifiable sources before revalidation.
       await sourceCache.retain(message.token, new Set([...reusable.keys()].map(url => /(?:\/|-)(\d+)\/?$/.exec(new URL(url).pathname)[1])), session.controller.signal);
       checkCancelled(session);
-      await reportCollectionProgress(session, message.token, "prepare", 0, urls.length, "", { operationId: message.operationId });
-      for (let index = 0; index < urls.length; index++) {
-        const url = urls[index];
-        await reportCollectionProgress(session, message.token, "prepare-post", index, urls.length, "", { operationId: message.operationId, index });
-        const expectedPostId = /(?:\/|-)(\d+)\/?$/.exec(new URL(url).pathname)[1];
-        const prior = reusable.get(url);
-        if (prior && await sourceCache.has(message.token, expectedPostId)) {
-          checkCancelled(session);
-          session.posts.push({ ...prior }); session.reused++;
-          await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length, "",
-            { operationId: message.operationId, index, title: prior.title, cached: true });
-          continue;
-        }
-        checkCancelled(session);
-        const request = { type: "DESCRIBE_POST_EXPORT", expectedPostId };
-        const existing = [...knownPosts].find(([, postUrl]) => postUrl === url);
-        try {
-          let result;
-          let tabId = null;
-          if (existing) {
-            try { result = await askPost(existing[0], request, 60, session.controller.signal); tabId = existing[0]; }
-            catch { /* A previously registered tab may have navigated elsewhere. */ }
+      if (session.deferred) {
+        // Registration is metadata-only. Content is visited once, at build time.
+        session.posts = urls.map(url => ({ tabId: [...knownPosts].find(([, known]) => known === url)?.[0] ?? null, url,
+          title: reusable.get(url)?.title || "", origins: [],
+          ...(revisions.has(url) ? { revision: revisions.get(url) } : {}) }));
+      } else {
+        await reportCollectionProgress(session, message.token, "prepare", 0, urls.length, "", { operationId: message.operationId });
+        for (let index = 0; index < urls.length; index++) {
+          const url = urls[index];
+          await reportCollectionProgress(session, message.token, "prepare-post", index, urls.length, "", { operationId: message.operationId, index });
+          const expectedPostId = /(?:\/|-)(\d+)\/?$/.exec(new URL(url).pathname)[1];
+          const prior = reusable.get(url);
+          if (prior && await sourceCache.has(message.token, expectedPostId)) {
+            checkCancelled(session);
+            session.posts.push({ ...prior }); session.reused++;
+            await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length, "",
+              { operationId: message.operationId, index, title: prior.title, cached: true });
+            continue;
           }
           checkCancelled(session);
-          if (!result) result = await askWorkerPost(session, url, request);
-          if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
-          session.posts.push({
-            tabId,
-            url,
-            title: result.post.title,
-            ...(revisions.has(url) ? { revision: revisions.get(url) } : {}),
-            origins: result.post.origins
-          });
-        } catch (error) {
-          if (session.controller.signal.aborted || cancelledCollections.has(message.token)) throw error;
-          session.skipped++;
-          const errorText = String(error.message || "");
-          const reason = /supported text body|could not be found|not ready|finished loading/i.test(errorText)
-            ? "No supported text body was available. The post may be locked, unsupported, or not fully loaded."
-            : /timed out|not respond|receiving end|connection/i.test(errorText)
-              ? "The post could not be loaded or did not respond during preparation."
-              : "The post could not be prepared. Access or page loading may have failed.";
-          session.skippedPosts.push({ url, title: "", reason });
+          const request = { type: "DESCRIBE_POST_EXPORT", expectedPostId };
+          const existing = [...knownPosts].find(([, postUrl]) => postUrl === url);
+          try {
+            let result;
+            let tabId = null;
+            if (existing) {
+              try { result = await askPost(existing[0], request, 60, session.controller.signal); tabId = existing[0]; }
+              catch { /* A previously registered tab may have navigated elsewhere. */ }
+            }
+            checkCancelled(session);
+            if (!result) result = await askWorkerPost(session, url, request);
+            if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
+            session.posts.push({
+              tabId,
+              url,
+              title: result.post.title,
+              ...(revisions.has(url) ? { revision: revisions.get(url) } : {}),
+              origins: result.post.origins
+            });
+          } catch (error) {
+            if (session.controller.signal.aborted || cancelledCollections.has(message.token)) throw error;
+            session.skipped++;
+            const errorText = String(error.message || "");
+            const reason = /supported text body|could not be found|not ready|finished loading/i.test(errorText)
+              ? "No supported text body was available. The post may be locked, unsupported, or not fully loaded."
+              : /timed out|not respond|receiving end|connection/i.test(errorText)
+                ? "The post could not be loaded or did not respond during preparation."
+                : "The post could not be prepared. Access or page loading may have failed.";
+            session.skippedPosts.push({ url, title: "", reason });
+          }
+          await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length, "",
+            { operationId: message.operationId, index, title: session.posts.at(-1)?.url === url ? session.posts.at(-1).title : "" });
         }
-        await reportCollectionProgress(session, message.token, "prepare", index + 1, urls.length, "",
-          { operationId: message.operationId, index, title: session.posts.at(-1)?.url === url ? session.posts.at(-1).title : "" });
       }
       if (!session.posts.length) throw Object.assign(new Error("No accessible text posts in this collection could be prepared."), { skippedPosts: session.skippedPosts });
       if (cancelledCollections.has(message.token)) throw new Error("The collection export was cancelled.");
@@ -551,7 +599,7 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
 
     if (message.type === "DELIVER_COLLECTION_EXPORT") {
       const session = collectionFor(message, sender);
-      const validFormat = ["epub", "markdown", "epub-book", "pdf", "pdf-book"].includes(message.format);
+      const validFormat = ["epub", "markdown", "epub-book", "markdown-book", "pdf", "pdf-book"].includes(message.format);
       if (!session || (!validFormat && typeof message.error !== "string")) {
         respond({ error: "The collection export request expired or is invalid. Reopen Download." });
         return;
@@ -607,7 +655,15 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
           session.building = false;
         }
         cancelledCollections.delete(message.token);
-        respond({ error: error.message || "One of the collection posts could not be exported." });
+        if (error.skipPost && message.index !== undefined && !session.controller.signal.aborted) {
+          const post = session.posts[message.index];
+          post.skipped = true;
+          const skippedPost = { url: post.url, title: post.title, reason: error.message };
+          session.skippedPosts ||= [];
+          if (!session.skippedPosts.some(item => item.url === post.url)) { session.skippedPosts.push(skippedPost); session.skipped++; }
+          try { await persistCollection(message.token, session); respond({ skippedPost }); }
+          catch { respond({ error: "The collection skip result could not be saved. Retry the download." }); }
+        } else respond({ error: error.message || "One of the collection posts could not be exported.", ...(error.permissionDenied ? { permissionDenied: true } : {}) });
       });
       return true;
     }

@@ -13,6 +13,7 @@ const source = fs.readFileSync(path.join(extension, "shared/pdf.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "shared/zip.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "background/disk-crypto.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "background/epub-book.js"), "utf8")
+  + "\n" + fs.readFileSync(path.join(extension, "background/markdown-book.js"), "utf8")
   + "\n" + fs.readFileSync(path.join(extension, "background/archives.js"), "utf8");
 const id = "11111111-1111-4111-8111-111111111111";
 const transferId = "22222222-2222-4222-8222-222222222222";
@@ -31,6 +32,9 @@ function harness(t, { maxBytes, deliver, onProgress, native = false, initialStat
   let failWrite = false;
   let downloads = 0;
   let largestRead = 0;
+  let largestWrite = 0;
+  let largestDecode = 0;
+  const blobMessages = [];
   let controller;
   const progress = [];
   function directory(location) {
@@ -63,7 +67,7 @@ function harness(t, { maxBytes, deliver, onProgress, native = false, initialStat
             const handle = await fs.promises.open(temporary, "w");
             let closed = false;
             const stream = {
-              async write(bytes) { if (failWrite) throw new Error("Disk quota exceeded"); await handle.write(bytes); },
+              async write(bytes) { largestWrite = Math.max(largestWrite, bytes.length); if (failWrite) throw new Error("Disk quota exceeded"); await handle.write(bytes); },
               async close() { if (closed) return; closed = true; await handle.close(); fs.renameSync(temporary, file); writers.delete(stream); },
               async abort() { if (closed) return; closed = true; await handle.close(); fs.rmSync(temporary, { force: true }); writers.delete(stream); }
             };
@@ -75,7 +79,7 @@ function harness(t, { maxBytes, deliver, onProgress, native = false, initialStat
     };
   }
   const browser = {
-    runtime: { id: "fixture-extension", getURL: name => `chrome-extension://fixture-extension/${name}`, async sendMessage(message) { return message.type === "ARCHIVE_BLOB_OPEN" ? { url: "blob:chrome-extension://fixture-extension/archive" } : {}; }, onMessage: { addListener(value) { listener = value; } } },
+    runtime: { id: "fixture-extension", getURL: name => `chrome-extension://fixture-extension/${name}`, async sendMessage(message) { blobMessages.push(message); return message.type === "ARCHIVE_BLOB_OPEN" ? { url: "blob:chrome-extension://fixture-extension/archive" } : {}; }, onMessage: { addListener(value) { listener = value; } } },
     tabs: { async sendMessage(tabId, message) { notifications.push({ tabId, ...message }); if (message.type === "COLLECTION_ARCHIVE_PROGRESS") { progress.push(message); onProgress?.(message); } return { reported: true, handedOff: true }; }, onRemoved: { addListener(value) { removed = value; } } },
     storage: { session: {
       async get() { return structuredClone(records); },
@@ -93,7 +97,7 @@ function harness(t, { maxBytes, deliver, onProgress, native = false, initialStat
   }
   const restart = async () => {
     for (const writer of [...writers]) await writer.abort();
-    const scope = { browser, URL, AbortController, Uint8Array, DataView, TextEncoder, TextDecoder, ReadableStream, DecompressionStream, setTimeout, crypto: require("node:crypto").webcrypto,
+    const scope = { browser, URL, AbortController, Uint8Array, DataView, TextEncoder, TextDecoder: class extends TextDecoder { decode(bytes, options) { largestDecode = Math.max(largestDecode, bytes?.byteLength || 0); return super.decode(bytes, options); } }, ReadableStream, DecompressionStream, setTimeout, crypto: require("node:crypto").webcrypto,
       Date: class extends Date { static now() { return Date.now() + elapsed; } },
       atob: value => Buffer.from(value, "base64").toString("binary") };
     vm.runInNewContext(source, scope);
@@ -106,14 +110,14 @@ function harness(t, { maxBytes, deliver, onProgress, native = false, initialStat
   };
   const send = (action, data = {}, owner = 1) => new Promise(resolve => listener({ type: `COLLECTION_ARCHIVE_${action}`, id, ...data },
     { id: browser.runtime.id, tab: { id: owner, url: "https://www.patreon.com/collection/500" } }, resolve));
-  return { disk, records, restart, send, writers, progress, notifications, downloadStates,
+  return { disk, records, restart, send, writers, progress, notifications, downloadStates, blobMessages,
     finishDownload: (downloadId, state, error) => {
       downloadStates.set(downloadId, { id: downloadId, state, error });
       changed({ id: downloadId, state: { current: state }, ...(error ? { error: { current: error } } : {}) });
     },
     sweep: () => controller.sweep(),
     fail: value => { failWrite = value; }, advance: minutes => { elapsed += minutes * 60_000; },
-    closeOwner: () => removed(1), downloadCount: () => downloads, largestRead: () => largestRead };
+    closeOwner: () => removed(1), downloadCount: () => downloads, largestRead: () => largestRead, largestWrite: () => largestWrite, largestDecode: () => largestDecode };
 }
 
 async function store(h, scope, index, text, metadata, name = `${index + 1} - Chapter.md`) {
@@ -383,6 +387,178 @@ test("missing browser history is unconfirmed rather than a false terminal result
   const [message] = h.notifications.filter(item => item.type === "COLLECTION_ARCHIVE_RESULT");
   assert.equal(message.state, "unavailable");
   assert.match(message.reason, /could not be confirmed/);
+});
+
+test("Single Markdown resumes encrypted chapters and emits ordered plain UTF-8 with safe collection metadata", async t => {
+  const h = harness(t);
+  let scope = await h.restart();
+  const metadata = { ...book, title: 'Book *title* <script> & [x]', downloadedAt: 'Now\n## injected' };
+  assert.equal((await h.send("CREATE", { count: 2, filename: "Synthetic.md", book: metadata, markdown: true })).created, true);
+  const first = '<a id="chapter-001"></a>\n\n## First\n\n' + 'Large UTF-8 🌻 text. '.repeat(100_000);
+  const second = '<a id="chapter-002"></a>\n\n## Second\n\nSecond chapter.';
+  await store(h, scope, 0, first, { ...chapterMetadata, title: 'First [link] <b>', creator: 'Creator *one*' });
+  scope = await h.restart();
+  assert.equal(h.records['collection-archive:' + id].markdown, true);
+  await store(h, scope, 1, second, { ...chapterMetadata, title: 'Second', creator: 'Creator two' });
+  assert.equal((await h.send("PACKAGE", { operationId: transferId })).started, true);
+  const text = fs.readFileSync(path.join(h.disk, 'patreon-archives-v1', id, 'archive.zip'), 'utf8');
+  assert.ok(text.startsWith('**Creator:** Creator \\*one\\*, Creator two\n\n'));
+  assert.ok(text.includes('**Download time:** Now \\#\\# injected\n'));
+  assert.ok(text.includes('**Source:** [https://www\\.patreon\\.com/collection/500](https://www.patreon.com/collection/500)'));
+  assert.ok(text.includes('# Book \\*title\\* &lt;script&gt; &amp; \\[x\\]'));
+  assert.ok(text.includes('- [First \\[link\\] &lt;b&gt;](#chapter-001)'));
+  assert.ok(text.includes('- [Second](#chapter-002)'));
+  assert.ok(text.endsWith(first + '\n\n---\n\n' + second + '\n'));
+  assert.ok(h.largestRead() <= 64 * 1024);
+  assert.ok(h.largestWrite() <= 64 * 1024);
+  assert.ok(h.largestDecode() <= 64 * 1024);
+  assert.equal(h.progress.at(-1).stage, 'finalize');
+  assert.equal(h.progress.at(-1).bytesCopied, h.progress.at(-1).bytesTotal);
+  assert.equal(h.writers.size, 0);
+});
+
+for (const corruption of ['utf8', 'truncated-utf8', 'crc', 'size', 'tamper']) {
+  test(`Single Markdown rejects ${corruption} corruption without handing off plaintext`, async t => {
+    const h = harness(t);
+    const scope = await h.restart();
+    assert.equal((await h.send('CREATE', { count: 1, filename: 'Synthetic.md', book, markdown: true })).created, true);
+    await store(h, scope, 0, corruption === 'utf8' ? Buffer.from([0x61, 0xff]) : corruption === 'truncated-utf8' ? Buffer.from([0x61, 0xe2]) : 'Valid chapter', chapterMetadata);
+    if (corruption !== 'utf8') {
+      const entry = h.records['collection-archive:' + id].entries[0];
+      if (corruption === 'crc') entry.crc = (entry.crc ^ 1) >>> 0;
+      if (corruption === 'size') entry.size--;
+      if (corruption === 'tamper') {
+        const file = path.join(h.disk, 'patreon-archives-v1', id, '0.deflate');
+        const bytes = fs.readFileSync(file); bytes[20] ^= 1; fs.writeFileSync(file, bytes);
+      }
+      await h.restart();
+    }
+    assert.ok((await h.send('PACKAGE')).error);
+    assert.equal(h.downloadCount(), 0);
+    assert.equal(fs.existsSync(path.join(h.disk, 'patreon-archives-v1', id, 'archive.zip')), false);
+    assert.equal(h.writers.size, 0);
+  });
+}
+
+test('Single Markdown validates format, metadata and staged chapter names including after restart', async t => {
+  const h = harness(t);
+  await h.restart();
+  for (const data of [
+    { filename: 'Synthetic.md', markdown: true },
+    { filename: 'Synthetic.md', book, markdown: 'true' },
+    { filename: 'Synthetic.epub', book, markdown: true },
+    { filename: 'Synthetic.md', book },
+    { filename: 'Synthetic.md', book, markdown: false }
+  ]) assert.match((await h.send('CREATE', { count: 1, ...data })).error, /metadata/);
+  assert.equal((await h.send('CREATE', { count: 1, filename: 'Synthetic.md', book, markdown: true })).created, true);
+  assert.match((await h.send('BEGIN', { index: 0, transferId, name: 'Chapter.epub', metadata: chapterMetadata })).error, /name/);
+  assert.match((await h.send('BEGIN', { index: 0, transferId, name: 'Chapter.md', metadata: {} })).error, /metadata/);
+  h.records['collection-archive:' + id].markdown = 'true';
+  await h.restart();
+  assert.match((await h.send('GET')).error, /expired/);
+  assert.equal(fs.existsSync(path.join(h.disk, 'patreon-archives-v1', id)), false);
+});
+
+for (const mode of ['quota', 'cancel']) {
+  test(`Single Markdown ${mode} removes partial plaintext and preserves disk lifecycle`, async t => {
+    let closed = false;
+    const h = harness(t, mode === 'quota' ? { maxBytes: 6000 } : { onProgress: () => { if (!closed) { closed = true; h.closeOwner(); } } });
+    const scope = await h.restart();
+    assert.equal((await h.send('CREATE', { count: 1, filename: 'Synthetic.md', book, markdown: true })).created, true);
+    await store(h, scope, 0, 'Synthetic content '.repeat(10000), chapterMetadata);
+    const result = await h.send('PACKAGE');
+    assert.ok(result.error);
+    if (mode === 'quota') { assert.match(result.error, /storage is full/); assert.ok((await h.send('GET')).entries[0]); }
+    else for (let i = 0; i < 50 && fs.existsSync(path.join(h.disk, 'patreon-archives-v1', id)); i++) await new Promise(resolve => setTimeout(resolve, 5));
+    assert.equal(h.downloadCount(), 0);
+    assert.equal(fs.existsSync(path.join(h.disk, 'patreon-archives-v1', id, 'archive.zip')), false);
+    assert.equal(h.writers.size, 0);
+  });
+}
+
+test('Single Markdown native delivery uses Markdown MIME and reports completion before cleanup', async t => {
+  const h = harness(t, { native: true });
+  const scope = await h.restart();
+  await h.send('CREATE', { count: 1, filename: 'Synthetic.md', book, markdown: true });
+  await store(h, scope, 0, '## Synthetic chapter\n\nText', chapterMetadata);
+  const result = await h.send('PACKAGE', { operationId: transferId });
+  assert.equal(result.started, true);
+  assert.equal(h.blobMessages.find(message => message.type === 'ARCHIVE_BLOB_OPEN').mime, 'text/markdown;charset=utf-8');
+  h.finishDownload(result.downloadId, 'complete');
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(h.notifications.filter(message => message.type === 'COLLECTION_ARCHIVE_RESULT' && message.state === 'complete').length, 1);
+  assert.equal(fs.existsSync(path.join(h.disk, 'patreon-archives-v1', id)), false);
+  assert.equal(h.records['collection-archive:' + id], undefined);
+});
+
+test('Markdown Blob handoff preserves disk-backed slicing and enforces the MIME allowlist', async () => {
+  let listener, mime;
+  const file = { size: 100, slice(start, end, type) { assert.equal(start, 0); assert.equal(end, 100); mime = type; return this; } };
+  const folder = { async getDirectoryHandle() { return this; }, async getFileHandle() { return { async getFile() { return file; } }; } };
+  vm.runInNewContext(fs.readFileSync(path.join(extension, 'export/archive-download.js'), 'utf8'), {
+    chrome: { runtime: { id: 'fixture', onMessage: { addListener(value) { listener = value; } } } },
+    navigator: { storage: { async getDirectory() { return folder; } } },
+    URL: { createObjectURL(value) { assert.equal(value, file); return 'blob:fixture'; }, revokeObjectURL() {} }
+  });
+  const send = type => new Promise(resolve => listener({ type: 'ARCHIVE_BLOB_OPEN', id, mime: type }, { id: 'fixture' }, resolve));
+  assert.equal((await send('text/markdown;charset=utf-8')).url, 'blob:fixture');
+  assert.equal(mime, 'text/markdown;charset=utf-8');
+  assert.match((await send('text/html')).error, /Unsupported/);
+});
+
+for (const mismatch of ['missing book', 'filename', 'chapter name', 'chapter metadata']) {
+  test(`Single Markdown restart rejects persisted ${mismatch} mismatch`, async t => {
+    const h = harness(t);
+    const scope = await h.restart();
+    await h.send('CREATE', { count: 1, filename: 'Synthetic.md', book, markdown: true });
+    await store(h, scope, 0, 'Synthetic chapter', chapterMetadata);
+    const record = h.records['collection-archive:' + id];
+    if (mismatch === 'missing book') delete record.book;
+    if (mismatch === 'filename') record.filename = 'Synthetic.epub';
+    if (mismatch === 'chapter name') record.entries[0].name = 'Chapter.epub';
+    if (mismatch === 'chapter metadata') delete record.entries[0].title;
+    await h.restart();
+    assert.match((await h.send('GET')).error, /expired/);
+    assert.equal(fs.existsSync(path.join(h.disk, 'patreon-archives-v1', id)), false);
+    assert.equal(h.downloadCount(), 0);
+  });
+}
+
+for (const mode of ["zip", "epub", "markdown"]) test(`${mode} output omits skipped chapters across restart while preserving order and navigation`, async t => {
+  const h = harness(t);
+  let scope = await h.restart();
+  const single = mode !== "zip";
+  await h.send("CREATE", { count: 5, filename: `Skip.${mode === "markdown" ? "md" : mode}`,
+    ...(single ? { book, ...(mode === "markdown" ? { markdown: true } : {}) } : {}) });
+  for (const index of [0, 2, 4]) assert.equal((await h.send("SKIP", { index })).skipped, true);
+  for (const index of [1, 3]) {
+    const navigation = '<nav aria-label="Chapter navigation"><p>Old links</p></nav>';
+    const data = mode === "epub" ? storedZip(scope, [["mimetype", "application/epub+zip"], ["EPUB/styles.css", "body{}"],
+      ["EPUB/post.xhtml", `<html><body>Chapter ${index}${navigation}</body></html>`]])
+      : `<a id="chapter-${String(index + 1).padStart(3, "0")}"></a>\n\nChapter ${index}`;
+    await store(h, scope, index, data, single ? { ...chapterMetadata, title: `Title ${index}` } : undefined);
+  }
+  await h.restart();
+  assert.equal((await h.send("GET")).entries[2].skipped, true);
+  assert.equal((await h.send("PACKAGE")).started, true);
+  const bytes = fs.readFileSync(path.join(h.disk, "patreon-archives-v1", id, "archive.zip"));
+  if (mode === "zip") assert.deepEqual(readZip(bytes).map(entry => entry.name), ["2 - Chapter.md", "4 - Chapter.md"]);
+  if (mode === "markdown") {
+    assert.match(bytes.toString(), /Title 1\]\(#chapter-002\)/);
+    assert.match(bytes.toString(), /Title 3\]\(#chapter-004\)/);
+    assert.doesNotMatch(bytes.toString(), /chapter-001|chapter-003|chapter-005/);
+  }
+  if (mode === "epub") {
+    const entries = readZip(bytes);
+    const first = entries.find(entry => entry.name === "EPUB/chapters/002/post.xhtml").data.toString();
+    const last = entries.find(entry => entry.name === "EPUB/chapters/004/post.xhtml").data.toString();
+    assert.match(first, /\.\.\/004\/post.xhtml/); assert.doesNotMatch(first, /Previous chapter/);
+    assert.match(last, /\.\.\/002\/post.xhtml/); assert.doesNotMatch(last, /Next chapter/);
+    assert.ok(entries.find(entry => entry.name === "EPUB/styles.css"));
+    const nav = entries.find(entry => entry.name === "EPUB/nav.xhtml").data.toString();
+    assert.match(nav, /chapters\/002\/post.xhtml/); assert.match(nav, /chapters\/004\/post.xhtml/);
+    assert.doesNotMatch(nav, /chapters\/(001|003|005)\/post.xhtml/);
+  }
 });
 
 test("single PDF packaging restores encrypted chapters and writes a direct PDF", async t => {

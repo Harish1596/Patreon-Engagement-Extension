@@ -367,7 +367,7 @@
     for (const match of value.matchAll(/`+/g)) length = Math.max(length, match[0].length + 1);
     return "`".repeat(length);
   }
-  function renderMarkdown(node, assets, depth = 0) {
+  function renderMarkdown(node, assets, depth = 0, headingOffset = 0) {
     if (node.nodeType === Node.TEXT_NODE) return markdownText(node.nodeValue || "");
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
     const tag = node.tagName.toLowerCase();
@@ -387,7 +387,7 @@
       const fence = codeFence(code, 1);
       return `${fence} ${code} ${fence}`;
     }
-    const children = [...node.childNodes].map(child => renderMarkdown(child, assets, depth + (tag === "blockquote" ? 1 : 0))).join("");
+    const children = [...node.childNodes].map(child => renderMarkdown(child, assets, depth + (tag === "blockquote" ? 1 : 0), headingOffset)).join("");
     if (tag === "img") {
       const asset = assets[Number(node.getAttribute("data-export-image"))];
       return asset ? `\n![${markdownText(node.getAttribute("alt") || "")}](${asset.dataUrl})\n` : "";
@@ -396,7 +396,7 @@
       const href = safeUrl(node.getAttribute("href"));
       return href ? `[${children}](${markdownUrl(href)})` : children;
     }
-    if (/^h[1-6]$/.test(tag)) return `\n${"#".repeat(Number(tag[1]))} ${children.trim()}\n\n`;
+    if (/^h[1-6]$/.test(tag)) return `\n${"#".repeat(Math.min(6, Number(tag[1]) + headingOffset))} ${children.trim()}\n\n`;
     if (tag === "p") return `\n${children.trim()}\n\n`;
     if (["strong", "b"].includes(tag)) return `**${children}**`;
     if (["em", "i"].includes(tag)) return `*${children}*`;
@@ -469,8 +469,14 @@
     return makeZip(entries);
   }
 
-  function markdownFor(post) {
-    return `**Creator:** ${markdownText(post.author)}\n\n**Download time:** ${markdownText(post.downloadedAt)}\n\n**Source:** [${markdownText(post.sourceUrl)}](${markdownUrl(post.sourceUrl)})\n\n---\n\n# ${markdownText(post.title)}\n\n${renderMarkdown(post.body, post.assets).trim()}\n`;
+  function markdownFor(post, chapter) {
+    const metadata = `**Creator:** ${markdownText(post.author)}\n\n**Download time:** ${markdownText(post.downloadedAt)}\n\n**Source:** [${markdownText(post.sourceUrl)}](${markdownUrl(post.sourceUrl)})`;
+    const content = renderMarkdown(post.body, post.assets, 0, chapter ? 2 : 0).trim();
+    if (chapter) {
+      const id = String(chapter.index + 1).padStart(3, "0");
+      return `<a id="chapter-${id}"></a>\n\n## ${markdownText(post.title)}\n\n${metadata}\n\n---\n\n${content}\n`;
+    }
+    return `${metadata}\n\n---\n\n# ${markdownText(post.title)}\n\n${content}\n`;
   }
 
   async function buildPortableFile(format, options) {
@@ -488,7 +494,7 @@
       return { title: post.title, extension: "pdf", encoding: "base64", data: base64(bytes) };
     }
     if (format === "markdown") {
-      return { title: post.title, extension: "md", encoding: "text", data: markdownFor(post) };
+      return { title: post.title, creator: post.author, language: post.language, extension: "md", encoding: "text", data: markdownFor(post, chapter) };
     }
     const bytes = new Uint8Array(await makeEpub(post, chapter).arrayBuffer());
     return { title: post.title, creator: post.author, language: post.language, extension: "epub", encoding: "base64", data: base64(bytes) };
@@ -498,7 +504,7 @@
     if (!["epub", "markdown", "pdf", "pdf-book"].includes(format) || snapshot?.postId !== postId(expectedUrl)) {
       throw new Error("The cached post does not match the requested chapter.");
     }
-    if (chapter && (format !== "epub" || !Number.isSafeInteger(chapter.index) || !Number.isSafeInteger(chapter.count)
+    if (chapter && (!Number.isSafeInteger(chapter.index) || !Number.isSafeInteger(chapter.count)
       || chapter.count < 1 || chapter.count > 100 || chapter.index < 0 || chapter.index >= chapter.count)) {
       throw new Error("The collection chapter position is invalid.");
     }

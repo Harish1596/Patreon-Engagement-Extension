@@ -18,7 +18,7 @@ async function bookFixture(page) {
     }) };
   });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("2 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
 }
 async function download(page, click) {
   const pending = page.waitForEvent("download"); await click();

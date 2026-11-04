@@ -1,4 +1,4 @@
-/* Collection export: combines accessible posts or packages separate chapter files. */
+/* Collection export: combined documents or individual chapter files in ZIPs. */
 (() => {
   const { api, call } = globalThis.PatreonExtension;
   const { fileStem, fileFromSnapshot } = globalThis.PatreonExporter;
@@ -17,6 +17,8 @@
   let discoveryTimer;
   let activeOperation = null;
   let checkpoint = null;
+  let permissionWait = null;
+  let refreshRequested = false;
   let downloadReport = null;
   let reportTimer;
   const cleanReportText = value => String(value || "").replace(/https?:\/\/[^\s<>"']+/gi, "[URL omitted]")
@@ -73,7 +75,7 @@
     if (downloadReport?.format) return; // Preserve the last attempt while its chooser is refreshed.
     if (!downloadReport) {
       downloadReport = { title: cleanReportText(collectionTitle()), source: `${location.origin}${location.pathname}`,
-        createdAt: new Date().toISOString(), format: "", state: "Preparation complete. Nothing downloaded yet.", posts: [], parts: new Map() };
+        createdAt: new Date().toISOString(), format: "", state: "Collection discovered. Nothing downloaded yet.", posts: [], parts: new Map() };
       reportTimer = setTimeout(resetDownloadReport, COLLECTION_CACHE_MS);
     }
     const posts = new Map();
@@ -81,7 +83,7 @@
       const url = reportUrl(post.url); if (url) posts.set(url, { url, title: cleanReportText(post.title), status: "skipped", reason: cleanReportText(post.reason) });
     }
     (prepared.postUrls || []).forEach((value, index) => {
-      const url = reportUrl(value); if (url) posts.set(url, { url, title: cleanReportText(prepared.postTitles?.[index]), status: "ready", reason: "" });
+      const url = reportUrl(value); if (url && !posts.has(url)) posts.set(url, { url, title: cleanReportText(prepared.postTitles?.[index]), status: "ready", reason: "" });
     });
     downloadReport.posts = [...posts.values()];
     // Older prepared sessions may only know the skipped count; never invent URLs or reasons.
@@ -154,6 +156,7 @@
 
   function finishOperation(operation = activeOperation) {
     if (!operation) return;
+    if (permissionWait?.operation === operation) { permissionWait.respond({ granted: false }); permissionWait = null; }
     clearInterval(operation.timer);
     operation.finishedAt ??= performance.now();
     renderElapsed(operation);
@@ -237,13 +240,6 @@
     shadow.querySelector(".restart").hidden = failed;
   }
 
-  function showPreparationError(error) {
-    if (error.name === "AbortError") return;
-    report(error.message || "The collection could not be prepared.", "error");
-    setProgress();
-    finishOperation();
-    setBusy(false);
-  }
 
   function rememberApiRequest(value) {
     try {
@@ -519,6 +515,28 @@
     renderDownloadReport();
   }
 
+  function showOptions(message = "Choose a format to start downloading.") {
+    if (shadow) shadow.querySelector(".intro").textContent = "Choose a single file or separate chapter files.";
+    if (!requestToken) requestToken = crypto.randomUUID();
+    finishOperation();
+    setBusy(false);
+    setProgress();
+    loadChooser();
+    report(message);
+    if (checkpoint) showRetry();
+  }
+
+  function showImagePermission() {
+    if (!permissionWait || !open) return;
+    chooser.hidden = false;
+    chooser.style.pointerEvents = "";
+    chooser.style.opacity = "1";
+    shadow.querySelector(".format-options").setAttribute("aria-hidden", "false");
+    shadow.querySelector(".intro").textContent = "Your download is waiting for image access.";
+    chooser.contentWindow?.postMessage({ source: "patreon-reader-collection-permission", token: requestToken,
+      requestId: permissionWait.id }, api.runtime.getURL("").replace(/\/$/, ""));
+  }
+
   function loadChooser() {
     chooser.hidden = false;
     chooser.src = `${api.runtime.getURL("export/collection-chooser.html")}?instance=${crypto.randomUUID()}#${requestToken}`;
@@ -533,13 +551,13 @@
     }).catch(() => {});
   }
 
-  async function prepareSession(prefix = "", refresh = false, operation = beginOperation(), continueOperation = false) {
+  async function discoverSession(refresh, operation) {
     checkOperation(operation);
     const signal = operation.controller.signal;
     const preparationRoute = route;
     setBusy(true);
     setProgress("Finding collection posts");
-    report(prefix || "Finding accessible posts in this collection…");
+    report("Finding accessible posts in this collection…");
     if (refresh) {
       clearDiscovery(); resetDownloadReport();
       // Generated chapter order/navigation can change, so discard output files;
@@ -598,10 +616,10 @@
     if (!result) {
       chooser.src = "about:blank";
       if (!refresh || !requestToken) requestToken = crypto.randomUUID();
-      setProgress("Preparing posts", 0, urls.length);
+      setProgress("Starting collection download", 0, urls.length);
       result = await waitFor(call(api.runtime, "sendMessage", {
         type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls, refresh,
-        revisions: discovered.revisions || [], operationId: operation.id
+        revisions: discovered.revisions || [], deferred: true, operationId: operation.id
       }), signal);
       if (!result?.registered) {
         prepareDownloadReport({ ...result, postUrls: [], skipped: result?.skippedPosts?.length || 0 }, discovered);
@@ -615,21 +633,9 @@
       || checkpoint.signature !== JSON.stringify(result.postUrls))) await dropCheckpoint();
     checkOperation(operation);
     prepareDownloadReport(result, discovered);
-    if (continueOperation) return result;
+    refreshRequested = false;
     loadChooser();
-    const skipped = result.skipped ? ` ${result.skipped} unavailable or unsupported ${result.skipped === 1 ? "post was" : "posts were"} skipped.` : "";
-    const lockedMessage = locked ? ` ${locked} locked ${locked === 1 ? "post was" : "posts were"} skipped.` : "";
-    const batches = result.count > BATCH_POSTS ? ` Downloads will be split into ${Math.ceil(result.count / BATCH_POSTS)} numbered parts of up to ${BATCH_POSTS} posts.` : "";
-    const reused = refresh && result.reused ? ` ${result.reused} unchanged cached ${result.reused === 1 ? "post was" : "posts were"} reused.` : "";
-    report(`${prefix ? `${prefix} ` : ""}${result.count} ${result.count === 1 ? "post is" : "posts are"} ready.${lockedMessage}${skipped}${reused}${batches}`, prefix ? "success" : "");
-    setProgress();
-    setBusy(false);
-    finishOperation(operation);
-    if (checkpoint) showRetry();
-    else {
-      const details = shadow.querySelector(".progress-details");
-      details.open = false; details.querySelector("summary").textContent = "Preparation details";
-    }
+    return result;
   }
 
   function showRetry() {
@@ -690,22 +696,26 @@
   async function run(format, start = checkpoint?.offset || 0, continuation = false) {
     if (busy) return;
     if (checkpoint && checkpoint.format !== format) start = 0;
-    const book = format === "epub-book" || format === "pdf-book";
-    const pdf = format === "pdf" || format === "pdf-book";
-    const outputFormat = format === "epub-book" ? "epub" : format;
+    const book = format === "epub-book";
+    const pdfBook = format === "pdf-book";
+    const pdf = pdfBook || format === "pdf";
+    const markdownBook = format === "markdown-book";
+    const single = book || markdownBook || pdfBook;
+    const extension = book ? "epub" : markdownBook ? "md" : pdfBook ? "pdf" : "zip";
+    const outputFormat = book ? "epub" : markdownBook ? "markdown" : format;
+    const documentLabel = book ? "EPUB book" : pdfBook ? "PDF book" : "Markdown file";
     const label = pdf ? "PDF" : outputFormat === "epub" ? "EPUB" : "Markdown";
-    const outputExtension = book ? (pdf ? "pdf" : "epub") : "zip";
     const operation = beginOperation();
     const signal = operation.controller.signal;
     setBusy(true);
-    setProgress(book ? `Building ${label} book` : `Building ${label} files`);
-    report(book ? `Building ${label} book…` : `Building ${label} files…`);
+    setProgress(single ? `Building ${documentLabel}` : `Building ${label} files`);
+    report(single ? `Building ${documentLabel}…` : `Building ${label} files…`);
     try {
-      let prepared = await waitFor(call(api.runtime, "sendMessage", {
+      let prepared = refreshRequested ? null : await waitFor(call(api.runtime, "sendMessage", {
         type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
       }), signal);
       if (!Number.isSafeInteger(prepared?.count)) {
-        prepared = await prepareSession("", false, operation, true);
+        prepared = await discoverSession(refreshRequested, operation);
       }
       if (!Number.isSafeInteger(prepared?.count) || prepared.count < 1) {
         throw new Error(prepared?.error || "The collection session is unavailable. Reopen Download Collection.");
@@ -716,7 +726,7 @@
         prepareDownloadReport(prepared, discoveryCache?.discovered);
       }
       downloadReport.mode = format;
-      downloadReport.format = book ? `Single ${label}` : `${label} files (ZIP)`;
+      downloadReport.format = single ? `Single ${label}` : `${label} files (ZIP)`;
       // Retry state comes from committed disk entries, not previous failed attempts.
       for (const post of downloadReport.posts) if (post.status !== "skipped" && !handedOff(post)) { post.status = "ready"; post.reason = ""; }
       reportState(start ? "Building the next part. Earlier parts were handed to the browser." : "Building chapters. No collection file downloaded yet.");
@@ -738,8 +748,8 @@
       if (!staged) {
         // Rebuild disk files only if the browser lost their temporary directory.
         await archive.request("CREATE", { id: checkpoint.id, count: checkpoint.count,
-          filename: `${fileStem(collectionTitle())}${suffix}.${outputExtension}`,
-          ...(book ? { book: { ...(pdf ? { format: "pdf" } : {}), title: `${collectionTitle()}${suffix}`, source: `${location.origin}${location.pathname}`,
+          filename: `${fileStem(collectionTitle())}${suffix}.${extension}`,
+          ...(single ? { ...(markdownBook ? { markdown: true } : {}), book: { ...(pdfBook ? { format: "pdf" } : {}), title: `${collectionTitle()}${suffix}`, source: `${location.origin}${location.pathname}`,
             downloadedAt: new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "long" }).format(new Date()) } } : {}) }, signal);
         checkpoint.entries = [];
       } else {
@@ -748,7 +758,10 @@
       counts(operation);
       for (let index = 0; index < checkpoint.count; index++) {
         const postIndex = offset + index;
-        if (checkpoint.entries[index]) { updateReportPost(prepared.postUrls[postIndex], "prepared", "Retained chapter reused."); continue; }
+        if (checkpoint.entries[index]) {
+          if (!checkpoint.entries[index].skipped) updateReportPost(prepared.postUrls[postIndex], "prepared", "Retained chapter reused.");
+          continue;
+        }
         try {
           currentPost(postIndex, prepared.count, prepared.postTitles?.[postIndex]);
           detail("bytes", "");
@@ -758,8 +771,20 @@
             type: "BUILD_COLLECTION_EXPORT", token: requestToken, format: "snapshot", index: postIndex, operationId: operation.id
           }), signal);
           checkOperation(operation);
-          if (!result?.files?.length) throw new Error(result?.error || "The post did not produce a file.");
+          if (result?.skippedPost?.url === prepared.postUrls[postIndex]) {
+            const skipped = await archive.request("SKIP", { id: checkpoint.id, index }, signal);
+            checkOperation(operation);
+            if (!skipped.skipped) throw new Error("The skipped chapter could not be recorded.");
+            checkpoint.entries[index] = skipped.entry;
+            updateReportPost(prepared.postUrls[postIndex], "skipped", result.skippedPost.reason);
+            counts(operation);
+            continue;
+          }
+          if (!result?.files?.length) throw Object.assign(new Error(result?.error || "The post did not produce a file."), { permissionDenied: result?.permissionDenied === true });
           currentPost(postIndex, prepared.count, result.files[0].title);
+          (prepared.postTitles ||= [])[postIndex] = result.files[0].title;
+          const row = downloadReport?.posts.find(post => post.url === prepared.postUrls[postIndex]);
+          if (row) row.title = cleanReportText(result.files[0].title);
           if (result.files[0].cached) operation.cached.add(index);
           counts(operation);
           report(result.files[0].cached ? "Reading cached chapter…" : "Receiving chapter…");
@@ -767,7 +792,7 @@
           if (file.extension !== "snapshot") throw new Error("The collection returned an invalid source snapshot.");
           report(`Formatting ${label} chapter…`);
           setProgress("Formatting chapter");
-          file = await fileFromSnapshot(JSON.parse(file.data), outputFormat, prepared.postUrls[postIndex], format === "epub-book" ? { index, count: checkpoint.count } : undefined, signal);
+          file = await fileFromSnapshot(JSON.parse(file.data), outputFormat, prepared.postUrls[postIndex], (book || markdownBook) ? { index, count: checkpoint.count } : undefined, signal);
           checkOperation(operation);
           checkpoint.entries[index] = await archive.store(checkpoint.id, index, decodeFile(file, postIndex, prepared.count), signal, progress => {
             if (activeOperation !== operation || signal.aborted) return;
@@ -783,6 +808,7 @@
           operation.failed.add(index);
           updateReportPost(prepared.postUrls[postIndex], "failed", error.message || "Export failed.");
           counts(operation);
+          if (error.permissionDenied) break;
         }
       }
       if (checkpoint.entries.filter(Boolean).length !== checkpoint.count) {
@@ -795,13 +821,26 @@
         showRetry();
         return;
       }
+      if (checkpoint.entries.every(entry => entry.skipped)) {
+        const next = offset + checkpoint.count;
+        await dropCheckpoint();
+        checkOperation(operation);
+        await call(api.runtime, "sendMessage", { type: "FINISH_COLLECTION_EXPORT", token: requestToken });
+        checkOperation(operation);
+        finishOperation(operation); setBusy(false);
+        if (next < prepared.count) return run(format, next, true);
+        reportState(downloadReport?.parts.size ? "Remaining posts were skipped. Earlier files were handed to the browser."
+          : "No supported text posts. Nothing downloaded.");
+        showOptions("No supported text posts in this part. Choose another format or refresh the collection.");
+        return;
+      }
       reportState("Chapters prepared. Packaging the collection file.");
-      report(book ? `Assembling ${label} book…` : "Packaging collection ZIP…");
-      setProgress(book ? `Assembling ${label} book` : "Packaging collection ZIP");
+      report(single ? `Assembling ${documentLabel}…` : "Packaging collection ZIP…");
+      setProgress(single ? `Assembling ${documentLabel}` : "Packaging collection ZIP");
       // Register before PACKAGE: a small native download can finish before its
       // request reply arrives. Keep results attached to this attempt and part.
-      const partResult = { urls: prepared.postUrls.slice(offset, offset + checkpoint.count),
-        filename: `${fileStem(collectionTitle())}${suffix}.${outputExtension}`, state: "pending", started: false };
+      const partResult = { urls: prepared.postUrls.slice(offset, offset + checkpoint.count).filter((url, index) => !checkpoint.entries[index].skipped),
+        filename: `${fileStem(collectionTitle())}${suffix}.${extension}`, state: "pending", started: false };
       downloadReport?.parts.set(checkpoint.id, partResult);
       const packaged = await archive.request("PACKAGE", { id: checkpoint.id, operationId: operation.id }, signal);
       checkOperation(operation);
@@ -824,8 +863,9 @@
         finishOperation(operation); setBusy(false);
         return run(format, next, true);
       }
-      await prepareSession(parts > 1 ? `${parts} ${book ? `${label} book` : `${label} ZIP`} part downloads started.`
-        : book ? `${label} book download started.` : `${label} ZIP download started.`, false, operation);
+      showOptions(parts > 1 ? `${parts} ${single ? documentLabel : `${label} ZIP`} part downloads started.`
+        : single ? `${documentLabel} download started.` : `${label} ZIP download started.`);
+
     } catch (error) {
       if (signal.aborted || activeOperation !== operation) return;
       reportState(`Collection download failed: ${cleanReportText(error.message || "Export failed.")} Chapters marked Prepared are retained for retry.`);
@@ -893,7 +933,7 @@
     chooser = element("iframe", { title: "Collection export formats", src: "about:blank" });
     const body = element("div", { class: "collection-body" });
     const formatOptions = element("div", { class: "format-options" });
-    formatOptions.append(element("p", { class: "intro" }, "Choose one book or separate chapter files."), chooser);
+    formatOptions.append(element("p", { class: "intro" }, "Choose a single file or separate chapter files."), chooser);
     body.append(formatOptions,
       element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
       element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
@@ -907,14 +947,16 @@
     const refresh = element("button", { type: "button", class: "close refresh" }, "Refresh collection");
     refresh.addEventListener("click", () => {
       if (busy) return;
-      prepareSession("", true).catch(showPreparationError);
+      clearDiscovery(); resetDownloadReport();
+      refreshRequested = true;
+      dropCheckpoint().then(() => showOptions("Choose a format to download the refreshed collection."));
     });
     const controls = element("div", { class: "controls" });
     style.textContent += ".controls{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:12px}.refresh{border-color:transparent;background:transparent;color:#60606c;font-size:12px}.refresh:hover:enabled{text-decoration:underline}@media(prefers-color-scheme:dark){.refresh{color:#b8b8c3;background:transparent}}";
     const cancel = element("button", { type: "button", class: "close cancel", hidden: "" }, "Cancel");
     cancel.addEventListener("click", cancelOperation);
     const restart = element("button", { type: "button", class: "close restart", hidden: "" }, "Start again");
-    restart.addEventListener("click", () => prepareSession().catch(showPreparationError));
+    restart.addEventListener("click", () => showOptions());
     const retry = element("button", { type: "button", class: "close retry", hidden: "" }, "Retry failed posts");
     retry.addEventListener("click", () => { if (checkpoint) run(checkpoint.format); });
     const reportView = element("details", { class: "download-report", hidden: "" });
@@ -933,8 +975,8 @@
       dialog.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
       dialog.focus();
-      if (busy) return;
-      prepareSession().catch(showPreparationError);
+      if (busy) { showImagePermission(); return; }
+      showOptions();
     });
     shadow.append(style, trigger, dialog);
     document.documentElement.append(host);
@@ -964,8 +1006,23 @@
   window.addEventListener("message", event => {
     if (!open || event.origin !== api.runtime.getURL("").replace(/\/$/, "")
       || event.source !== chooser?.contentWindow || event.data?.token !== requestToken) return;
+    if (event.data.source === "patreon-reader-collection-export") {
+      if (!busy && ["epub", "markdown", "epub-book", "markdown-book"].includes(event.data.format)) run(event.data.format);
+      return;
+    }
+    if (event.data.source === "patreon-reader-collection-permission-result") {
+      const waiting = permissionWait;
+      if (!waiting || waiting.id !== event.data.requestId || activeOperation !== waiting.operation
+        || waiting.operation.controller.signal.aborted) return;
+      permissionWait = null;
+      setBusy(true);
+      waiting.respond({ granted: event.data.granted === true });
+      return;
+    }
     if (event.data.source === "patreon-reader-collection-close") { close(true); return; }
     if (event.data.source === "patreon-reader-collection-size") {
+      // Four choices at doubled text can exceed 600px. The outer scroll body
+      // still bounds the panel while this finite limit keeps the frame usable.
       if (Number.isSafeInteger(event.data.height) && event.data.height >= 100 && event.data.height <= 2048) {
         chooser.style.height = `${event.data.height}px`;
         const height = event.data.height;
@@ -975,6 +1032,7 @@
           if (open && event.source === chooser?.contentWindow && event.data.token === requestToken
             && chooser.style.height === `${height}px`) {
             event.source.postMessage({ source: "patreon-reader-collection-sized", token: requestToken, height }, event.origin);
+            showImagePermission();
           }
         }));
       }
@@ -987,6 +1045,17 @@
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
+    if (message.type === "COLLECTION_MEDIA_PERMISSION") {
+      if (sender.tab || !busy || !activeOperation || message.token !== requestToken
+        || message.operationId !== activeOperation.id || activeOperation.controller.signal.aborted || permissionWait) {
+        respond({ granted: false }); return;
+      }
+      permissionWait = { id: crypto.randomUUID(), operation: activeOperation, respond };
+      report("Allow image access to continue the download.");
+      setProgress();
+      showImagePermission();
+      return true;
+    }
     if (message.type === "COLLECTION_ARCHIVE_RESULT") {
       const part = downloadReport?.parts?.get(message.id);
       if (sender.tab || !part || !["complete", "interrupted", "unavailable"].includes(message.state)) return;
@@ -1001,7 +1070,8 @@
       requestToken = "";
       clearDiscovery();
       chooser.src = "about:blank";
-      report("Cached collection data expired. Start again to prepare the collection.");
+      report("Cached collection data expired. Choose a format to download again.");
+      showOptions("Cached collection data expired. Choose a format to download again.");
       shadow.querySelector(".restart").hidden = false;
       shadow.querySelector(".progress-details").hidden = true;
       respond({ expired: true });
@@ -1023,8 +1093,8 @@
       if (message.type === "COLLECTION_ARCHIVE_HANDOFF") {
         activeOperation.handedOff = true;
         setBusy(true);
-        report(checkpoint.format.endsWith("-book") ? `Starting ${checkpoint.format === "pdf-book" ? "PDF" : "EPUB"} download…` : "Starting ZIP download…");
-        setProgress(checkpoint.format.endsWith("-book") ? `Starting ${checkpoint.format === "pdf-book" ? "PDF" : "EPUB"} download` : "Starting ZIP download");
+        report(checkpoint.format === "epub-book" ? "Starting EPUB download…" : checkpoint.format === "pdf-book" ? "Starting PDF download…" : checkpoint.format === "markdown-book" ? "Starting Markdown download…" : "Starting ZIP download…");
+        setProgress(checkpoint.format === "epub-book" ? "Starting EPUB download" : checkpoint.format === "pdf-book" ? "Starting PDF download" : checkpoint.format === "markdown-book" ? "Starting Markdown download" : "Starting ZIP download");
         respond({ handedOff: true });
       } else {
         if (!Number.isSafeInteger(message.current) || !Number.isSafeInteger(message.total)
@@ -1035,10 +1105,10 @@
         }
         currentPost(message.index + (checkpoint.offset || 0), checkpoint.total || message.total, message.name, "File");
         if (message.stage === "finalize") {
-          report(checkpoint.format.endsWith("-book") ? `Finalizing ${checkpoint.format === "pdf-book" ? "PDF" : "EPUB"}…` : "Finalizing ZIP…");
-          setProgress(checkpoint.format.endsWith("-book") ? `Finalizing ${checkpoint.format === "pdf-book" ? "PDF" : "EPUB"}` : "Finalizing ZIP");
+          report(checkpoint.format === "epub-book" ? "Finalizing EPUB…" : checkpoint.format === "pdf-book" ? "Finalizing PDF…" : checkpoint.format === "markdown-book" ? "Finalizing Markdown…" : "Finalizing ZIP…");
+          setProgress(checkpoint.format === "epub-book" ? "Finalizing EPUB" : checkpoint.format === "pdf-book" ? "Finalizing PDF" : checkpoint.format === "markdown-book" ? "Finalizing Markdown" : "Finalizing ZIP");
         } else if (message.stage === "render") { report("Generating PDF pages…"); setProgress("Generating PDF pages"); }
-        else byteProgress(checkpoint.format.endsWith("-book") ? `Assembling ${checkpoint.format === "pdf-book" ? "PDF" : "EPUB"} book` : "Packaging collection ZIP", message.bytesCopied, message.bytesTotal);
+        else byteProgress(checkpoint.format === "pdf-book" ? "Assembling PDF book" : checkpoint.format === "epub-book" ? "Assembling EPUB book" : checkpoint.format === "markdown-book" ? "Assembling Markdown file" : "Packaging collection ZIP", message.bytesCopied, message.bytesTotal);
         detail("bytes", `${bytes(message.bytesCopied)} of ${bytes(message.bytesTotal)} packaged`);
         respond({ reported: true });
       }
@@ -1078,7 +1148,7 @@
       respond({ reported: true });
       return;
     }
-    if (!["epub", "markdown", "epub-book", "pdf", "pdf-book"].includes(message.format)) {
+    if (!["epub", "markdown", "epub-book", "markdown-book", "pdf", "pdf-book"].includes(message.format)) {
       respond({ error: "The collection export format is invalid." });
       return;
     }

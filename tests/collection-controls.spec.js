@@ -5,7 +5,7 @@ const formats = page => page.frameLocator('iframe[title="Collection export forma
 async function ready(page) {
   await setup(page, { url: "https://www.patreon.com/collection/500", content: '<main><h1>Recovery collection</h1><a class="fixture_gridCard" href="/posts/101">First</a><a class="fixture_gridCard" href="/posts/102">Second</a></main>' });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("2 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
 }
 async function withinPanel(page, control) {
   const box = await control.boundingBox(), bounds = await panel(page).boundingBox();

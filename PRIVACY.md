@@ -34,7 +34,8 @@ create user-requested local exports:
   output rather than taken from the cached copy.
 - When the user explicitly exports a collection, it reads the post links rendered
   in that collection and temporarily opens or reuses those Patreon post pages to
-  create either one EPUB/PDF book or separate EPUB/PDF/Markdown files inside a local ZIP.
+  create one combined EPUB, Markdown or PDF file, or separate EPUB/PDF/Markdown
+  files inside a local ZIP.
   A single book also processes the collection title and builds local chapter
   navigation and a table of contents. Extension-created
   tabs are closed after preparation or individual chapter generation, and on

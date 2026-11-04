@@ -57,7 +57,7 @@ test("missing temporary storage produces a visible error without a partial downl
     navigator.storage.getDirectory = async () => { throw new Error("Temporary disk storage is unavailable."); };
   });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Temporary disk storage is unavailable");
   expect(downloads).toBe(0);

@@ -34,18 +34,18 @@ test("collection export creates ordered separate Markdown files in one ZIP", asy
   const progress = page.getByRole("progressbar", { name: "Collection download progress" });
   await expect(trigger).toBeVisible();
   await trigger.click();
-  await expect(progress).toBeVisible();
-  await expect(page.getByRole("status")).toContainText("3 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await expect(progress).toBeHidden();
+  const pending = page.waitForEvent("download");
+  await page.frameLocator('iframe[title="Collection export formats"]')
+    .getByRole("button", { name: "Markdown", exact: true }).click();
+  const download = await pending;
   expect(await page.evaluate(() => requestedCollectionUrls)).toEqual([
     "https://www.patreon.com/posts/101",
     "https://www.patreon.com/posts/102",
     "https://www.patreon.com/posts/103"
   ]);
-  const pending = page.waitForEvent("download");
-  await page.frameLocator('iframe[title="Collection export formats"]')
-    .getByRole("button", { name: "Markdown", exact: true }).click();
-  const download = await pending;
+
   expect(download.suggestedFilename()).toBe("Example collection.zip");
   const bytes = await downloadBytes(download);
   expect(bytes.readUInt16LE(8)).toBe(8);
@@ -84,7 +84,7 @@ test("collection EPUB ZIP compresses nested EPUBs without confusing macOS format
     globalThis.collectionBuildResult = { files: [{ title: "Example chapter", extension: "epub", encoding: "base64", data: btoa(binary) }] };
   });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("post is ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   const pending = page.waitForEvent("download");
   await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "EPUB", exact: true }).click();
   const bytes = await downloadBytes(await pending);
@@ -151,7 +151,9 @@ test("collection export follows API cursors and excludes only explicitly locked 
   }, apiBase);
 
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("3 posts are ready. 2 locked posts were skipped.");
+  const pending = page.waitForEvent("download");
+  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+  await pending;
   expect(await page.evaluate(() => requestedCollectionUrls)).toEqual([
     "https://www.patreon.com/posts/101",
     "https://www.patreon.com/posts/102",
@@ -181,86 +183,48 @@ for (const count of [1, 2]) {
       });
     }, apiBase);
     await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+    await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("locked for your current membership");
     await expect(page.getByRole("progressbar")).toBeHidden();
     expect(await page.evaluate(() => globalThis.requestedCollectionUrls)).toBeUndefined();
-    await expect(page.locator('iframe[title="Collection export formats"]')).toHaveAttribute("src", "about:blank");
+    await expect(page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
   });
 }
 
-test("collection reuses discovery and preparation across downloads and refreshes explicitly or on expiry", async ({ page }) => {
+test("collection does no work on open or refresh and reuses discovery after an actual download", async ({ page }) => {
   await setup(page, { content: '<main><h1>Cached collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
     url: "https://www.patreon.com/collection/500" });
   let apiCalls = 0;
-  let postCount = 1;
-  const apiBase = "https://www.patreon.com/api/posts?filter%5Bcollection_id%5D=500";
   await page.route("https://www.patreon.com/api/posts**", route => {
     apiCalls++;
-    return route.fulfill({ contentType: "application/json", body: JSON.stringify({
-      data: Array.from({ length: postCount }, (_, index) => ({ id: String(101 + index), type: "post",
-        attributes: { current_user_can_view: true } })),
-      meta: { pagination: { total: postCount } }
-    }) });
+    return route.fulfill({ json: { data: [{ id: "101", type: "post", attributes: { current_user_can_view: true } }], meta: { pagination: { total: 1 } } } });
   });
-  await page.evaluate(url => {
+  await page.evaluate(() => {
     const original = performance.getEntriesByType.bind(performance);
-    Object.defineProperty(performance, "getEntriesByType", {
-      configurable: true, value: type => type === "resource" ? [...original(type), { name: url }] : original(type)
-    });
-    globalThis.collectionBuildResult = { files: [{ title: "Post", extension: "md", encoding: "text", data: "# Post" }] };
-  }, apiBase);
+    Object.defineProperty(performance, "getEntriesByType", { value: type => type === "resource"
+      ? [...original(type), { name: "https://www.patreon.com/api/posts?filter%5Bcollection_id%5D=500" }] : original(type) });
+  });
   const trigger = page.getByRole("button", { name: "Download Collection", exact: true });
   const close = page.getByRole("button", { name: "Close collection download", exact: true });
-  const status = page.getByRole("status");
+  const formats = page.frameLocator('iframe[title="Collection export formats"]');
   await trigger.click();
-  await expect(status).toContainText("1 post is ready");
-  await close.click();
-  await trigger.click();
-  await expect(status).toContainText("1 post is ready");
+  await expect(formats.getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
+  await close.click(); await trigger.click();
+  expect(apiCalls).toBe(0); expect(await page.evaluate(() => collectionPrepareCount)).toBe(0);
   for (const format of ["Markdown", "EPUB"]) {
     const pending = page.waitForEvent("download");
-    await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: format, exact: true }).click();
-    await pending;
-    await expect(status).toContainText(`${format} ZIP download started. 1 post is ready`);
+    await formats.getByRole("button", { name: format, exact: true }).click(); await pending;
+    await expect(page.getByRole("status")).toContainText("download started");
   }
-  expect(apiCalls).toBe(1);
-  expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
-
-  await close.click();
-  await page.evaluate(() => { const original = Date.now; Date.now = () => original() + 119 * 60_000; });
-  await trigger.click();
-  await expect(status).toContainText("1 post is ready");
-  expect(apiCalls).toBe(1);
-  expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
-
-  postCount = 2;
+  expect(apiCalls).toBe(1); expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
   await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
-  await expect(status).toContainText("2 posts are ready");
-  expect(apiCalls).toBe(2);
-  expect(await page.evaluate(() => collectionPrepareCount)).toBe(2);
-
-  await page.evaluate(() => forgetCollectionSessions());
-  await close.click();
-  await trigger.click();
-  await expect(status).toContainText("2 posts are ready");
-  expect(apiCalls).toBe(2);
-  expect(await page.evaluate(() => collectionPrepareCount)).toBe(3);
-
-  await close.click();
-  await page.evaluate(() => { const original = Date.now; Date.now = () => original() + 121 * 60_000; });
-  await trigger.click();
-  await expect(status).toContainText("2 posts are ready");
-  expect(apiCalls).toBe(3);
-  expect(await page.evaluate(() => collectionPrepareCount)).toBe(4);
-
-  await close.click();
-  await page.evaluate(() => {
-    history.pushState({}, "", "/collection/501");
-    document.body.append(document.createElement("div"));
-  });
-  await trigger.click();
-  await expect(status).toContainText("1 post is ready");
-  expect(await page.evaluate(() => collectionPrepareCount)).toBe(5);
+  await expect(page.getByRole("status")).toContainText("Choose a format");
+  expect(apiCalls).toBe(1); expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
+  const pending = page.waitForEvent("download");
+  await formats.getByRole("button", { name: "Markdown", exact: true }).click(); await pending;
+  await expect(page.getByRole("status")).toContainText("download started");
+  expect(apiCalls).toBe(2); expect(await page.evaluate(() => collectionPrepareCount)).toBe(2);
+  expect(await page.evaluate(() => collectionPrepareRequests.every(request => request.deferred === true))).toBe(true);
 });
 
 for (const phase of ["PREPARE_COLLECTION_EXPORT", "BUILD_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_CHUNK", "COLLECTION_ARCHIVE_CHUNK", "COLLECTION_ARCHIVE_PACKAGE"]) {
@@ -271,11 +235,9 @@ for (const phase of ["PREPARE_COLLECTION_EXPORT", "BUILD_COLLECTION_EXPORT", "GE
     page.on("download", () => { downloads++; });
     if (phase === "PREPARE_COLLECTION_EXPORT") await page.evaluate(type => { globalThis.collectionMessageHolds = [type]; }, phase);
     await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-    if (phase !== "PREPARE_COLLECTION_EXPORT") {
-      await expect(page.getByRole("status")).toContainText("1 post is ready");
-      await page.evaluate(type => { globalThis.collectionMessageHolds = [type]; }, phase);
-      await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
-    }
+    await expect(page.getByRole("status")).toContainText("Choose a format");
+    await page.evaluate(type => { globalThis.collectionMessageHolds = [type]; }, phase);
+    await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
     await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe(phase);
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
@@ -285,7 +247,7 @@ for (const phase of ["PREPARE_COLLECTION_EXPORT", "BUILD_COLLECTION_EXPORT", "GE
     await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
     expect(downloads).toBe(0);
     await page.getByRole("button", { name: "Start again", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("1 post is ready");
+    await expect(page.getByRole("status")).toContainText("Choose a format");
     const pending = page.waitForEvent("download");
     await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
     await pending;
@@ -297,10 +259,14 @@ test("Cancel during cached-session recovery cannot start a late preparation", as
     url: "https://www.patreon.com/collection/500" });
   const trigger = page.getByRole("button", { name: "Download Collection", exact: true });
   await trigger.click();
-  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
+  const first = page.waitForEvent("download");
+  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click(); await first;
+  await expect(page.getByRole("status")).toContainText("download started");
   await page.getByRole("button", { name: "Close collection download", exact: true }).click();
   await page.evaluate(() => { forgetCollectionSessions(); globalThis.collectionMessageHolds = ["CANCEL_COLLECTION_EXPORT"]; });
   await trigger.click();
+  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
   await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("CANCEL_COLLECTION_EXPORT");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
@@ -332,6 +298,7 @@ test("Cancel aborts API discovery without falling back to Load more", async ({ p
       value: type => type === "resource" ? [...original(type), { name: url }] : original(type) });
   }, apiBase);
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
   await expect.poll(() => started).toBe(true);
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
@@ -340,14 +307,14 @@ test("Cancel aborts API discovery without falling back to Load more", async ({ p
   expect(await page.evaluate(() => window.loadClicks || 0)).toBe(0);
   expect(await page.evaluate(() => collectionPrepareCount)).toBe(0);
   await page.getByRole("button", { name: "Start again", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
 });
 
 test("Cancel during compression prevents a late ZIP download", async ({ page }) => {
   await setup(page, { content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
     url: "https://www.patreon.com/collection/500" });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   let downloads = 0;
   page.on("download", () => { downloads++; });
   await page.evaluate(() => {
@@ -368,7 +335,7 @@ test("Cancel during compression prevents a late ZIP download", async ({ page }) 
   await expect(page.getByRole("status")).toHaveText("Cancelled. You can start again.");
   await page.evaluate(() => { globalThis.CompressionStream = originalCompressionStream; releaseCompression(); });
   await page.getByRole("button", { name: "Start again", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   expect(downloads).toBe(0);
 });
 
@@ -376,11 +343,11 @@ test("collection panel accepts chooser errors only from its current frame and to
   await setup(page, { content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
     url: "https://www.patreon.com/collection/500" });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   const body = page.frameLocator('iframe[title="Collection export formats"]').locator("body");
   await body.evaluate(() => parent.postMessage({ source: "patreon-reader-collection-error",
     token: "old-token", error: "Ignored stale error" }, "https://www.patreon.com"));
-  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await body.evaluate(() => parent.postMessage({ source: "patreon-reader-collection-error",
     token: location.hash.slice(1), error: "The collection session expired. Reopen Download Collection." }, "https://www.patreon.com"));
   await expect(page.getByRole("status")).toContainText("session expired");
@@ -425,7 +392,7 @@ for (const failure of ["build", "chunk"]) {
     page.on("download", () => { downloads++; });
     const trigger = page.getByRole("button", { name: "Download Collection", exact: true });
     await trigger.click();
-    await expect(page.getByRole("status")).toContainText("3 posts are ready");
+    await expect(page.getByRole("status")).toContainText("Choose a format");
     await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: format, exact: true }).click();
     await expect(page.getByRole("status")).toContainText("2 of 3 posts retained. 1 failed.");
     expect(downloads).toBe(0);
@@ -464,7 +431,7 @@ test("packaging retry reuses every completed chapter", async ({ page }) => {
     globalThis.failArchivePackaging = true;
   });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("1 post is ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
   await expect(page.getByRole("button", { name: "Retry packaging", exact: true })).toBeVisible();
   await page.evaluate(() => { globalThis.failArchivePackaging = false; });
@@ -479,13 +446,13 @@ test("Refresh collection discards retained chapters before a new export", async 
     url: "https://www.patreon.com/collection/500" });
   await page.evaluate(() => { globalThis.collectionFailedIndices = [1]; });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("2 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   const markdown = () => page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true });
   await markdown().click();
   await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeVisible();
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; });
   await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("2 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeHidden();
   const pending = page.waitForEvent("download");
   await markdown().click();

@@ -29,6 +29,27 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+**November 5, 2026 — PDF/Markdown/on-demand integration:** The combined tree
+preserves immediate format selection, deferred collection discovery, per-chapter
+image approval, Single Markdown, and all EPUB/Markdown ZIP behavior while adding
+Single PDF and PDF ZIP. Combined PDFs omit the persistent skipped-post slots from
+the on-demand pipeline; PDF ZIP filenames retain discovered chapter numbering.
+
+`npm run test:tooling` passes **125 cases**; `npm run check` validates **86 JavaScript
+files**; `npm run package -- --force` validates the extension archive. New DOM
+integration cases run all six collection modes through the real controller and
+storage writers, verify no registration before selection and check skipped posts
+in both PDF modes. The 101-post PDF split and retry/cancellation cases remain
+covered. A focused independent integration review passed 14 PDF collection,
+chooser-permission and PDF-service cases; a minor merged chooser markup omission
+was corrected and no remaining findings were reported.
+
+Browser attempts remain blocked: `npm test -- --max-failures=1` stops at one Chrome
+launch failure with 138 cases not run; `npm run test:brave -- tests/installed-pdf.spec.js
+--max-failures=1` also fails at launch. Both show SIGABRT/cleanup EPERM before any
+page assertion. Browser/native/CSP/layout and live Patreon verification are still
+pending. Earlier dated successes/failures below remain their own checkpoints.
+
 Direct PDF downloads, November 4, 2026 (development branch): **98 Node tooling
 cases passed**, including real packaged-worker PDF generation, independent PDF.js
 parsing, real post/collection controller execution in jsdom, both collection
@@ -70,6 +91,49 @@ PDF renders a bounded part in memory; only the EPUB path retains its streamed
 book-assembly contract. No total RAM ceiling, live Patreon compatibility or
 PDF/UA certification is claimed. The renderer/fonts are packaged locally and no
 conversion service receives post contents.
+Single Markdown collections, November 4, 2026: **88 Chrome cases, 12 Brave cases
+including the installed extension, and 89 tooling cases passed**. Syntax covers
+60 JavaScript files; whitespace checks pass. Commands:
+
+```sh
+npx playwright test tests/collection-markdown.spec.js tests/collection-controls.spec.js tests/ui-readability.spec.js tests/popup.spec.js tests/collection-menu.spec.js tests/collection-completion.spec.js tests/collection-batches.spec.js tests/collection-retry.spec.js tests/collection-refresh.spec.js tests/collection-report.spec.js tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js tests/export.spec.js tests/export-security.spec.js
+npm run test:brave -- tests/collection-markdown.spec.js tests/collection-menu.spec.js tests/collection-controls.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+New feature cases first failed without Single Markdown support. Backend tests
+exercise raw UTF-8 output rather than ZIP bytes, restart metadata, escaped titles,
+TOC order, bounded reads/writes/decoding, size/CRC/authentication/UTF-8 failures,
+quota, cancellation and native MIME/cleanup. Browser cases inspect combined
+metadata, local anchors, nested headings, Unicode and embedded images, preserved
+Markdown ZIP output, chapter/packaging retry, cancellation and 101-post parts.
+The installed Brave fixture saves an actual `.md`, checks content/images/completed
+report and confirms cache reuse after worker restart and final disk cleanup.
+Packaging includes the new worker module through the explicit allowlist; its
+presence assertion was observed failing before the allowlist correction.
+
+Fresh independent review found the four-choice initial 200% text layout exceeded
+the former 600px frame allowance, leaving every choice disabled. A dedicated
+initial-render case failed before correction, then passed with a 1,000px finite
+bound. Source/origin/token/integer guards remain; the outer body still bounds the
+panel viewport. Reviewer recheck measured 761px frame/756px content at 360×740 and
+613px frame/608px content at 1280×900, all four choices enabled and no inner frame
+scrollbar. Normal light/dark/narrow captures were inspected; one mechanical scan
+was clean. No second detector scan was needed for the numeric bound correction.
+
+The initial installed run expected a saved-media popup section concurrently
+removed in intentional user work. Its obsolete assertion was removed; popup
+implementation changes were preserved separately. An enlarged-text fixture also
+incorrectly compared against a fixed 300px baseline; it now uses the initial
+measured height. These failures were distinct from the new Markdown writer.
+
+Collections retain the 1,000-discovered-post and 100-chapter-part bounds, shared
+archive/source disk limits, existing permissions and access checks. There is no
+collection-sized aggregate message or buffer. These are synthetic and isolated
+installed-extension checks, not a live Patreon or universal Markdown-viewer/zoom
+compatibility claim. Earlier test counts remain dated checkpoints below.
 
 All five UI critique findings, November 4, 2026: **84 Chrome cases, 14 Brave cases
 including the installed extension, and 74 tooling cases passed**. Syntax covers
@@ -1078,3 +1142,41 @@ including an elevated retry, before any test body ran. Browser plugin not
 available; regular Playwright was used. Rendered light/dark layout and remote
 image export regressions remain unverified in this task; no live Patreon check.
 Unrelated in-progress download changes were present and excluded from this commit.
+
+
+November 4, 2026 — On-demand collection downloads. Opening the chooser now
+performs no collection fetch or preflight visits. Selecting a format starts URL
+discovery, then describes/builds each uncached chapter in the same document.
+New image hosts pause for a direct extension-frame permission click. Denial stops
+the attempt. Unsupported/unavailable posts are skipped at generation time and
+omitted from all four output modes; sparse EPUB navigation and Markdown anchors
+preserve discovered numbering. Refresh defers rereading until a format is chosen.
+
+Checks and reproducible commands:
+
+```sh
+npm run test:tooling
+npm run check
+git diff --check
+npx playwright test --list
+npx playwright test tests/collection-demand.spec.js tests/collection-menu.spec.js tests/collection-export.spec.js tests/collection-refresh.spec.js tests/collection-retry.spec.js tests/collection-report.spec.js tests/collection-batches.spec.js tests/collection-book.spec.js tests/collection-markdown.spec.js tests/collection-controls.spec.js tests/collection-progress.spec.js tests/collection-completion.spec.js
+npm run test:brave -- tests/collection-demand.spec.js tests/collection-menu.spec.js tests/installed.spec.js
+```
+
+Node regressions first demonstrated the old eager chooser/session and post visits,
+then passed after the change. Follow-up failing regressions reproduced unsupported
+chapter blocking and skip-aware assembly, then passed after the fix. The permission
+denial flag was also verified RED→GREEN. Final checks pass: **98 tooling tests**, syntax for **61 JavaScript files**,
+and `git diff --check`. `npx playwright test --list` collects **129 browser cases
+in 23 files**; collection does not execute them. One independent read-only reviewer found the
+unsupported-post regression (fixed with generation-time skips and writer tests)
+and an installed Refresh assertion that no longer exercised download reuse (now
+selects a format before asserting). No additional reviewer pass was performed.
+
+Browser plugin not available. `npm run test:brave -- tests/collection-menu.spec.js`
+failed to launch for all five cases. `npm test -- --max-failures=1` collected 124
+cases at that point, then stopped at the first Chrome launch failure (appearance
+spec); 123 were not run. Both browsers aborted with SIGABRT and kill EPERM,
+including elevated execution. Later added skip/permission fixtures have not run.
+This is an environment blocker, not a passing rendered/browser/native-download
+check. No live Patreon request, account payload, image URL or permission was used.

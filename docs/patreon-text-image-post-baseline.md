@@ -1783,3 +1783,82 @@ messaging/CSP, browser conversion and chooser layout still require browser QA.
 The collection chooser adds two existing-style choices and raises its accepted
 measured height bound from 600 to 2,048px, retaining the outer panel's scrolling
 and fixed recovery controls. No rendered browser layout pass is claimed.
+
+
+**November 4 Single Markdown collections:** The existing collection chooser now
+offers both Single Markdown (`.md`) and Markdown ZIP, alongside its two EPUB
+choices. The combined file has collection Creator/Download time/Source metadata,
+a collection title and linked contents list, ordered level-two chapter titles,
+per-post metadata and embedded inline images. Generated chapter anchors use local
+part numbering; body headings nest under their chapter. Standalone post and
+separate-file Markdown output keep their original document structure.
+
+The controller stages each generated chapter independently and requests a validated
+Markdown document mode on the existing archive job. A dedicated worker module
+streams authenticated/decompressed UTF-8 chapters into disk output, checking raw
+size and CRC. It uses text/markdown;charset=utf-8 for native delivery and shares
+existing retry, cancellation, ownership, expiry, quota and completion cleanup.
+Metadata mode/filename mismatches are rejected at creation and restoration. No
+new permission, data source or Patreon DOM selector was introduced. Prepared
+sources are reused; larger collections retain 100-chapter numbered parts.
+
+Four choices at initial doubled text can exceed the previous 600px frame limit.
+A failing synthetic case and independent review established this; the finite
+allowance is now 1,000px while the parent scroll body remains viewport bounded.
+Initial enlarged choices were rechecked at narrow and desktop sizes. Native Brave
+verifies actual combined Markdown saving, embedded images and confirmed completion.
+The explicit extension package allowlist includes the new writer. These are fixture
+and installed-extension observations, not new live Patreon evidence.
+
+
+**November 4 on-demand collection downloads:** Opening/reopening Download
+Collection now displays all four format choices without collection API discovery,
+Load more clicks, post descriptions or worker-tab visits. A format choice starts
+URL discovery and registers metadata only (`deferred` session mode); there is no
+separate all-post preflight pass. Each uncached chapter describes and exports the
+same loaded document. Completed source snapshots still support other formats and
+retries without network reads. Existing open matching tabs are reused. Refresh
+invalidates discovery/output state; rereading starts with the next format choice.
+
+Image hosts are discovered per chapter during that selected download. Existing
+browser grants proceed automatically. Missing exact HTTPS-host grants pause for
+an extension-frame Allow images and continue click while retaining the loaded
+post. The frame reads required origins from the worker session; the worker checks
+actual grants again before build. Token, frame origin/source, request ID and
+operation checks guard the exchange. Cancel/navigation resolve pending waits and
+close owned workers; dismissal/reopen retains the waiting operation. Denial stops
+the attempt rather than repeatedly requesting the same host on later chapters.
+No broad HTTPS grant, manifest permission or Patreon selector was added.
+
+Unavailable/unsupported descriptions are reported as skipped during generation,
+matching the previous preflight exclusion boundary. Persistent archive skip
+markers distinguish them from retryable missing chapters. All output modes omit
+skipped slots while preserving discovered numbering; sparse book paths/Markdown
+anchors can have gaps. Single EPUB assembly repairs previous/next links and TOC,
+manifest and spine for included chapters. Only a skipped-part EPUB's chapter XHTML
+is buffered for navigation repair; image resources remain streamed. An entirely
+skipped part produces no empty native file. Build/image/formatting failures retain
+the existing retry requirement, and skipped posts are excluded from native result
+membership.
+
+Synthetic Node regressions cover no-visit registration, same-document approval,
+denial/cancellation, cache hits, worker restart and skip-aware ZIP/EPUB/Markdown
+assembly/navigation. Updated browser fixtures cover delayed discovery, permission
+wait guards/reopen/cancel, skips, refresh, retries, batching and installed output.
+Browser execution is blocked by Chrome/Brave launch aborts (SIGABRT/EPERM), even
+with elevation. No rendered/native-permission or live Patreon confirmation is
+claimed for this change; see TESTING.md for exact commands/results.
+
+
+**November 5 export integration:** The Markdown/on-demand collection changes and
+PDF changes are combined. The chooser has six options (Single EPUB/Markdown/PDF,
+and individual EPUB/Markdown/PDF ZIPs), plus the existing per-chapter image
+permission section. Opening still performs no discovery or post visits. PDF modes
+use the deferred source pipeline and omit its persisted skipped-post slots;
+collections entirely skipped in a part do not create empty downloads. Combined
+PDFs include only supported chapters in order; ZIP numbering keeps discovered
+positions. The finite measured chooser height bound is 2,048px, superseding the
+separate four-choice 1,000px bound while preserving source/origin/token guards and
+outer scrolling. No new Patreon selectors, access permissions or cache boundaries
+are introduced. Synthetic tooling and independent integration review pass; the
+current browser launch blocker still prevents native/layout/live confirmation.

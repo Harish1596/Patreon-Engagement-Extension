@@ -2,9 +2,10 @@
 (() => {
   async function write({ job, output, chapterBytes, fileFor, check, progress }) {
     const chapters = []; let total = 0; let copied = 0;
-    for (const entry of job.entries) total += entry.size;
+    const included = Array.from({ length: job.count }, (_, index) => index).filter(index => !job.entries[index].skipped);
+    for (const index of included) total += job.entries[index].size;
     if (total > PatreonPdf.MAX_INPUT) throw new Error('This PDF part exceeds the 24 MiB input limit. Use individual PDF files.');
-    for (let index = 0; index < job.count; index++) {
+    for (const index of included) {
       check(job);
       const entry = job.entries[index];
       const iterator = chapterBytes(await fileFor(index), job, index)[Symbol.asyncIterator]();
@@ -38,11 +39,11 @@
       } finally { job.controller.signal.removeEventListener('abort', abort); await reader.cancel().catch(() => {}); reader.releaseLock(); }
     }
     check(job);
-    await progress(job.count - 1, copied, total, 'render');
+    await progress(included.at(-1), copied, total, 'render');
     const bytes = await globalThis.PatreonPdfRenderService.render(chapters, job.book, job.controller.signal);
     check(job);
     for (let offset = 0; offset < bytes.length; offset += 64 * 1024) { check(job); await output(bytes.subarray(offset, offset + 64 * 1024)); }
-    await progress(job.count - 1, copied, total, 'finalize');
+    await progress(included.at(-1), copied, total, 'finalize');
   }
   globalThis.PatreonPdfBook = Object.freeze({ write });
 })();

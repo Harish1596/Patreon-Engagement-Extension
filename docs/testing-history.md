@@ -4,6 +4,29 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Combined export integration
+
+**November 5, 2026 — PDF/Markdown/on-demand integration:** The combined tree
+preserves immediate format selection, deferred collection discovery, per-chapter
+image approval, Single Markdown, and all EPUB/Markdown ZIP behavior while adding
+Single PDF and PDF ZIP. Combined PDFs omit the persistent skipped-post slots from
+the on-demand pipeline; PDF ZIP filenames retain discovered chapter numbering.
+
+`npm run test:tooling` passes **125 cases**; `npm run check` validates **86 JavaScript
+files**; `npm run package -- --force` validates the extension archive. New DOM
+integration cases run all six collection modes through the real controller and
+storage writers, verify no registration before selection and check skipped posts
+in both PDF modes. The 101-post PDF split and retry/cancellation cases remain
+covered. A focused independent integration review passed 14 PDF collection,
+chooser-permission and PDF-service cases; a minor merged chooser markup omission
+was corrected and no remaining findings were reported.
+
+Browser attempts remain blocked: `npm test -- --max-failures=1` stops at one Chrome
+launch failure with 138 cases not run; `npm run test:brave -- tests/installed-pdf.spec.js
+--max-failures=1` also fails at launch. Both show SIGABRT/cleanup EPERM before any
+page assertion. Browser/native/CSP/layout and live Patreon verification are still
+pending. Earlier dated successes/failures below remain their own checkpoints.
+
 ## November 4, 2026 — Direct PDF development checkpoint
 
 Direct PDF downloads, November 4, 2026 (development branch): **98 Node tooling
@@ -1571,3 +1594,60 @@ permission API. Scoped whitespace checks pass. The 18 targeted popup/export
 browser cases could not start: Chrome aborted at launch, including an elevated
 retry. No rendered or live Patreon verification is claimed. Unrelated download
 work already in progress was excluded from this focused commit.
+
+
+## November 4, 2026 — Add combined Markdown collection downloads
+
+Added Single Markdown alongside Markdown ZIP, mirroring EPUB's combined/separate
+choices. Combined documents carry collection and chapter metadata, linked contents,
+ordered nested headings and embedded inline media. Independent encrypted retry
+chapters feed a bounded streaming Markdown writer; raw output is UTF-8 `.md`, not
+a renamed ZIP. Existing native delivery, completion reports, cache, ownership,
+quota, cancellation and numbered parts are retained. Mode and filename validation
+survive worker restoration. The packaged extension includes the writer explicitly.
+
+Final verification: 88 Chrome cases, 12 Brave cases including installed extension,
+89 tooling cases, syntax for 60 JavaScript files and whitespace checks. Feature,
+backend-mode and package-presence assertions were observed failing before their
+implementations. Tests cover ordered metadata/Unicode/embedded media, chapter and
+packaging retry, cancel/101-post parts, authenticated stream/CRC/size/UTF-8 failure,
+restart, quotas and native MIME/cleanup. Native Brave checks real `.md` content,
+completion and reused sources after worker restart.
+
+Independent review reproduced disabled choices when initial doubled text exceeded
+the old 600px allowance. A failing initial-render regression now passes with a
+1,000px bound; sender/token guards and outer viewport bounds remain. The reviewer
+verified all four choices at 360×740 and 1280×900; no other material issue was found
+in the scoped review. One mechanical scan was clean. Initial fixture issues were
+a fixed three-choice resize baseline and an expectation for the concurrently
+removed popup media section; intentional user popup changes were kept separate.
+No live private collection, universal viewer rendering or full browser-zoom matrix
+was claimed. Existing part/storage limits remain in force.
+
+
+## November 4, 2026 — Fetch collections only after choosing a format
+
+Removed eager collection/post preflight from the menu entry path. Format choices
+are local; the chosen download discovers URLs and reads each uncached chapter
+once, retaining its document through any exact-host permission click. Existing
+source caches, ordered parts, retry files and native result tracking remain.
+Refresh waits for the next selection. Cancellation/dismissal retain their distinct
+stop/hide behavior, including an image-permission pause.
+
+Independent review caught unsupported posts becoming mandatory failed entries.
+Generation-time skips and persistent archive skip metadata now omit these
+slots; sparse book navigation/TOC and Markdown contents retain the valid order.
+No empty file is handed off for an all-skipped part. A stale installed Refresh
+assertion now performs the selected download before checking cache reuse.
+
+RED→GREEN evidence includes eager chooser/session reads, metadata-only worker
+registration, unsupported-post skipping, ZIP/EPUB/Markdown skipped-slot assembly
+across restart, and permission-denial reporting. Chrome/Brave still abort during
+launch, including elevated attempts; rendered layout, real permission gestures,
+native output and live Patreon behavior are unverified for this task. Current
+commands and final results are in TESTING.md. No new permission, data source or
+Patreon DOM selector was introduced.
+
+Final local evidence: 98 tooling tests pass; 61 JavaScript files pass syntax checks;
+whitespace checks pass; Playwright collects 129 cases across 23 files. Browser
+execution remains blocked as described above, so no browser success is implied.

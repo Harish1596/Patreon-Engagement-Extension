@@ -8,7 +8,7 @@ async function fixture(page, count = 2) {
     title: `Chapter ${index + 1}`, extension: "md", encoding: "text", data: `Body ${index + 1}`
   })), skipped: 0 }; }, count);
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(`${count} posts are ready`);
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await report(page).locator("summary").click();
 }
 async function download(page) {
