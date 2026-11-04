@@ -1726,3 +1726,14 @@ is dismissed. This supersedes the five open critique findings' implementation
 status, not the original dated score or evidence limits. The source remains a
 Patreon-integrated extension with unchanged access, origin and cache policy; no
 new live Patreon DOM evidence or full accessibility certification is implied.
+
+
+**November 4 saved media access UI removal:** The toolbar popup now contains only
+its two preference toggles and page-connection status. The saved-origin count and
+Forget media access action, including their popup handlers/styles, are removed.
+This supersedes the November 2 popup permission-management behavior above.
+Download-triggered exact-origin permission requests, saved browser grants and
+external image fetching are retained. No grant is revoked by opening the popup.
+No Patreon markup, selector or Reader boundary changes are introduced. Syntax
+and a Node VM popup smoke check pass; browser verification is blocked by Chrome
+aborting at launch, including an elevated retry. No live Patreon check was made.

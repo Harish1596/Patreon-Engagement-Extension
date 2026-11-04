@@ -77,31 +77,20 @@ test("popup distinguishes page connection failures from unsupported or undetecte
 });
 
 
-test("forgetting optional media access preserves Patreon access and saved preferences, and reports failure", async ({ page }) => {
+test("popup leaves saved media grants to the download flow", async ({ page }) => {
   const fs = require("node:fs");
   const html = fs.readFileSync(path.join(extensionRoot, "popup/popup.html"), "utf8").replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
   await setup(page, { content: html });
   await page.evaluate(() => {
-    globalThis.mediaGrants = ["https://www.patreon.com/*", "https://media.example/*"];
+    globalThis.permissionCalls = [];
     chrome.permissions = {
-      getAll(callback) { callback({ origins: [...mediaGrants] }); },
-      remove({ origins }, callback) {
-        globalThis.revokedOrigins = origins;
-        if (globalThis.failRevoke) { callback(false); return; }
-        globalThis.mediaGrants = mediaGrants.filter(origin => !origins.includes(origin)); callback(true);
-      }
+      getAll() { permissionCalls.push("getAll"); },
+      remove() { permissionCalls.push("remove"); }
     };
   });
   await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
-  await expect(page.locator("#media-status")).toContainText("1 saved media origin");
-  const before = await page.evaluate(() => readStored());
-  await page.evaluate(() => { globalThis.failRevoke = true; });
-  await page.getByRole("button", { name: "Forget media access" }).click();
-  await expect(page.locator("#media-status")).toContainText("Unable to remove");
-  await page.evaluate(() => { globalThis.failRevoke = false; });
-  await page.getByRole("button", { name: "Forget media access" }).click();
-  await expect(page.locator("#media-status")).toHaveText("No saved media access.");
-  expect(await page.evaluate(() => revokedOrigins)).toEqual(["https://media.example/*"]);
-  expect(await page.evaluate(() => mediaGrants)).toEqual(["https://www.patreon.com/*"]);
-  expect(await page.evaluate(() => readStored())).toEqual(before);
+  await expect(page.locator("#status")).toHaveText("Preferences apply to all posts");
+  await expect(page.getByRole("region", { name: "Media permissions" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Forget media access" })).toHaveCount(0);
+  expect(await page.evaluate(() => permissionCalls)).toEqual([]);
 });

@@ -389,8 +389,8 @@ npm run check
 git diff --check
 ```
 
-The popup regression revokes only optional media origins, preserves required
-Patreon access and preferences, and reports failed removal. Native installed
+At that historical checkpoint, the popup regression covered optional-origin
+revocation. The November 4 UI removal below supersedes that popup behavior. Native installed
 Brave checks the real permission-list API plus encryption, downloads, worker
 restart and cleanup. Markdown security tests parse the output with development-only
 CommonMark. These synthetic/installed fixtures do not establish authenticated
@@ -1018,3 +1018,21 @@ Responsive narrow-window behavior does not establish mobile extension support.
 Post export adds optional, on-demand HTTPS media-origin access and a packaged
 background worker. It adds no remote executable code, remote fonts, or third-party
 runtime dependency.
+
+
+November 4, 2026 — Saved media access popup UI removal. Removed the count,
+Forget action and associated popup code/styles; download permission requests and
+external-image fetching remain unchanged. The popup regression now checks that
+opening it does not query/revoke grants and exposes no permission-management UI.
+
+Current checks: `npm run check` passes (60 JavaScript files in the working tree).
+A temporary Node VM smoke check passes: popup initialization/page status and both
+preference saves work with a permission API that throws on any access; markup has
+no media-management section. `git diff --check` passes for the changed files.
+
+Attempted `npx playwright test tests/popup.spec.js tests/export-security.spec.js
+tests/export.spec.js` (18 cases). Chrome aborted during launch (SIGABRT/EPERM),
+including an elevated retry, before any test body ran. Browser plugin not
+available; regular Playwright was used. Rendered light/dark layout and remote
+image export regressions remain unverified in this task; no live Patreon check.
+Unrelated in-progress download changes were present and excluded from this commit.

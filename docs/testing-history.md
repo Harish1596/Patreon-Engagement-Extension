@@ -1505,3 +1505,16 @@ change was needed. No runtime access/permission/CSP change, live account inspect
 or formal assistive-technology conformance claim was introduced. The original
 28/40 critique remains historical. Minor pre-existing caveat: reopening after a
 finished hidden operation restores the ready headline while retaining its report.
+
+
+## November 4, 2026 — Remove popup media permission management
+
+Removed Saved media access and Forget media access from the popup, with their
+handlers/styles. Exact-origin permission requests and external image fetching
+remain in the download flow. Updated the obsolete popup regression accordingly.
+Syntax passes for 60 JavaScript files in the working tree; a temporary Node VM
+smoke check confirms page status and both preference saves without accessing the
+permission API. Scoped whitespace checks pass. The 18 targeted popup/export
+browser cases could not start: Chrome aborted at launch, including an elevated
+retry. No rendered or live Patreon verification is claimed. Unrelated download
+work already in progress was excluded from this focused commit.
