@@ -188,6 +188,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
     browser, URL, Map, Set, Promise, Uint8Array, AbortController,
     TextEncoder, TextDecoder, importScripts() {}, caches: { async open() { return cache; } }, Blob, Response,
     PatreonArchives: { install() {} },
+    PatreonOffscreen: { create() {} }, PatreonPdfRenderer: { install() {} },
     PatreonExportRetention: { create: () => retention },
     Date: class extends Date { static now() { return Date.now() + elapsed; } }, Error, Array,
     crypto: { subtle: require("node:crypto").webcrypto.subtle, getRandomValues: bytes => require("node:crypto").webcrypto.getRandomValues(bytes), randomUUID: () => `00000000-0000-4000-8000-${String(nextTransferId++).padStart(12, "0")}` },

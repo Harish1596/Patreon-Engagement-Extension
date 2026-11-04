@@ -24,6 +24,7 @@
       } catch { return false; }
     }
     let offscreen;
+    const offscreenService = globalThis.PatreonOffscreenService;
     function call(target, method, ...args) {
       if (globalThis.browser?.runtime) return target[method](...args);
       return new Promise((resolve, reject) => target[method](...args, result => {
@@ -135,7 +136,8 @@
       });
       if (api.offscreen && await api.offscreen.hasDocument()) {
         await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_CLOSE", id: job.id }).catch(() => {});
-        if (![...jobs.values()].some(item => item.downloading || item.blobOpen)) await api.offscreen.closeDocument();
+        if (offscreenService) await offscreenService.release(`archive:${job.id}`);
+        else if (![...jobs.values()].some(item => item.downloading || item.blobOpen)) await api.offscreen.closeDocument();
       }
       retention?.changed();
       return true;
@@ -189,6 +191,7 @@
       } catch (error) { throw new Error(`Temporary archive storage cannot be inspected: ${error.message}`); }
       if (!download) for (const job of [...jobs.values()]) {
         if (job.downloadId === undefined) continue;
+        if (offscreenService) await offscreenService.acquire(`archive:${job.id}`);
         const [state] = await call(api.downloads, "search", { id: job.downloadId });
         if (!state) await finishDownload(job, "unavailable");
         else if (["complete", "interrupted"].includes(state.state)) await finishDownload(job, state.state, state.error);
@@ -210,12 +213,15 @@
       if (download) return download(job, await (await (await folder(job)).getFileHandle("archive.zip")).getFile());
       job.blobOpen = true;
       try {
+        if (offscreenService) await offscreenService.acquire(`archive:${job.id}`);
+        else {
         if (!offscreen) offscreen = (async () => {
           if (!await api.offscreen.hasDocument()) await api.offscreen.createDocument({
             url: "export/archive-download.html", reasons: ["BLOBS"], justification: "Save a disk-backed collection ZIP and release it when its download finishes."
           });
         })().finally(() => { offscreen = null; });
         await offscreen;
+        }
         check(job);
         const blob = await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_OPEN", id: job.id, mime: job.book ? "application/epub+zip" : "application/zip" });
         if (!blob?.url?.startsWith(`blob:${api.runtime.getURL("")}`)) throw new Error(blob?.error || "The archive download could not be opened.");
@@ -237,7 +243,8 @@
         job.blobOpen = false;
         if (await api.offscreen.hasDocument()) {
           await call(api.runtime, "sendMessage", { type: "ARCHIVE_BLOB_CLOSE", id: job.id }).catch(() => {});
-          if (![...jobs.values()].some(item => item.downloading || item.blobOpen)) await api.offscreen.closeDocument();
+          if (offscreenService) await offscreenService.release(`archive:${job.id}`);
+        else if (![...jobs.values()].some(item => item.downloading || item.blobOpen)) await api.offscreen.closeDocument();
         }
         throw error;
       }

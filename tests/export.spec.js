@@ -91,45 +91,25 @@ test("EPUB is a self-contained stored ZIP with post XHTML and image bytes", asyn
   expect(bytes.includes(Buffer.from("<svg"))).toBe(true);
 });
 
-test("PDF prepares a sanitized offline print view and invokes native printing", async ({ page }) => {
+test("PDF downloads a selectable offline document without a print frame or title mutation", async ({ page }) => {
   const content = require("./helpers/reader").fixture.replace("A sample post", "A / sample: post?").replace('<div class="actions">',
     '<div data-tag="post-details"><a href="/example">Example Creator</a></div><div class="actions">');
   await setup(page, { content });
-  await page.evaluate(() => {
-    document.title = "Existing Patreon tab title";
-    const observer = new MutationObserver(() => {
-      const frame = document.querySelector("[data-patreon-export-print-frame]");
-      if (!frame) return;
-      frame.contentWindow.print = () => {
-        window.printedExportHtml = frame.contentDocument.documentElement.outerHTML;
-        window.printedTabTitle = document.title;
-        window.exportPrintCalled = true;
-      };
-      observer.disconnect();
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-  });
+  await page.evaluate(() => { document.title = "Existing Patreon tab title"; window.print = () => { throw new Error("Print must not run"); }; });
   await downloadButton(page).click();
+  const pending = page.waitForEvent("download");
   await chooseFormat(page, "PDF");
-  await expect(downloadDialog(page).getByRole("status")).toContainText("Save as PDF");
-  const result = await page.evaluate(() => ({
-    html: printedExportHtml, printed: exportPrintCalled,
-    printedTabTitle, restoredTabTitle: document.title
-  }));
-  expect(result.printed).toBe(true);
-  expect(result.html).toContain("<title>A sample post</title>");
-  expect(result.html).toContain("<h1>A / sample: post?</h1>");
-  expect(result.printedTabTitle).toBe("A sample post");
-  expect(result.restoredTabTitle).toBe("Existing Patreon tab title");
-  expect(result.html).toContain("<dt>Creator</dt><dd>Example Creator</dd>");
-  expect(result.html).toContain("<dt>Download time</dt>");
-  expect(result.html).toContain("<dt>Source</dt>");
-  expect(result.html.indexOf('<dl class="metadata">')).toBeLessThan(result.html.indexOf("<h1>A / sample: post?</h1>"));
-  expect(result.html).toContain("https://www.patreon.com/example/posts/test-123");
-  expect(result.html).toContain("@page{margin:0}");
-  expect(result.html).toContain("data:image/svg+xml");
-  expect(result.html).not.toContain("A comment.");
-  expect(result.html).not.toContain("<script");
+  const download = await pending;
+  expect(download.suggestedFilename()).toBe("A sample post.pdf");
+  const { inspectPdf } = require("./helpers/pdf");
+  const pdf = await inspectPdf(await downloadBytes(download));
+  const text = pdf.pages.map(page => page.text).join(" ");
+  expect(text).toContain("A / sample: post?");
+  expect(text).toContain("Example Creator");
+  expect(text).toContain("Download time");
+  expect(text).not.toContain("A comment.");
+  await expect(page).toHaveTitle("Existing Patreon tab title");
+  await expect(page.locator("[data-patreon-export-print-frame]")).toHaveCount(0);
 });
 
 test("remote post media requests only its exact origin and embeds returned bytes", async ({ page }) => {

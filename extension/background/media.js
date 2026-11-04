@@ -1,7 +1,9 @@
 /* Fetches post media only after the user grants the exact image origin. */
-importScripts("../shared/zip.js", "../shared/retry.js", "retention.js", "disk-crypto.js", "post-cache.js", "epub-book.js", "archives.js");
+importScripts("../shared/pdf.js", "offscreen.js", "pdf-renderer.js", "../shared/zip.js", "../shared/retry.js", "retention.js", "disk-crypto.js", "post-cache.js", "epub-book.js", "archives.js");
 globalThis.PatreonDiskCrypto = globalThis.PatreonExportCrypto.create();
 globalThis.PatreonRetention = globalThis.PatreonExportRetention.create();
+globalThis.PatreonOffscreenService = globalThis.PatreonOffscreen.create();
+globalThis.PatreonPdfRenderService = globalThis.PatreonPdfRenderer.install();
 globalThis.PatreonArchives.install();
 (() => {
   const api = globalThis.browser?.runtime ? globalThis.browser : globalThis.chrome;

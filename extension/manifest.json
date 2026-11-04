@@ -35,7 +35,7 @@
     {
       "matches": ["https://www.patreon.com/*"],
       "css": ["content/content.css"],
-      "js": ["shared/extension.js", "shared/zip.js", "shared/retry.js", "content/patreon-dom.js", "content/reader.js", "content/export.js", "content/archive-stream.js", "content/collection-export.js", "content/content.js"],
+      "js": ["shared/extension.js", "shared/zip.js", "shared/retry.js", "shared/pdf.js", "shared/pdf-client.js", "content/patreon-dom.js", "content/reader.js", "content/export.js", "content/archive-stream.js", "content/collection-export.js", "content/content.js"],
       "run_at": "document_start"
     }
   ]

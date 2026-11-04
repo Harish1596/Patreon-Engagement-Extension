@@ -42,6 +42,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
     ` + fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.js"), "utf8")
   }));
   await page.goto(url);
+  await require("./pdf").pdfWorkerFixture(page);
   await page.evaluate(({ stored, namespace }) => {
     delete globalThis.browser;
     delete globalThis.chrome;
@@ -83,6 +84,14 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             await new Promise(resolve => { globalThis.releaseCollectionMessage = resolve; });
             globalThis.collectionLateReplyReleased = true;
           }
+          if (message.type === "PDF_RENDER") {
+            try {
+              const bytes = await pdfFixtureRender(message.chapters, message.book);
+              let binary = ""; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+              return { data: btoa(binary) };
+            } catch (error) { return { error: error.message }; }
+          }
+          if (message.type === "PDF_CANCEL") return { cancelled: true };
           if (message.type.startsWith("COLLECTION_ARCHIVE_")) {
             if (message.type === "COLLECTION_ARCHIVE_CHUNK") {
               globalThis.archiveChunkSizes ||= [];
@@ -262,6 +271,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
   await page.addScriptTag({ path: path.join(extensionRoot, "background/epub-book.js") });
   await page.addScriptTag({ path: path.join(extensionRoot, "background/archives.js") });
   await page.evaluate(() => {
+    globalThis.PatreonPdfRenderService = { render: pdfFixtureRender };
     globalThis.archiveTestBackend = PatreonArchives.install({ download: async (job, file) => {
       globalThis.collectionArchiveHandoffs ||= [];
       globalThis.collectionArchiveHandoffs.push({ id: job.id, filename: job.filename });
