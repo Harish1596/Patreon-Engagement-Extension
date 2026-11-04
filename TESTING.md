@@ -29,6 +29,14 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Product context initialisation, November 4, 2026: documentation/configuration
+only. `PRODUCT.md` records the user's confirmed audience (free and paid Patreon
+users) and equal priority for reading comfort and offline downloads. The selected
+comp-first workflow is stored only in `.impeccable/config.json`. JSON parsing,
+product schema/platform checks, relative-link checks and `git diff --check` pass.
+Runtime/browser suites were not rerun for this documentation-only task. Live-mode
+injection is not configured for production Patreon pages or extension frames.
+
 Collection menu layout, November 4, 2026: **71 Chrome export cases,
 5 Brave cases including the installed extension, and 74 tooling cases passed**.
 Syntax covers 56 JavaScript files; whitespace checks pass. Commands:

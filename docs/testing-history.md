@@ -1427,3 +1427,20 @@ view. The superseded broad run was interrupted before final passing runs. Native
 Brave verifies all three formats and repeated downloads. No signed-in live Patreon
 collection was inspected; arbitrary browser zoom and localization remain outside
 this bounded layout matrix.
+
+
+## November 4, 2026 — Initialise durable product context
+
+Created `PRODUCT.md` from repository evidence and the user's explicit answers:
+Patreon users in general, free or paid; equal emphasis on reading comfort and
+offline downloads. Recorded existing local-processing, membership-access,
+preference/cache, focus and reporting boundaries without inventing a broader
+roadmap or competitive claims. Saved the user's comp-first choice for future
+new UI surfaces as `buildPath: comp` in `.impeccable/config.json`, separately from
+product facts. No visual system, runtime code, permission or CSP was changed.
+
+Validation: parsed the workflow JSON, checked the product schema and web platform,
+resolved product-document relative links, and passed whitespace checks. No runtime
+or browser tests were rerun for this documentation/configuration change. Live mode
+was left unconfigured because this extension operates inside Patreon pages and
+extension-origin frames rather than a local application development server.
