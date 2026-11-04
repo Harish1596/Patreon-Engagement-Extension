@@ -47,8 +47,11 @@ test("download report lists skipped and failed posts, redacts URLs, and updates 
   await page.getByRole("button", { name: "Close collection download" }).click();
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   await expect(report(page)).toContainText("2 included");
-  await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
-  await expect(report(page)).toBeHidden();
+  const next = page.waitForEvent("download");
+  await startCollectionDownload(formats(page), "Markdown"); await next;
+  const replaced = await reportText(page);
+  expect(replaced).toContain("Format: Markdown files (ZIP)");
+  expect(replaced).not.toContain("Format: Single EPUB");
 });
 
 test("packaging failure keeps prepared outcomes and sanitizes failure messages", async ({ page }) => {

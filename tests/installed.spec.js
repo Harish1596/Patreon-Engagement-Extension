@@ -292,7 +292,8 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       return count;
     })).toBe(0);
     await expect.poll(() => popup.evaluate(() => chrome.offscreen.hasDocument())).toBe(false);
-    await collection.getByRole("button", { name: "Refresh collection", exact: true }).click();
+    await collection.getByRole("button", { name: "Close collection download", exact: true }).click();
+    await collectionDownload.click();
     await expect(collection.getByRole("status")).toContainText("Choose a format");
     await downloadCollectionZip(() => startCollectionDownload(collection.frameLocator('iframe[title="Collection export formats"]'), "Markdown"));
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });

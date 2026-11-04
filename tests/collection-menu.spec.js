@@ -128,3 +128,14 @@ for (const [width, height] of [[1280, 740], [800, 600], [360, 740]]) {
     await page.screenshot({ path: `/tmp/collection-selector-layout-${width}.png` });
   });
 }
+
+test('collection downloads need no manual refresh and hide the empty action footer', async ({ page }) => {
+  await fixture(page);
+  await expect(page.getByRole('button', { name: /refresh collection/i })).toHaveCount(0);
+  await expect(page.locator('.controls')).toBeHidden();
+  const pending = page.waitForEvent('download');
+  await frame(page).locator('#download-collection').click(); await pending;
+  await expect(page.getByRole('status')).toContainText('download started');
+  await expect(page.locator('.controls')).toBeHidden();
+  await page.screenshot({ path: '/tmp/collection-no-refresh.png' });
+});

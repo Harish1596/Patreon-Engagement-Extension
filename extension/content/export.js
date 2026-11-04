@@ -257,7 +257,7 @@
   function hydrateSnapshot(snapshot) {
     if (snapshot?.version !== 1 || !Array.isArray(snapshot.assets)
       || ![snapshot.title, snapshot.author, snapshot.sourceUrl, snapshot.language].every(value => typeof value === "string")) {
-      throw new Error("The cached post is invalid. Refresh collection to fetch it again.");
+      throw new Error("The cached post is invalid and cannot be exported.");
     }
     function node(tree, depth = 0) {
       if (depth > 200) throw new Error("The cached post is too deeply nested.");

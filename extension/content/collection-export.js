@@ -18,7 +18,6 @@
   let activeOperation = null;
   let checkpoint = null;
   let permissionWait = null;
-  let refreshRequested = false;
   let downloadReport = null;
   let reportTimer;
   const cleanReportText = value => String(value || "").replace(/https?:\/\/[^\s<>"']+/gi, "[URL omitted]")
@@ -88,7 +87,7 @@
     downloadReport.posts = [...posts.values()];
     // Older prepared sessions may only know the skipped count; never invent URLs or reasons.
     const unknown = Math.max(0, (prepared.skipped || 0) - (prepared.skippedPosts?.length || 0));
-    for (let index = 0; index < unknown; index++) downloadReport.posts.push({ url: "", title: "Unidentified post", status: "skipped", reason: "Unavailable or unsupported. Refresh collection for individual details." });
+    for (let index = 0; index < unknown; index++) downloadReport.posts.push({ url: "", title: "Unidentified post", status: "skipped", reason: "Unavailable or unsupported. Individual post details were not provided." });
     renderDownloadReport();
   }
   function updateReportPost(url, status, reason = "") {
@@ -506,8 +505,6 @@
     if (!value) { const details = shadow?.querySelector(".progress-details"); if (details) details.open = false; }
     const close = shadow?.querySelector(".close");
     if (close) close.disabled = false;
-    const refresh = shadow?.querySelector(".refresh");
-    if (refresh) { refresh.disabled = value; refresh.hidden = value; }
     const cancel = shadow?.querySelector(".cancel");
     if (cancel) { cancel.hidden = !value || activeOperation?.handedOff; cancel.disabled = false; }
     shadow?.querySelector(".format-options")?.setAttribute("aria-hidden", String(value));
@@ -552,20 +549,14 @@
     }).catch(() => {});
   }
 
-  async function discoverSession(refresh, operation) {
+  async function discoverSession(operation) {
     checkOperation(operation);
     const signal = operation.controller.signal;
     const preparationRoute = route;
     setBusy(true);
     setProgress("Finding collection posts");
     report("Finding accessible posts in this collection…");
-    if (refresh) {
-      clearDiscovery(); resetDownloadReport();
-      // Generated chapter order/navigation can change, so discard output files;
-      // the worker reconciles reusable source records in the existing namespace.
-      await dropCheckpoint();
-      checkOperation(operation);
-    } else if (discoveryCache && discoveryCache.expires <= Date.now()) {
+    if (discoveryCache && discoveryCache.expires <= Date.now()) {
       clearDiscovery(); resetDownloadReport();
       await discardPreparation(true);
       checkOperation(operation);
@@ -592,17 +583,15 @@
     const { urls, locked } = discovered;
     if (urls.length + (locked || 0) > 1000) throw new Error("This collection contains more than 1,000 posts. Choose a smaller collection.");
     if (!urls.length && locked) {
-      if (refresh) { await discardPreparation(true); checkOperation(operation); }
       prepareDownloadReport({ postUrls: [], skippedPosts: [] }, discovered);
       reportState("No accessible posts. Nothing downloaded.");
       throw new Error(`${locked === 1 ? "The only post is" : `All ${locked} posts are`} locked for your current membership. Nothing was downloaded.`);
     }
     if (!urls.length) {
-      if (refresh) { await discardPreparation(true); checkOperation(operation); }
       throw new Error("No post links were found in this collection.");
     }
     let result;
-    if (requestToken && !refresh) {
+    if (requestToken) {
       try {
         const existing = await waitFor(call(api.runtime, "sendMessage", {
           type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
@@ -616,10 +605,10 @@
     checkOperation(operation);
     if (!result) {
       chooser.src = "about:blank";
-      if (!refresh || !requestToken) requestToken = crypto.randomUUID();
+      requestToken = crypto.randomUUID();
       setProgress("Starting collection download", 0, urls.length);
       result = await waitFor(call(api.runtime, "sendMessage", {
-        type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls, refresh,
+        type: "PREPARE_COLLECTION_EXPORT", token: requestToken, urls,
         revisions: discovered.revisions || [], deferred: true, operationId: operation.id
       }), signal);
       if (!result?.registered) {
@@ -634,7 +623,6 @@
       || checkpoint.signature !== JSON.stringify(result.postUrls))) await dropCheckpoint();
     checkOperation(operation);
     prepareDownloadReport(result, discovered);
-    refreshRequested = false;
     loadChooser();
     return result;
   }
@@ -712,11 +700,11 @@
     setProgress(single ? `Building ${documentLabel}` : `Building ${label} files`);
     report(single ? `Building ${documentLabel}…` : `Building ${label} files…`);
     try {
-      let prepared = refreshRequested ? null : await waitFor(call(api.runtime, "sendMessage", {
+      let prepared = await waitFor(call(api.runtime, "sendMessage", {
         type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
       }), signal);
       if (!Number.isSafeInteger(prepared?.count)) {
-        prepared = await discoverSession(refreshRequested, operation);
+        prepared = await discoverSession(operation);
       }
       if (!Number.isSafeInteger(prepared?.count) || prepared.count < 1) {
         throw new Error(prepared?.error || "The collection session is unavailable. Reopen Download Collection.");
@@ -832,7 +820,7 @@
         if (next < prepared.count) return run(format, next, true);
         reportState(downloadReport?.parts.size ? "Remaining posts were skipped. Earlier files were handed to the browser."
           : "No supported text posts. Nothing downloaded.");
-        showOptions("No supported text posts in this part. Choose another format or refresh the collection.");
+        showOptions("No supported text posts in this part. Choose another format.");
         return;
       }
       reportState("Chapters prepared. Packaging the collection file.");
@@ -945,15 +933,8 @@
     }
     style.textContent += ".progress-details p{margin:4px 0;font-size:12px;overflow-wrap:anywhere}.progress-details [data-progress-current]{color:inherit;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.progress-details{margin-top:12px}.progress-details summary{color:#60606c;font-size:12px;cursor:pointer}.progress-details[open] summary{margin-bottom:8px}section{max-height:calc(100vh - 98px);max-height:calc(100dvh - 98px);overflow:auto}";
     body.append(details);
-    const refresh = element("button", { type: "button", class: "close refresh" }, "Refresh collection");
-    refresh.addEventListener("click", () => {
-      if (busy) return;
-      clearDiscovery(); resetDownloadReport();
-      refreshRequested = true;
-      dropCheckpoint().then(() => showOptions("Choose a format to download the refreshed collection."));
-    });
     const controls = element("div", { class: "controls" });
-    style.textContent += ".controls{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:12px}.refresh{border-color:transparent;background:transparent;color:#60606c;font-size:12px}.refresh:hover:enabled{text-decoration:underline}@media(prefers-color-scheme:dark){.refresh{color:#b8b8c3;background:transparent}}";
+    style.textContent += ".controls{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:12px}.controls:not(:has(>button:not([hidden]))){display:none}";
     const cancel = element("button", { type: "button", class: "close cancel", hidden: "" }, "Cancel");
     cancel.addEventListener("click", cancelOperation);
     const restart = element("button", { type: "button", class: "close restart", hidden: "" }, "Start again");
@@ -967,7 +948,7 @@
     saveReport.addEventListener("click", saveDownloadReport); reportView.append(saveReport);
     style.textContent += ".download-report{margin-top:14px;border-top:1px solid #dedee3;padding-top:10px}.download-report summary{cursor:pointer;font-weight:650;font-size:13px}.download-report ol{max-height:220px;overflow:auto;padding-left:22px;margin:8px 0;font-size:12px}.download-report li{margin:10px 0;overflow-wrap:anywhere}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline}.download-report strong{font-size:12px}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}}";
     body.append(reportView);
-    controls.append(refresh, cancel, restart, retry);
+    controls.append(cancel, restart, retry);
     dialog.append(header, body, controls);
     style.textContent += `@media(prefers-color-scheme:dark){.progress-details summary{color:#b8b8c3}}section{display:flex;flex-direction:column;overflow:hidden}header,.controls{flex:none}.collection-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.controls{border-top:1px solid #dedee3;padding-top:12px}.format-options[aria-hidden=true]{height:0;overflow:hidden;visibility:hidden}.retry{font-weight:650}@media(prefers-color-scheme:dark){.controls{border-color:#48484e}}`;
     trigger.addEventListener("click", () => {

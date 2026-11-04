@@ -117,12 +117,15 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             globalThis.requestedCollectionUrls = message.urls;
             globalThis.collectionPrepareCount++;
             const titles = message.urls.map((url, index) => globalThis.collectionBuildResult?.files?.[index]?.title || ["First post", "Second post", "Third post"][index]);
-            const result = { registered: true, count: message.urls.length, postUrls: message.urls, postTitles: titles, skipped: 0, origins: [], ...(globalThis.collectionPreparationOverrides || {}) };
+            const result = { registered: true, expires: Date.now() + 2 * 60 * 60_000, count: message.urls.length, postUrls: message.urls, postTitles: titles, skipped: 0, origins: [], ...(globalThis.collectionPreparationOverrides || {}) };
             collectionSessions.set(message.token, result);
             return result;
           }
           if (message.type === "GET_COLLECTION_EXPORT_REQUEST") {
-            return collectionSessions.get(message.token) || { error: "Synthetic session expired." };
+            const prepared = collectionSessions.get(message.token);
+            if (prepared && prepared.expires > Date.now()) return prepared;
+            collectionSessions.delete(message.token);
+            return { error: "Synthetic session expired." };
           }
           if (message.type === "DELIVER_COLLECTION_EXPORT") {
             return deliver({

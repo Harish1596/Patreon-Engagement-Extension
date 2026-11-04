@@ -178,8 +178,8 @@ handed to the browser, not confirmation it finished saving. Reports are not
 inserted into generated files and are saved only when requested. They contain post
 links/titles, status and reasons, not post bodies or media URLs; URLs in failure
 messages are omitted. The latest report stays in this page's memory for up to
-two hours, survives closing/reopening the dialog, and clears on Refresh
-collection, navigation/reload or expiry. Cancel updates it so it can be reviewed.
+two hours, survives closing/reopening the dialog, and clears on
+navigation/reload or expiry. Cancel updates it so it can be reviewed.
 New downloads replace the previous report. Saved report files remain yours.
 
 The single EPUB book is assembled one chapter at a time in temporary storage, using
@@ -193,26 +193,15 @@ Posts without an access flag are checked when their chapter is generated. A coll
 only locked posts shows a message without opening worker tabs.
 
 Discovered links, access flags, and download session metadata are cached for
-two hours on the current collection page. Reopening the panel or downloading
-another format reuses them. Select **Refresh collection** to pick up new chapters,
-edits, ordering or membership changes on the next selected download. Refresh
-clears the report and generated chapters without fetching posts. Selecting a
-format then rereads collection pagination and compares full-content fingerprints. An unchanged accessible post
-with a live cached source reuses its text and images without reopening its post
-tab. Only new, changed, uncached or expired posts need page retrieval.
-Removed or newly locked posts are dropped. Reused source entries keep their
-original two-hour expiry; refreshing does not renew them.
+two hours on the current collection page. Reopening the panel, changing a selector,
+or downloading another format reuses valid cached data. There is no manual Refresh
+Collection step. Collection discovery and post retrieval start only when Download
+is pressed; expired or missing data is fetched as needed by that download.
+New chapters, collection ordering and access changes are picked up when discovery
+is fetched again after expiry. Opening the chooser does not eagerly refresh it.
 
-The comparison requires an explicit access flag and valid full structured body
-from Patreon's collection response. Titles, body content, available media/author
-references and related attributes contribute to the fingerprint. When that data
-is missing, malformed or available only as a teaser, the extension rechecks the
-post conservatively. The DOM-only fallback therefore performs a full recheck.
-Refresh still retrieves collection API pages to detect changes; it avoids repeated
-post-page/image retrieval when sources are verified unchanged. Generated ZIP/EPUB
-retry files and the previous report are cleared so the new collection order,
-book navigation and access results cannot reuse stale output. The download progress reports cached chapters as they are reused. Expired discovery is refreshed on the next
-selected download; navigating away or reloading clears the page cache. Prepared metadata
+The download progress reports cached chapters as they are reused. Navigating away
+or reloading clears the page's discovery cache. Prepared metadata
 uses browser session storage so idle background-worker restarts do not invalidate
 the format buttons; it is removed on cancellation, owner-tab closure, or expiry,
 and browser-session storage clears when the browser session ends. Missing or
@@ -225,8 +214,7 @@ cache uses session-key AES-256-GCM encryption, survives background-worker restar
 and has a shared 512 MiB limit; older
 entries may be evicted to stay within it. Expired, evicted, or unavailable storage
 falls back to normal fetching. Cancel and closing the owner tab clear that
-collection's source entries. Refresh collection reconciles them, retaining only
-verified unchanged, unexpired sources. No signed image URLs are stored in
+collection's source entries. No signed image URLs are stored in
 them, and no cached data is sent to another service. Download time remains fresh
 for each output.
 Expiry cleanup runs automatically through a browser alarm, including while the
@@ -272,7 +260,7 @@ Completed files stay in extension-private temporary disk storage and **Retry fai
 only missing files. No ZIP is downloaded until every prepared chapter is ready.
 If packaging fails, **Retry packaging** reuses all completed files. You can close
 and reopen the panel without losing this progress. Reloading, navigating away,
-cancelling, refreshing the collection, or choosing another format clears it.
+cancelling or choosing another format clears it.
 This recovery does not retry posts already reported as skipped during preparation.
 Switching formats clears generated retry files while preserving reusable source
 chapters in the disk cache.
@@ -301,7 +289,7 @@ The browser saves the finished disk-backed ZIP through a hidden extension docume
 without opening a download tab. The `downloads` permission starts that download and
 checks its completion; `offscreen` supplies the hidden document. Temporary archive
 files and their Blob URLs are released when the download completes or is interrupted.
-Cancel, Refresh, format changes, and owner-tab closure remove unfinished archives.
+Cancel, format changes, and owner-tab closure remove unfinished archives.
 Retry metadata survives worker restarts for two hours after activity; missing or
 expired temporary files are rebuilt from available source-cache entries. Idle
 retry files are deleted by expiry cleanup and cannot be renewed after their

@@ -1908,3 +1908,22 @@ still handles short windows and enlarged text; this does not promise a scrollbar
 panel at every zoom or height. Native radio controls, layout acknowledgement guards,
 download modes, permissions and recovery behavior are unchanged. This is supplied
 screenshot and synthetic layout evidence, not a new live Patreon selector capture.
+
+
+**November 5 download-driven cache workflow:** At the user's request, the manual
+Refresh Collection action and its page-side override state/branches were removed.
+Opening the chooser and changing selectors still perform no discovery. Download
+reuses valid prepared/discovery data and shared source snapshots; missing or expired
+data is fetched on that selected download. The two-hour expiry, 512 MiB source-cache
+budget, worker restart persistence, membership checks and cleanup rules are unchanged.
+New collection metadata/access/order is picked up on the next discovery after expiry,
+not eagerly while the panel is open. Backend revision/cache support is retained.
+
+The footer is hidden when Cancel, Retry and Start again are all unavailable, so
+removing Refresh leaves no empty divider or space. It reappears for active/recovery
+controls. Report/error copy no longer directs users to the removed action. The
+former manual-refresh browser cases were replaced by cache-reuse and lazy-expiry
+cases; the synthetic session fixture now models the worker's fixed two-hour metadata
+expiry. A pre-fix failing UI case and post-fix screenshots distinguish removed UI
+from preserved recovery behavior. No new Patreon selector, permission or live-page
+inspection was introduced. This supersedes earlier manual-refresh UI observations.

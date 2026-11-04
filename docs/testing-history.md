@@ -4,6 +4,43 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Remove manual collection refresh
+
+Refresh Collection is removed from the page panel. Download is the sole trigger
+for discovery/post retrieval, reusing valid metadata and shared cached sources.
+The existing fixed two-hour expiry and cleanup policy are retained. Missing or
+expired data is fetched by the next selected download; expiry alone performs no
+eager requests. An empty recovery footer now collapses, while Cancel, Retry and
+Start again remain available in their existing states. Obsolete refresh override
+branches, button styles and user-facing refresh instructions were removed.
+
+Final checks:
+
+- `npm test -- --workers=2 --output=/tmp/collection-no-refresh-chrome-results`:
+  **142 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- tests/collection-menu.spec.js tests/collection-controls.spec.js tests/collection-cache.spec.js tests/installed.spec.js tests/installed-pdf.spec.js --output=/tmp/collection-no-refresh-brave-results`:
+  **17 passed**, including native EPUB/Markdown/PDF output, cache reuse after worker
+  restarts, completion and cleanup.
+- `npm run test:tooling`: **131 passed**. `npm run check`: **87 JavaScript files**.
+  `npm run package -- --force` validates the extension; `git diff --check` is clean.
+- A pre-fix UI test failed because Refresh was present. Post-fix cases verify its
+  absence and no blank footer before/after downloads, with Cancel/Retry geometry
+  retained. Light/dark desktop and narrow screenshots were inspected together.
+  One scoped Impeccable scan returned no findings.
+
+`tests/collection-cache.spec.js` replaces the former manual-refresh browser cases.
+Clock-driven tests verify reuse just before two hours, fresh discovery after expiry,
+no renewal by repeated downloads and current lock/uncertain-access handling. The
+synthetic session helper now models metadata expiry; real worker cache/storage TTL
+checks remain in tooling. Format-switch and new-report replacement coverage is
+retained. Earlier dated commands naming `tests/collection-refresh.spec.js` describe
+historical checkpoints; use the current commands above for this tree.
+
+This changes the extension UI and its page-side manual override, not cache lifetime,
+source storage budgets, backend revision support, membership/origin policy or the
+local download engines. Collection changes become visible when discovery is fetched
+after expiry. No live Patreon account inspection or new permission was involved.
+
 ## November 5, 2026 — Stable collection selector layout
 
 A supplied screenshot showed Markdown breaking mid-word and Markdown ZIP adding

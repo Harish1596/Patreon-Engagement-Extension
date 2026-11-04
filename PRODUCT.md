@@ -50,7 +50,7 @@ This is the product's mechanism and scope, not a claim of competitive uniqueness
   print workflow; EPUB and Markdown are generated as downloadable files.
 - Collection pages offer EPUB books or ZIP archives of separate EPUB or Markdown
   files. Chapter order is preserved, with numbered parts for larger collections.
-- Progress, cancellation, retry, refresh and download reports support lengthy
+- Progress, cancellation, retry and download reports support lengthy
   collection operations and repeated downloads.
 - Users may switch tabs while work runs. Background fetching and saving must not
   repeatedly take focus away from the tab they choose to use.

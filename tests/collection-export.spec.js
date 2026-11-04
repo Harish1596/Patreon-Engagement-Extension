@@ -191,7 +191,7 @@ for (const count of [1, 2]) {
   });
 }
 
-test("collection does no work on open or refresh and reuses discovery after an actual download", async ({ page }) => {
+test("collection does no work on open and reuses discovery across downloads and reopening", async ({ page }) => {
   await setup(page, { content: '<main><h1>Cached collection</h1><a class="fixture_gridCard" href="/posts/101">Post</a></main>',
     url: "https://www.patreon.com/collection/500" });
   let apiCalls = 0;
@@ -217,13 +217,13 @@ test("collection does no work on open or refresh and reuses discovery after an a
     await expect(page.getByRole("status")).toContainText("download started");
   }
   expect(apiCalls).toBe(1); expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
-  await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
+  await close.click(); await trigger.click();
   await expect(page.getByRole("status")).toContainText("Choose a format");
   expect(apiCalls).toBe(1); expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
   const pending = page.waitForEvent("download");
   await startCollectionDownload(formats, "Markdown"); await pending;
   await expect(page.getByRole("status")).toContainText("download started");
-  expect(apiCalls).toBe(2); expect(await page.evaluate(() => collectionPrepareCount)).toBe(2);
+  expect(apiCalls).toBe(1); expect(await page.evaluate(() => collectionPrepareCount)).toBe(1);
   expect(await page.evaluate(() => collectionPrepareRequests.every(request => request.deferred === true))).toBe(true);
 });
 
@@ -441,7 +441,7 @@ test("packaging retry reuses every completed chapter", async ({ page }) => {
   expect(await page.evaluate(() => collectionBuildIndices)).toEqual([0]);
 });
 
-test("Refresh collection discards retained chapters before a new export", async ({ page }) => {
+test("changing format discards retained generated chapters before a new export", async ({ page }) => {
   await setup(page, { content: '<main><h1>Refresh</h1><a class="fixture_gridCard" href="/posts/101">First</a><a class="fixture_gridCard" href="/posts/102">Second</a></main>',
     url: "https://www.patreon.com/collection/500" });
   await page.evaluate(() => { globalThis.collectionFailedIndices = [1]; });
@@ -450,11 +450,9 @@ test("Refresh collection discards retained chapters before a new export", async 
   await startCollectionDownload(page.frameLocator('iframe[title="Collection export formats"]'), "Markdown");
   await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeVisible();
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; });
-  await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Choose a format");
-  await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeHidden();
   const pending = page.waitForEvent("download");
-  await startCollectionDownload(page.frameLocator('iframe[title="Collection export formats"]'), "Markdown");
+  await startCollectionDownload(page.frameLocator('iframe[title="Collection export formats"]'), "EPUB");
   await pending;
+  await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeHidden();
   expect(await page.evaluate(() => collectionBuildIndices)).toEqual([0, 1, 0, 1]);
 });
