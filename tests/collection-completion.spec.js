@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const { setup } = require("./helpers/reader");
 const formats = page => page.frameLocator('iframe[title="Collection export formats"]');
@@ -9,13 +10,13 @@ async function fixture(page, count = 2) {
   })), skipped: 0 }; }, count);
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Choose a format");
-  await report(page).locator("summary").click();
 }
 async function download(page) {
   const previous = await page.evaluate(() => globalThis.collectionArchiveHandoffs?.length || 0);
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect.poll(() => page.evaluate(() => globalThis.collectionArchiveHandoffs?.length || 0)).toBeGreaterThan(previous);
-  await expect(formats(page).getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
+  await expect(formats(page).locator("#download-collection")).toBeEnabled();
+  if (await report(page).getAttribute("open") === null) await report(page).locator("summary").click();
 }
 async function result(page, index, state, reason) {
   await page.evaluate(({ index, state, reason }) => deliverBackgroundMessage({

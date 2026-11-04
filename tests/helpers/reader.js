@@ -116,7 +116,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
             globalThis.collectionPrepareRequests.push(structuredClone(message));
             globalThis.requestedCollectionUrls = message.urls;
             globalThis.collectionPrepareCount++;
-            const titles = message.urls.map((url, index) => globalThis.collectionBuildResult?.files[index]?.title || ["First post", "Second post", "Third post"][index]);
+            const titles = message.urls.map((url, index) => globalThis.collectionBuildResult?.files?.[index]?.title || ["First post", "Second post", "Third post"][index]);
             const result = { registered: true, count: message.urls.length, postUrls: message.urls, postTitles: titles, skipped: 0, origins: [], ...(globalThis.collectionPreparationOverrides || {}) };
             collectionSessions.set(message.token, result);
             return result;

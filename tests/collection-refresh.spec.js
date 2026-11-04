@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const { setup } = require("./helpers/reader");
 async function fixture(page) {
@@ -21,7 +22,7 @@ async function fixture(page) {
 
 async function download(page) {
   const pending = page.waitForEvent("download");
-  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(page.frameLocator('iframe[title="Collection export formats"]'), "Markdown");
   await pending;
   await expect(page.getByRole("status")).toContainText("ZIP download started");
 }
@@ -31,6 +32,9 @@ test("refresh rediscovery sends full-content fingerprints in fresh order using t
   const first = await page.evaluate(() => collectionPrepareRequests[0]);
   expect(first.revisions).toHaveLength(3);
   await page.evaluate(() => {
+    // Initial deferred registration may discard an empty stale token. Refresh
+    // itself must preserve the established source namespace.
+    delete globalThis.collectionExportCancelled;
     refreshPosts = [refreshPosts[2], { id: "104", type: "post", attributes: { title: "New post", current_user_can_view: true, content_json_string: '{"text":"New body"}' } }, refreshPosts[1]];
     refreshPosts[2].attributes.content_json_string = '{"text":"Edited body"}';
     globalThis.collectionPreparationOverrides = { reused: 1 };
@@ -60,7 +64,7 @@ test("refresh excludes newly locked posts and does not trust missing full conten
   expect(next.urls).toEqual([102, 103].map(id => `https://www.patreon.com/posts/${id}`));
   await page.evaluate(() => { refreshPosts.forEach(post => { post.attributes.current_user_can_view = false; }); });
   await page.getByRole("button", { name: "Refresh collection", exact: true }).click();
-  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(page.frameLocator('iframe[title="Collection export formats"]'), "Markdown");
   await expect(page.getByRole("status")).toContainText("All 3 posts are locked");
   expect(await page.evaluate(() => collectionExportCancelled)).toBe(true);
 });

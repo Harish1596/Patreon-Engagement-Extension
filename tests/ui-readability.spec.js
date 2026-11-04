@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -12,8 +13,10 @@ for (const theme of ["light", "dark"]) {
     await page.getByRole("button", { name: "Download Collection", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Choose a format");
     const frame = page.frameLocator('iframe[title="Collection export formats"]');
-    await expect(frame.getByRole("button", { name: "EPUB", exact: true })).toHaveAccessibleDescription(/ZIP/);
-    await expect(frame.getByRole("button", { name: "Markdown", exact: true })).toHaveAccessibleDescription(/editable.*ZIP/i);
+    await frame.getByRole("radio", { name: "Separate files (ZIP)", exact: true }).check();
+    await expect(frame.locator("#download-collection")).toHaveAccessibleDescription(/ZIP/);
+    await frame.getByRole("radio", { name: "Markdown", exact: true }).check();
+    await expect(frame.locator("#download-collection")).toHaveAccessibleDescription(/editable.*ZIP/i);
 
   });
   test(`${theme} disclosure contrast meets the normal-text target`, async ({ page }) => {
@@ -22,7 +25,7 @@ for (const theme of ["light", "dark"]) {
     await page.getByRole("button", { name: "Download Collection", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Choose a format");
     await page.evaluate(() => { globalThis.collectionMessageHolds = ["BUILD_COLLECTION_EXPORT"]; });
-    await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+    await startCollectionDownload(page.frameLocator('iframe[title="Collection export formats"]'), "Markdown");
     await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("BUILD_COLLECTION_EXPORT");
     const colors = await page.locator(".progress-details summary").evaluate(node => ({ text: getComputedStyle(node).color, surface: getComputedStyle(node.closest("section")).backgroundColor }));
     const values = [luminance(colors.text), luminance(colors.surface)].sort((a, b) => b - a);

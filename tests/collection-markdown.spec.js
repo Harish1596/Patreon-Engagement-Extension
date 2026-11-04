@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const commonmark = require("commonmark");
 const { setup } = require("./helpers/reader");
@@ -23,7 +24,7 @@ async function download(page, click) { const pending = page.waitForEvent("downlo
 
 test("Single Markdown is one ordered offline document with metadata, contents and embedded images", async ({ page }) => {
   await fixture(page);
-  const single = await download(page, () => formats(page).getByRole("button", { name: "Single Markdown", exact: true }).click({ timeout: 5000 }));
+  const single = await download(page, () => startCollectionDownload(formats(page), "Single Markdown", { timeout: 5000 }));
   expect(single.result.suggestedFilename()).toBe("Collected stories.md");
   expect(single.data.subarray(0, 2).toString()).not.toBe("PK");
   const text = single.data.toString("utf8");
@@ -37,15 +38,15 @@ test("Single Markdown is one ordered offline document with metadata, contents an
   const html = new commonmark.HtmlRenderer().render(new commonmark.Parser().parse(text));
   expect(html).toContain('<h2>Chapter 1 [story]</h2>');
   await expect(page.locator(".report-totals")).toContainText("2 included");
-  await expect(formats(page).getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
-  const separate = await download(page, () => formats(page).getByRole("button", { name: "Markdown", exact: true }).click());
+  await expect(formats(page).locator("#download-collection")).toBeEnabled();
+  const separate = await download(page, () => startCollectionDownload(formats(page), "Markdown"));
   expect(separate.result.suggestedFilename()).toBe("Collected stories.zip");
   expect(readZip(separate.data).map(entry => entry.name)).toEqual(["001 - Chapter 1 [story].md", "002 - Chapter 2 [story].md"]);
 });
 
 test("Single Markdown retries chapters and packaging without rebuilding retained chapters", async ({ page }) => {
   await fixture(page); await page.evaluate(() => { globalThis.collectionFailedIndices = [1]; });
-  await formats(page).getByRole("button", { name: "Single Markdown", exact: true }).click({ timeout: 5000 });
+  await startCollectionDownload(formats(page), "Single Markdown", { timeout: 5000 });
   await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeVisible();
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; globalThis.failArchivePackaging = true; });
   await page.getByRole("button", { name: "Retry failed posts", exact: true }).click();
@@ -60,7 +61,7 @@ test("Single Markdown cancellation prevents a late file and 101 chapters use num
   test.setTimeout(90_000);
   await fixture(page, 101);
   await page.evaluate(() => { globalThis.collectionMessageHolds = ["COLLECTION_ARCHIVE_PACKAGE"]; });
-  await formats(page).getByRole("button", { name: "Single Markdown", exact: true }).click({ timeout: 5000 });
+  await startCollectionDownload(formats(page), "Single Markdown", { timeout: 5000 });
   await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType), { timeout: 60_000 }).toBe("COLLECTION_ARCHIVE_PACKAGE");
   const downloads = []; page.on("download", value => downloads.push(value));
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -68,7 +69,7 @@ test("Single Markdown cancellation prevents a late file and 101 chapters use num
   await expect(page.getByRole("status")).toContainText("Cancelled"); expect(downloads).toHaveLength(0);
   await page.getByRole("button", { name: "Start again", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Choose a format");
-  await formats(page).getByRole("button", { name: "Single Markdown", exact: true }).click({ timeout: 5000 });
+  await startCollectionDownload(formats(page), "Single Markdown", { timeout: 5000 });
   await expect.poll(() => downloads.length, { timeout: 60_000 }).toBe(2);
   expect(downloads.map(item => item.suggestedFilename())).toEqual(["Collected stories - Part 001 of 002.md", "Collected stories - Part 002 of 002.md"]);
   const tail = (await bytes(downloads[1])).toString("utf8");

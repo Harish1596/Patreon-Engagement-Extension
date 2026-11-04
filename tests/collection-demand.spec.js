@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const { setup } = require("./helpers/reader");
 const formats = page => page.frameLocator('iframe[title="Collection export formats"]');
@@ -6,19 +7,17 @@ async function fixture(page) {
   await setup(page, { content: '<main><h1>On demand</h1><a class="fixture_gridCard" href="/posts/101">First</a></main>',
     url: "https://www.patreon.com/collection/500" });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(formats(page).getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
+  await expect(formats(page).locator("#download-collection")).toBeEnabled();
 }
 
 test("opening and dismissing collection formats performs no discovery, preparation or chapter reads", async ({ page }) => {
   let requests = 0;
   await page.route("https://www.patreon.com/api/posts**", route => { requests++; return route.abort(); });
   await fixture(page);
-  for (const name of ["Single EPUB", "EPUB", "Single Markdown", "Markdown"]) {
-    await expect(formats(page).getByRole("button", { name, exact: true })).toBeEnabled();
-  }
+  for (const radio of await formats(page).getByRole("radio").all()) await expect(radio).toBeEnabled();
   await page.getByRole("button", { name: "Close collection download" }).click();
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(formats(page).getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
+  await expect(formats(page).locator("#download-collection")).toBeEnabled();
   expect(requests).toBe(0);
   expect(await page.evaluate(() => collectionPrepareCount)).toBe(0);
   expect(await page.evaluate(() => globalThis.collectionBuildIndices)).toBeUndefined();
@@ -27,7 +26,7 @@ test("opening and dismissing collection formats performs no discovery, preparati
 for (const cancel of [false, true]) test(`image access waits for the current frame and survives dismissal; cancel=${cancel}`, async ({ page }) => {
   await fixture(page);
   await page.evaluate(() => { globalThis.collectionMessageHolds = ["BUILD_COLLECTION_EXPORT"]; });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("BUILD_COLLECTION_EXPORT");
   await page.evaluate(() => {
     globalThis.permissionReply = null;
@@ -63,7 +62,7 @@ for (const format of ["Markdown", "EPUB", "Single Markdown", "Single EPUB"]) tes
   await page.evaluate(() => { globalThis.collectionSkippedIndices = [1]; });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   const pending = page.waitForEvent("download");
-  await formats(page).getByRole("button", { name: format, exact: true }).click();
+  await startCollectionDownload(formats(page), format);
   const chunks = [];
   for await (const chunk of await (await pending).createReadStream()) chunks.push(chunk);
   const bytes = Buffer.concat(chunks);
@@ -88,7 +87,7 @@ test("an entirely unsupported collection reports skips without a native download
   await fixture(page);
   let downloads = 0; page.on("download", () => { downloads++; });
   await page.evaluate(() => { globalThis.collectionSkippedIndices = [0]; });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect(page.getByRole("status")).toContainText("No supported text posts");
   await expect(page.locator(".report-totals")).toContainText("1 skipped");
   expect(downloads).toBe(0);

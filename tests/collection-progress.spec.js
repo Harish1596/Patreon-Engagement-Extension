@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const { setup } = require("./helpers/reader");
 const current = page => page.locator("[data-progress-current]");
@@ -15,14 +16,18 @@ async function ready(page) {
 test("progress shows the current title and elapsed time, rejects stale updates, and freezes on cancellation", async ({ page }) => {
   await ready(page);
   await page.clock.install();
-  await page.clock.pauseAt(new Date());
   await page.evaluate(() => { globalThis.collectionMessageHolds = ["BUILD_COLLECTION_EXPORT"]; });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("BUILD_COLLECTION_EXPORT");
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
   await expect(current(page)).toHaveText("Post 1 of 2: First post");
   await expect(counts(page)).toHaveText("Completed 0 of 2");
+  const seconds = text => { const [, minutes, seconds] = /Elapsed: (\d+):(\d+)/.exec(text); return Number(minutes) * 60 + Number(seconds); };
+  const before = seconds(await elapsed(page).textContent());
   await page.clock.runFor(2100);
-  await expect(elapsed(page)).toHaveText("Elapsed: 0:02");
+  const advance = seconds(await elapsed(page).textContent()) - before;
+  expect(advance).toBeGreaterThanOrEqual(2);
+  expect(advance).toBeLessThanOrEqual(3);
   await page.evaluate(async () => {
     const held = collectionHeldMessage;
     const progress = { type: "COLLECTION_EXPORT_PROGRESS", token: held.token,
@@ -57,7 +62,7 @@ test("compression reports bytes and stays below 100 percent until the file is co
     globalThis.collectionMessageHolds = ["COLLECTION_ARCHIVE_END"];
     globalThis.collectionCachedIndices = [0];
   });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("COLLECTION_ARCHIVE_END");
   await expect(page.getByRole("status")).toHaveText("Compressing and saving chapter… 99%.");
   await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "Compressing and saving chapter: 99%");
@@ -89,7 +94,7 @@ test("compression reports bytes and stays below 100 percent until the file is co
 test("retry retains completed counts and starts a fresh clock and failure count", async ({ page }) => {
   await ready(page);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [1]; });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeVisible();
   await expect(counts(page)).toHaveText("Completed 1 of 2 · 1 failed");
   await page.clock.install();

@@ -138,9 +138,11 @@ user-requested export containing images from that origin.
 
 ### Download a collection
 
-On a Patreon `/collection/...` page, select **Download Collection** and choose
-a format immediately. Opening the menu does not fetch collection metadata or
-visit posts. Fetching starts only after a format is selected:
+On a Patreon `/collection/...` page, select **Download Collection**, choose a
+**Format** (EPUB, PDF or Markdown) and **Packaging** (Single file or Separate files
+(ZIP)), then press **Download**. The button names the selected output. Opening
+the menu or changing a selection does not fetch collection metadata or visit posts.
+Fetching starts only when Download is pressed:
 
 - **Single EPUB**: downloads one `.epub` named after the
   collection, with a title page, Creator/Download time/Source metadata, an ordered
@@ -150,7 +152,7 @@ visit posts. Fetching starts only after a format is selected:
   linked contents and ordered chapters, with embedded inline images.
 - **Single PDF**: downloads one `.pdf` with a linked contents page and each
   accessible post starting on a new page, in collection order.
-- **EPUB**, **PDF**, or **Markdown** with a **ZIP** badge: downloads one numbered
+- **Separate files (ZIP)** with EPUB, PDF or Markdown: downloads one numbered
   file per accessible text post inside a ZIP archive.
 
 All options preserve the discovered collection order and reuse the same cached

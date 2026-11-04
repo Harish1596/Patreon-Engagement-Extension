@@ -4,6 +4,55 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Collection format and packaging selectors
+
+The chooser uses Format (EPUB/PDF/Markdown), Packaging (Single file/Separate files
+(ZIP)) and one output-specific Download button. Choices alone make no collection
+requests. Default selection is EPUB / Single file. The existing six backend modes,
+source reuse, numbered parts, permission gesture and recovery controls are retained.
+A missing PDF parent-message allowlist and stale Retry control after Refresh were
+reproduced and fixed. Revision-tagged sizing acknowledgements prevent older layout
+messages from unlocking a newer selection; layout waits retain keyboard tab order.
+
+Final checks:
+
+- `npm test -- --workers=2 --output=/tmp/collection-selectors-release-chrome-results`:
+  **138 passed, 2 skipped**. The skips are Brave-only installed-extension tests.
+- `npm run test:brave -- tests/collection-menu.spec.js tests/collection-controls.spec.js tests/collection-demand.spec.js tests/installed.spec.js tests/installed-pdf.spec.js --output=/tmp/collection-selectors-release-brave-results`:
+  **19 passed**, including actual native saving, PDF/ZIP byte parsing, EPUB/Markdown
+  cache reuse after worker restarts, reports and cleanup.
+- `npm run test:tooling`: **131 passed**. Real chooser DOM/script tests exercise all
+  six mappings, selection without discovery, duplicate clicks, guarded explicit
+  permission grant/denial and stale same-height sizing acknowledgements.
+- `npm run check`: **87 JavaScript files**. `npm run package -- --force` validates
+  the extension ZIP. `git diff --check` is clean.
+
+Rendered fixtures cover light/dark 1280×900, dark 360×740 and initial doubled text;
+all choices fit the measured frame with no inner scrolling. The outer body remains
+scrollable at enlarged text so the recovery footer stays visible. Native radio
+arrow/Tab/Space behavior, Enter download, Escape/focus return and pointer actions
+are checked. Screenshots were inspected in bounded batches; subsequent changes addressed
+behavioral regressions rather than introducing a new visual world. The mechanical
+scan identified missing body text inheritance; explicit theme text color was added.
+A separate reviewer found no remaining material production issues after fixes.
+
+Earlier failed runs exposed stale pre-on-demand fixture assumptions: reports were
+opened before being created; error-only builds lacked title fallback; clock tests
+paused animation frames before selection; Refresh assertions included initial
+registration cleanup; and native tests suspended the worker before deferred source
+population. Fixtures now reach and retain the intended behavioral assertions. PDF
+fixtures use ordinary chapter text instead of the shared 70,000-character unbroken
+Markdown stress word, whose browser PDF layout is slow; the Markdown stress case
+remains. Brave CDP download management may rename PDF blobs, so requested title
+filenames remain asserted in controller fixtures while native checks parse actual
+saved files. Installed collection tests reuse registered post tabs; worker-navigation
+fixture routing and real image-host prompts are outside this checkpoint's evidence.
+
+Browser-plugin tooling was unavailable; existing Playwright fixtures were used.
+No live signed-in Patreon inspection, new Patreon selectors, permissions, dependency or
+cache-policy changes were made. This is synthetic/installed-extension evidence,
+not live-page confirmation or a general PDF performance guarantee.
+
 ## November 5, 2026 — Combined export integration
 
 **November 5, 2026 — PDF/Markdown/on-demand integration:** The combined tree

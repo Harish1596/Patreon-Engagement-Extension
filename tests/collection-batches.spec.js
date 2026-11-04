@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const { setup } = require("./helpers/reader");
 const { readZip } = require("./helpers/zip");
@@ -26,7 +27,7 @@ for (const format of ["Markdown", "EPUB", "Single EPUB"]) {
     test.setTimeout(90_000);
     const downloads = await fixture(page);
     await expect(page.getByRole("status")).toContainText("Choose a format");
-    await frames(page).getByRole("button", { name: format, exact: true }).click();
+    await startCollectionDownload(frames(page), format);
     await expect.poll(() => downloads.length, { timeout: 60_000 }).toBe(2);
     await expect(page.getByRole("status")).toContainText("part downloads started");
     const book = format === "Single EPUB", extension = book ? "epub" : "zip";
@@ -61,7 +62,7 @@ test("later-part retry and cancellation retain the earlier handoff", async ({ pa
   const downloads = await fixture(page);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [100]; });
   await expect(page.getByRole("status")).toContainText("Choose a format");
-  await frames(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(frames(page), "Markdown");
   await expect(page.getByRole("button", { name: "Retry failed posts" })).toBeVisible({ timeout: 60_000 });
   expect(downloads).toHaveLength(1);
   await page.locator(".download-report summary").click();
@@ -72,9 +73,9 @@ test("later-part retry and cancellation retain the earlier handoff", async ({ pa
   expect(downloads[1].suggestedFilename()).toBe("Large collection - Part 002 of 002.zip");
   expect(await page.evaluate(() => collectionBuildIndices)).toEqual([...Array.from({ length: 101 }, (_, index) => index), 100]);
   // A new export can be cancelled after the first part without retracting it.
-  await expect(frames(page).getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
+  await expect(frames(page).locator("#download-collection")).toBeEnabled();
   await page.evaluate(() => { globalThis.collectionFailedIndices = [100]; });
-  await frames(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(frames(page), "Markdown");
   await expect(page.getByRole("button", { name: "Retry failed posts" })).toBeVisible({ timeout: 60_000 });
   await page.evaluate(() => { globalThis.collectionMessageHolds = ["BUILD_COLLECTION_EXPORT"]; });
   await page.getByRole("button", { name: "Retry failed posts" }).click();
@@ -95,7 +96,7 @@ test("collections beyond the discovery bound fail visibly before preparing posts
     data: Array.from({ length: 1001 }, (_, index) => ({ id: String(101 + index), type: "post", attributes: { current_user_can_view: true } }))
   } }));
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await frames(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(frames(page), "Markdown");
   await expect(page.getByRole("status")).toContainText("more than 1,000 posts");
   expect(await page.evaluate(() => collectionPrepareCount || 0)).toBe(0);
 });
@@ -105,12 +106,12 @@ test("choosing another format after a later-part failure starts at the first cha
   const downloads = await fixture(page);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [100]; });
   await expect(page.getByRole("status")).toContainText("Choose a format");
-  await frames(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(frames(page), "Markdown");
   await expect(page.getByRole("button", { name: "Retry failed posts" })).toBeVisible({ timeout: 60_000 });
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; });
   // Bring the permission frame fully into view after the error panel changes size.
   await page.locator('iframe[title="Collection export formats"]').scrollIntoViewIfNeeded();
-  await frames(page).getByRole("button", { name: "Single EPUB", exact: true }).click();
+  await startCollectionDownload(frames(page), "Single EPUB");
   await expect.poll(() => downloads.length, { timeout: 60_000 }).toBe(3);
   expect(downloads.slice(1).map(item => item.suggestedFilename())).toEqual([
     "Large collection - Part 001 of 002.epub", "Large collection - Part 002 of 002.epub"

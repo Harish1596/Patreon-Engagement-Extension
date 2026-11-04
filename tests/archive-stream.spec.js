@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
@@ -58,7 +59,7 @@ test("missing temporary storage produces a visible error without a partial downl
   });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Choose a format");
-  await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(page.frameLocator('iframe[title="Collection export formats"]'), "Markdown");
   await expect(page.getByRole("status")).toContainText("Temporary disk storage is unavailable");
   expect(downloads).toBe(0);
 });

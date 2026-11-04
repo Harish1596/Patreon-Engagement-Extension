@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const fs = require("node:fs");
 const { execFileSync } = require("node:child_process");
@@ -29,7 +30,7 @@ async function download(page, click) {
 
 test("Single EPUB contains ordered chapters, a title page, TOC, navigation and offline images", async ({ page }, testInfo) => {
   await bookFixture(page);
-  const { result, bytes } = await download(page, () => frames(page).getByRole("button", { name: "Single EPUB", exact: true }).click());
+  const { result, bytes } = await download(page, () => startCollectionDownload(frames(page), "Single EPUB"));
   expect(result.suggestedFilename()).toBe("A & B collection.epub");
   const file = testInfo.outputPath("collection.epub"); fs.writeFileSync(file, bytes);
   expect(execFileSync("unzip", ["-t", file], { encoding: "utf8" })).toContain("No errors detected");
@@ -67,8 +68,8 @@ test("Single EPUB contains ordered chapters, a title page, TOC, navigation and o
   expect(documents["EPUB/title.xhtml"]).toContain("https://www.patreon.com/collection/500");
   expect(documents["EPUB/chapters/002/post.xhtml"]).toContain('../001/post.xhtml');
   expect(entries.filter(entry => entry.name.endsWith(".svg")).every(entry => !entry.data.toString().includes("<script"))).toBe(true);
-  await expect(frames(page).getByRole("button", { name: "EPUB", exact: true })).toBeEnabled();
-  const separate = await download(page, () => frames(page).getByRole("button", { name: "EPUB", exact: true }).click());
+  await expect(frames(page).locator("#download-collection")).toBeEnabled();
+  const separate = await download(page, () => startCollectionDownload(frames(page), "EPUB"));
   expect(separate.result.suggestedFilename()).toBe("A & B collection.zip");
   expect(readZip(separate.bytes).every(entry => entry.name.endsWith(".epub"))).toBe(true);
 });
@@ -76,7 +77,7 @@ test("Single EPUB contains ordered chapters, a title page, TOC, navigation and o
 test("a failed chapter retries independently before a Single EPUB is downloaded", async ({ page }) => {
   await bookFixture(page);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [1]; });
-  await frames(page).getByRole("button", { name: "Single EPUB", exact: true }).click();
+  await startCollectionDownload(frames(page), "Single EPUB");
   await expect(page.getByRole("button", { name: "Retry failed posts" })).toBeVisible();
   expect(await page.evaluate(() => collectionBuildIndices)).toEqual([0, 1]);
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; });
@@ -89,7 +90,7 @@ test("a failed chapter retries independently before a Single EPUB is downloaded"
 test("book packaging retry reuses staged chapters without whole-file reads", async ({ page }) => {
   await bookFixture(page);
   await page.evaluate(() => { globalThis.failArchivePackaging = true; });
-  await frames(page).getByRole("button", { name: "Single EPUB", exact: true }).click();
+  await startCollectionDownload(frames(page), "Single EPUB");
   await expect(page.getByRole("button", { name: "Retry packaging" })).toBeVisible();
   await page.evaluate(() => { globalThis.failArchivePackaging = false; globalThis.collectionMessageHolds = ["COLLECTION_ARCHIVE_PACKAGE"]; });
   await page.getByRole("button", { name: "Retry packaging" }).click();
@@ -110,7 +111,7 @@ test("cancelling book packaging removes the checkpoint and ignores late work", a
   await page.evaluate(() => { globalThis.collectionMessageHolds = ["COLLECTION_ARCHIVE_PACKAGE"]; });
   let downloads = 0;
   page.on("download", () => { downloads++; });
-  await frames(page).getByRole("button", { name: "Single EPUB", exact: true }).click();
+  await startCollectionDownload(frames(page), "Single EPUB");
   await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("COLLECTION_ARCHIVE_PACKAGE");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Cancelled");

@@ -9,30 +9,23 @@
   <body>
     <main aria-label="Collection export formats">
       <div id="formats">
-      <button type="button" data-format="epub-book" aria-label="Single EPUB" aria-describedby="book-description" disabled>
-        <span class="choice"><span class="title">Single EPUB</span><span class="description" id="book-description">Read chapters together in an ebook reader.</span></span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" /></svg>
-      </button>
-      <button type="button" data-format="epub" aria-label="EPUB" aria-describedby="epub-description" disabled>
-        <span class="choice"><span class="title">EPUB <span class="type">ZIP</span></span><span class="description" id="epub-description">One ebook per chapter, in a ZIP archive.</span></span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" /></svg>
-      </button>
-      <button type="button" data-format="pdf-book" aria-label="Single PDF" aria-describedby="pdf-book-description" disabled>
-        <span class="choice"><span class="title">Single PDF</span><span class="description" id="pdf-book-description">Read chapters together in one PDF document.</span></span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" /></svg>
-      </button>
-      <button type="button" data-format="pdf" aria-label="PDF" aria-describedby="pdf-description" disabled>
-        <span class="choice"><span class="title">PDF <span class="type">ZIP</span></span><span class="description" id="pdf-description">One PDF per chapter, in a ZIP archive.</span></span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" /></svg>
-      </button>
-      <button type="button" data-format="markdown-book" aria-label="Single Markdown" aria-describedby="markdown-book-description" disabled>
-        <span class="choice"><span class="title">Single Markdown</span><span class="description" id="markdown-book-description">All chapters in one editable text file.</span></span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" /></svg>
-      </button>
-      <button type="button" data-format="markdown" aria-label="Markdown" aria-describedby="markdown-description" disabled>
-        <span class="choice"><span class="title">Markdown <span class="type">ZIP</span></span><span class="description" id="markdown-description">Editable text files, one per chapter, in a ZIP archive.</span></span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" /></svg>
-      </button>
+        <fieldset>
+          <legend>Format</legend>
+          <div class="format-options">
+            <label><input type="radio" name="format" value="epub" checked disabled /><span>EPUB</span></label>
+            <label><input type="radio" name="format" value="pdf" disabled /><span>PDF</span></label>
+            <label><input type="radio" name="format" value="markdown" disabled /><span>Markdown</span></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Packaging</legend>
+          <div class="packaging-options">
+            <label><input type="radio" name="packaging" value="single" checked disabled /><span>Single file</span></label>
+            <label><input type="radio" name="packaging" value="zip" disabled /><span>Separate files (ZIP)</span></label>
+          </div>
+        </fieldset>
+        <p class="description" id="selection-description">All chapters in one ebook for an ebook reader.</p>
+        <button id="download-collection" type="button" aria-describedby="selection-description" disabled>Download EPUB</button>
       </div>
       <section id="image-permission" hidden aria-label="Image access">
         <p class="title">Images need your permission</p>

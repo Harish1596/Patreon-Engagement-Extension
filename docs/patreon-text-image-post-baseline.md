@@ -1862,3 +1862,33 @@ separate four-choice 1,000px bound while preserving source/origin/token guards a
 outer scrolling. No new Patreon selectors, access permissions or cache boundaries
 are introduced. Synthetic tooling and independent integration review pass; the
 current browser launch blocker still prevents native/layout/live confirmation.
+
+
+**November 5 collection selectors:** The extension-owned collection frame now
+separates Format (EPUB, PDF, Markdown) and Packaging (Single file, Separate files
+(ZIP)) into labelled native radio groups, with one Download action. Its name and
+accessible description update for the selected pair; changing either selection
+performs no collection reads. EPUB / Single file is the initial choice. The six
+existing format values and output limits are retained. The parent message
+allowlist now includes both PDF values, fixing an integration omission which
+otherwise disabled the chooser without starting PDF generation.
+
+Changing the selected description can resize the bottom-anchored panel. The action
+uses aria-disabled until the existing bounded frame/source/origin/token layout
+acknowledgement for the current layout revision settles, preventing rapid pointer clicks from missing the moved
+button while keeping it in keyboard tab order. Native radio focus stays intact.
+Exporting disables all controls and retains the original image permission button
+and explicit user gesture. Recovery controls remain outside the scroll body.
+These observations concern synthetic extension UI, not new Patreon markup or
+access rules. Existing cache, output part, origin and membership boundaries remain.
+
+Refresh now hides an obsolete Retry action when its checkpoint has been dropped;
+a failing existing browser regression established this stale extension UI state.
+Fixture updates align completion reports, error injection, clock advancement and
+incremental refresh checks with deferred registration. They do not alter source
+fetching or cache lifetime. Native tests reuse registered synthetic post tabs and
+observe actual downloads API completion; the PDF-specific fixtures use ordinary
+chapter text instead of the shared 70,000-character unbroken Markdown stress word.
+CDP-managed Brave output names may differ from requested names; synthetic controller
+tests retain filename assertions, while installed PDF checks inspect saved bytes.
+No new live Patreon inspection or real media permission-prompt coverage is claimed.

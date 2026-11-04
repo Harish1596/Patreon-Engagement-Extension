@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const { setup } = require("./helpers/reader");
 const report = page => page.locator('[data-patreon-collection-download]').locator('.download-report');
@@ -25,7 +26,7 @@ async function reportText(page) {
 test("download report lists skipped and failed posts, redacts URLs, and updates a successful retry", async ({ page }) => {
   await fixture(page);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [1]; });
-  await formats(page).getByRole("button", { name: "Single EPUB", exact: true }).click();
+  await startCollectionDownload(formats(page), "Single EPUB");
   await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeVisible();
   await expect(report(page)).toContainText("Unavailable post");
   expect(await report(page).locator("img").count()).toBe(0);
@@ -53,7 +54,7 @@ test("download report lists skipped and failed posts, redacts URLs, and updates 
 test("packaging failure keeps prepared outcomes and sanitizes failure messages", async ({ page }) => {
   await fixture(page);
   await page.evaluate(() => { globalThis.failArchivePackaging = true; });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect(page.getByRole("button", { name: "Retry packaging" })).toBeVisible();
   await expect(report(page)).toContainText("Collection download failed");
   await expect(report(page)).toContainText("0 included");
@@ -69,7 +70,7 @@ test("all locked posts receive individual report rows without a download", async
       ? [...original(type), { name: "https://www.patreon.com/api/posts?filter%5Bcollection_id%5D=500" }] : original(type) });
   });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect(page.getByRole("status")).toContainText("All 2 posts are locked");
   await report(page).locator('summary').click();
   await expect(report(page).locator('li')).toHaveCount(2);
@@ -80,7 +81,7 @@ test("all locked posts receive individual report rows without a download", async
 test("cancelled chapters are reported and navigation removes the report", async ({ page }) => {
   await fixture(page);
   await page.evaluate(() => { globalThis.collectionMessageHolds = ["BUILD_COLLECTION_EXPORT"]; });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("BUILD_COLLECTION_EXPORT");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Cancelled");
@@ -95,7 +96,7 @@ test("export errors redact remote URLs in saved reports and expire after two hou
   await page.clock.install();
   await fixture(page);
   await page.evaluate(() => { globalThis.collectionBuildResult = { error: 'Image request failed: https://media.example/image?signature=private-secret' }; });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeVisible();
   const text = await reportText(page);
   expect(text).toContain("[URL omitted]"); expect(text).not.toContain("private-secret");

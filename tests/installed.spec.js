@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect, chromium } = require("@playwright/test");
 const path = require("node:path");
 const fs = require("node:fs");
@@ -169,14 +170,13 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect.poll(() => collection.evaluate(() => performance.getEntriesByType("resource").some(entry => entry.name.includes("/api/posts?")))).toBe(true);
     await collectionDownload.click();
     await expect(collection.getByRole("status")).toContainText("Choose a format", { timeout: 20_000 });
-    const collectionMarkdown = collection.frameLocator('iframe[title="Collection export formats"]')
-      .getByRole("button", { name: "Markdown", exact: true });
+    const collectionMarkdown = collection.frameLocator('iframe[title="Collection export formats"]').locator("#download-collection");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     const workerControl = await context.newCDPSession(manager);
     const downloadDirectory = testInfo.outputPath("collection-downloads");
     fs.mkdirSync(downloadDirectory, { recursive: true });
     await workerControl.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: downloadDirectory, eventsEnabled: true });
-    const receivedIds = new Set();
+    const receivedIds = new Set(await popup.evaluate(async () => (await chrome.downloads.search({})).map(record => record.id)));
     async function downloadCollectionZip(click, extension = ".zip") {
       await click();
       let result;
@@ -201,9 +201,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
         return current.targetInfos.some(item => item.targetId === target.targetId);
       }).toBe(false);
     }
-    await suspendExportWorker();
+    // Populate deferred sources before testing worker restart with later downloads.
     const collectionBytes = await downloadCollectionZip(async () => {
-      await collectionMarkdown.click();
+      await startCollectionDownload(collection.frameLocator('iframe[title="Collection export formats"]'), "Markdown");
       await expect(collection.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
       await collection.getByRole("button", { name: "Close collection download", exact: true }).click();
       await expect(collection.getByRole("dialog", { name: "Download Collection", exact: true })).toBeHidden();
@@ -243,8 +243,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     let openedPostTabs = 0;
     const countPostTab = () => { openedPostTabs++; };
     context.on("page", countPostTab);
-    const epubBytes = await downloadCollectionZip(() => collection.frameLocator('iframe[title="Collection export formats"]')
-      .getByRole("button", { name: "EPUB", exact: true }).click());
+    const epubBytes = await downloadCollectionZip(() => startCollectionDownload(collection.frameLocator('iframe[title="Collection export formats"]'), "EPUB"));
     const epubEntries = readZip(epubBytes);
     expect(epubEntries.map(entry => entry.name)).toEqual([
       "001 - Collection post one.epub", "002 - Collection post two.epub"
@@ -260,8 +259,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     }
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     await suspendExportWorker();
-    const bookBytes = await downloadCollectionZip(() => collection.frameLocator('iframe[title="Collection export formats"]')
-      .getByRole("button", { name: "Single EPUB", exact: true }).click(), ".epub");
+    const bookBytes = await downloadCollectionZip(() => startCollectionDownload(collection.frameLocator('iframe[title="Collection export formats"]'), "Single EPUB"), ".epub");
     const bookEntries = readZip(bookBytes);
     await expect(collection.locator(".download-report .report-totals")).toContainText("2 included");
     await collection.locator(".download-report summary").click();
@@ -275,8 +273,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     expect(bookEntries.find(entry => entry.name === "EPUB/chapters/001/post.xhtml").data.toString()).toContain("Collection body one.");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     await suspendExportWorker();
-    const markdownBookBytes = await downloadCollectionZip(() => collection.frameLocator('iframe[title="Collection export formats"]')
-      .getByRole("button", { name: "Single Markdown", exact: true }).click(), ".md");
+    const markdownBookBytes = await downloadCollectionZip(() => startCollectionDownload(collection.frameLocator('iframe[title="Collection export formats"]'), "Single Markdown"), ".md");
     const markdownBook = markdownBookBytes.toString("utf8");
     expect(markdownBookBytes.subarray(0, 2).toString()).not.toBe("PK");
     expect(markdownBook).toContain("# Test collection");
@@ -297,7 +294,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect.poll(() => popup.evaluate(() => chrome.offscreen.hasDocument())).toBe(false);
     await collection.getByRole("button", { name: "Refresh collection", exact: true }).click();
     await expect(collection.getByRole("status")).toContainText("Choose a format");
-    await downloadCollectionZip(() => collectionMarkdown.click());
+    await downloadCollectionZip(() => startCollectionDownload(collection.frameLocator('iframe[title="Collection export formats"]'), "Markdown"));
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     context.off("page", countPostTab);
     expect(openedPostTabs).toBe(0);

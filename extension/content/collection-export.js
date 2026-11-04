@@ -515,8 +515,8 @@
     renderDownloadReport();
   }
 
-  function showOptions(message = "Choose a format to start downloading.") {
-    if (shadow) shadow.querySelector(".intro").textContent = "Choose a single file or separate chapter files.";
+  function showOptions(message = "Choose a format and packaging, then download.") {
+    if (shadow) shadow.querySelector(".intro").textContent = "Choose how to save this collection.";
     if (!requestToken) requestToken = crypto.randomUUID();
     finishOperation();
     setBusy(false);
@@ -524,6 +524,7 @@
     loadChooser();
     report(message);
     if (checkpoint) showRetry();
+    else shadow.querySelector(".retry").hidden = true;
   }
 
   function showImagePermission() {
@@ -933,7 +934,7 @@
     chooser = element("iframe", { title: "Collection export formats", src: "about:blank" });
     const body = element("div", { class: "collection-body" });
     const formatOptions = element("div", { class: "format-options" });
-    formatOptions.append(element("p", { class: "intro" }, "Choose a single file or separate chapter files."), chooser);
+    formatOptions.append(element("p", { class: "intro" }, "Choose how to save this collection."), chooser);
     body.append(formatOptions,
       element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
       element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
@@ -1007,7 +1008,7 @@
     if (!open || event.origin !== api.runtime.getURL("").replace(/\/$/, "")
       || event.source !== chooser?.contentWindow || event.data?.token !== requestToken) return;
     if (event.data.source === "patreon-reader-collection-export") {
-      if (!busy && ["epub", "markdown", "epub-book", "markdown-book"].includes(event.data.format)) run(event.data.format);
+      if (!busy && ["epub", "pdf", "markdown", "epub-book", "pdf-book", "markdown-book"].includes(event.data.format)) run(event.data.format);
       return;
     }
     if (event.data.source === "patreon-reader-collection-permission-result") {
@@ -1021,8 +1022,8 @@
     }
     if (event.data.source === "patreon-reader-collection-close") { close(true); return; }
     if (event.data.source === "patreon-reader-collection-size") {
-      // Four choices at doubled text can exceed 600px. The outer scroll body
-      // still bounds the panel while this finite limit keeps the frame usable.
+      // Enlarged chooser text can exceed the initial frame height. The outer
+      // scroll body bounds the panel while this finite limit keeps the frame usable.
       if (Number.isSafeInteger(event.data.height) && event.data.height >= 100 && event.data.height <= 2048) {
         chooser.style.height = `${event.data.height}px`;
         const height = event.data.height;
@@ -1031,7 +1032,7 @@
         requestAnimationFrame(() => requestAnimationFrame(() => {
           if (open && event.source === chooser?.contentWindow && event.data.token === requestToken
             && chooser.style.height === `${height}px`) {
-            event.source.postMessage({ source: "patreon-reader-collection-sized", token: requestToken, height }, event.origin);
+            event.source.postMessage({ source: "patreon-reader-collection-sized", token: requestToken, height, revision: event.data.revision }, event.origin);
             showImagePermission();
           }
         }));

@@ -1,3 +1,4 @@
+const { startCollectionDownload } = require("./helpers/collection-choice");
 const { test, expect } = require("@playwright/test");
 const { setup } = require("./helpers/reader");
 const panel = page => page.getByRole("dialog", { name: "Download Collection", exact: true });
@@ -27,7 +28,7 @@ test("narrow busy panel keeps Cancel visible and can be dismissed without stoppi
   await page.setViewportSize({ width: 375, height: 667 });
   await ready(page);
   await page.evaluate(() => { globalThis.collectionMessageHolds = ["BUILD_COLLECTION_EXPORT"]; });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("BUILD_COLLECTION_EXPORT");
   await withinPanel(page, page.getByRole("button", { name: "Cancel", exact: true }));
   await expect(page.locator('iframe[title="Collection export formats"]')).toBeHidden();
@@ -49,7 +50,7 @@ test("Retry stays visible with an expanded failure report and preserves prepared
   await page.setViewportSize({ width: 375, height: 667 });
   await ready(page);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [1]; });
-  await formats(page).getByRole("button", { name: "Markdown", exact: true }).click();
+  await startCollectionDownload(formats(page), "Markdown");
   const retry = page.getByRole("button", { name: "Retry failed posts", exact: true });
   await expect(retry).toBeVisible();
   await page.locator(".download-report summary").click();
