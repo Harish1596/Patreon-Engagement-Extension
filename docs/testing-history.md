@@ -1444,3 +1444,24 @@ resolved product-document relative links, and passed whitespace checks. No runti
 or browser tests were rerun for this documentation/configuration change. Live mode
 was left unconfigured because this extension operates inside Patreon pages and
 extension-origin frames rather than a local application development server.
+
+
+## November 4, 2026 — Independently review the extension UI
+
+The user authorised two independent reviewers. Design assessment completed before
+the parent read detector results. Fresh isolated Chrome fixtures covered collection
+ready/busy/error/retry/report states, keyboard focus, narrow layouts, controlled
+text enlargement and companion Reader/popup/post chooser surfaces. Heuristic score:
+28/40, Good. Two P1 issues remain: busy/recovery controls can be outside the panel's
+visible viewport, and collection aria-modal semantics lack modal focus management.
+Other findings: format suitability/ZIP accessible naming, 12px disclosure contrast
+below 4.5:1 in both themes, and 11px popup descriptions.
+
+The one CLI scan returned three warnings and no errors. Two font-stack warnings
+were duplicate stylistic signals; popup text-size was confirmed in rendering.
+Local overlay injection failed despite successful mutable preflight. No visible
+Human tab/overlay was claimed; CLI findings, screenshots, geometry and computed
+styles supplied the evidence. The temporary server was stopped and browsers closed.
+No runtime code or access/CSP policy changed, and no live account or formal
+screen-reader conformance assessment was performed. Runtime suites were not rerun.
+The critique snapshot and documentation checks were committed with this review.

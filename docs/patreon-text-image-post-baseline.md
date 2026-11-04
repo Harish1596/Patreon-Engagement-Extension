@@ -1685,3 +1685,17 @@ Screenshots were inspected in two batches. The mechanical scan's small ZIP text
 finding was corrected from 10px to 11px. Native Brave verifies repeated real EPUB,
 EPUB-book and Markdown downloads. These checks do not establish live signed-in
 Patreon verification or an exhaustive browser/zoom/localization matrix.
+
+
+**November 4 independent UI critique (open findings):** Two isolated reviewers
+inspected sanitised fixtures, not live account markup. In a 375×667 busy collection
+panel, Cancel began below the visible scroll viewport while Close was disabled
+and Escape kept the busy panel open; scrolling or tabbing remained a workaround.
+Opening an expanded error report could similarly push Retry below the viewport.
+Both reviewers reproduced collection focus remaining on the external trigger and
+Tab reaching underlying links despite aria-modal=true. Reader's existing Tab
+containment differs. These are extension-owned UI observations, not new Patreon
+selector evidence or repaired behaviour. A measured disclosure text colour also
+falls below ordinary-text contrast in both themes. The archived critique linked
+from TESTING.md records priorities and limits. Runtime, CSP and permissions remain
+unchanged; implementation work requires a subsequent user request.

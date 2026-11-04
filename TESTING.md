@@ -29,6 +29,26 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Independent UI critique, November 4, 2026: two isolated reviewers inspected
+sanitised rendered fixtures and source. Heuristic assessment: **28/40 (Good)**,
+with two P1 interaction issues: offscreen busy/recovery actions and modal semantics
+without matching focus management. Additional findings cover format/ZIP naming,
+Preparation details contrast (3.90:1 light, 4.02:1 dark) and small popup copy.
+This is a review with open findings, not a full accessibility certification.
+
+One Impeccable scan of `extension/export extension/popup extension/content`
+returned three warnings and no errors: two duplicate font-stack style warnings
+and one rendered popup text-size warning. Static coverage does not establish
+accessibility of JavaScript-created shadow DOM or the permission frame. A mutable
+injection preflight passed, but the local overlay script failed to load in all
+three attempts; no user-visible overlay is claimed. The temporary server and
+browser contexts were closed. No runtime code, CSP or permission was changed.
+Full runtime/browser test suites were not rerun for this review. Snapshot metadata,
+source fingerprint, issue counts and documentation whitespace were checked.
+
+[Full independent review](.impeccable/critique/2026-11-04T17-18-35Z__extension-content-collection-export-js.md)
+records reproduction details, evidence limits and recommended priorities.
+
 Product context initialisation, November 4, 2026: documentation/configuration
 only. `PRODUCT.md` records the user's confirmed audience (free and paid Patreon
 users) and equal priority for reading comfort and offline downloads. The selected
