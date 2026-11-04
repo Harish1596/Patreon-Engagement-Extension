@@ -208,7 +208,15 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       }).toBe(false);
     }
     await suspendExportWorker();
-    const collectionBytes = await downloadCollectionZip(() => collectionMarkdown.click());
+    const collectionBytes = await downloadCollectionZip(async () => {
+      await collectionMarkdown.click();
+      await expect(collection.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
+      await collection.getByRole("button", { name: "Close collection download", exact: true }).click();
+      await expect(collection.getByRole("dialog", { name: "Download Collection", exact: true })).toBeHidden();
+    });
+    // The actual downloads API must finish even while the nonmodal panel is closed.
+    await expect(collection.getByRole("dialog", { name: "Download Collection", exact: true })).toBeHidden();
+    await collection.getByRole("button", { name: "Download Collection", exact: true }).click();
     expect(collectionBytes.includes(Buffer.from("001 - Collection post one.md"))).toBe(true);
     expect(collectionBytes.includes(Buffer.from("002 - Collection post two.md"))).toBe(true);
     const collectionEntries = readZip(collectionBytes);

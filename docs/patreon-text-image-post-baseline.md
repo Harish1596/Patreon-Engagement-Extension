@@ -1710,3 +1710,19 @@ compact during busy work while the permission frame remains mounted. Synthetic
 375×667 cases now verify Cancel and expanded-report Retry geometry. These changes
 supersede the two P1 observations above; they introduce no Patreon DOM selector,
 permission or cache-lifecycle change and have not yet been checked on a live page.
+
+
+**November 4 P2 critique remediation and five-fix verification:** Post choices now
+have associated descriptions for browser print/save PDF, ebook reading and editable
+text; the post frame is 144px tall to show them. Collection descriptions include
+ZIP packaging for separate files and ebook/editor use. Their button names and
+format values remain unchanged. Disclosure text uses readable light/dark muted
+colours; measured contrast is 6.20:1 and 7.97:1. Popup secondary copy is 12.5px.
+
+Both original independent reviewers marked all five approved findings resolved
+within their inspected fixtures, including the earlier P1 layout/nonmodal fixes.
+The installed extension fixture also verifies native completion while the panel
+is dismissed. This supersedes the five open critique findings' implementation
+status, not the original dated score or evidence limits. The source remains a
+Patreon-integrated extension with unchanged access, origin and cache policy; no
+new live Patreon DOM evidence or full accessibility certification is implied.

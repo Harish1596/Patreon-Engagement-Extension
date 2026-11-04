@@ -900,7 +900,7 @@
     for (const name of ["current", "counts", "bytes", "elapsed"]) {
       details.append(element("p", { [`data-progress-${name}`]: "", ...(name === "elapsed" ? {} : { hidden: "" }) }));
     }
-    style.textContent += ".progress-details p{margin:4px 0;font-size:12px;overflow-wrap:anywhere}.progress-details [data-progress-current]{color:inherit;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.progress-details{margin-top:12px}.progress-details summary{color:#80808c;font-size:12px;cursor:pointer}.progress-details[open] summary{margin-bottom:8px}section{max-height:calc(100vh - 98px);max-height:calc(100dvh - 98px);overflow:auto}";
+    style.textContent += ".progress-details p{margin:4px 0;font-size:12px;overflow-wrap:anywhere}.progress-details [data-progress-current]{color:inherit;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.progress-details{margin-top:12px}.progress-details summary{color:#60606c;font-size:12px;cursor:pointer}.progress-details[open] summary{margin-bottom:8px}section{max-height:calc(100vh - 98px);max-height:calc(100dvh - 98px);overflow:auto}";
     body.append(details);
     const refresh = element("button", { type: "button", class: "close refresh" }, "Refresh collection");
     refresh.addEventListener("click", () => {
@@ -924,7 +924,7 @@
     body.append(reportView);
     controls.append(refresh, cancel, restart, retry);
     dialog.append(header, body, controls);
-    style.textContent += `section{display:flex;flex-direction:column;overflow:hidden}header,.controls{flex:none}.collection-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.controls{border-top:1px solid #dedee3;padding-top:12px}.format-options[aria-hidden=true]{height:0;overflow:hidden;visibility:hidden}.retry{font-weight:650}@media(prefers-color-scheme:dark){.controls{border-color:#48484e}}`;
+    style.textContent += `@media(prefers-color-scheme:dark){.progress-details summary{color:#b8b8c3}}section{display:flex;flex-direction:column;overflow:hidden}header,.controls{flex:none}.collection-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.controls{border-top:1px solid #dedee3;padding-top:12px}.format-options[aria-hidden=true]{height:0;overflow:hidden;visibility:hidden}.retry{font-weight:650}@media(prefers-color-scheme:dark){.controls{border-color:#48484e}}`;
     trigger.addEventListener("click", () => {
       if (open) return close(true);
       open = true;

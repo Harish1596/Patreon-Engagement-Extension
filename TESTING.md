@@ -29,6 +29,43 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+All five UI critique findings, November 4, 2026: **84 Chrome cases, 14 Brave cases
+including the installed extension, and 74 tooling cases passed**. Syntax covers
+58 JavaScript files; whitespace checks pass. Commands:
+
+```sh
+npx playwright test tests/collection-controls.spec.js tests/ui-readability.spec.js tests/popup.spec.js tests/collection-menu.spec.js tests/collection-completion.spec.js tests/collection-batches.spec.js tests/collection-retry.spec.js tests/collection-refresh.spec.js tests/collection-report.spec.js tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js tests/export.spec.js tests/export-security.spec.js
+npm run test:brave -- tests/collection-controls.spec.js tests/ui-readability.spec.js tests/collection-menu.spec.js tests/installed.spec.js
+npm run test:brave -- tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+RED/GREEN evidence: the initial seven regression cases failed on the original
+control geometry, modal semantics, missing descriptions and popup text size.
+Two additional isolated contrast cases failed before correction. Final checks
+verify persistent narrow Cancel/Retry controls, expanded reports, nonmodal focus,
+active dismissal/reopen without re-preparation, both-theme contrast and format
+hints in actual chooser markup. The installed Brave fixture additionally closes
+the active panel, observes real native download completion while it is hidden,
+and reopens it for later downloads.
+
+Both original reviewers independently marked all five findings resolved in their
+scoped fixture checks. At 375×667, Cancel and Retry are inside the panel at
+approximately y=539–576. Disclosure contrast now measures 6.20:1 light and 7.97:1
+dark, and popup supporting copy is 12.5px without measured horizontal overflow at
+320px. Post hints fit the 144px chooser in both themes. The single mechanical scan
+now has two duplicate font-stack style warnings; the small-text warning is gone.
+The existing system fallback stack is preserved rather than treating that style
+warning as a demonstrated defect. No new live overlay server was needed.
+
+Screenshots/measurements were inspected outside the repo. These are scoped fixture
+and installed-extension checks, not live account or full accessibility/zoom
+certification. Reopening after an already-completed hidden operation still shows
+the ready headline; its report retains the detailed outcome. The original critique
+score remains historical and was not silently rescored after these fixes.
+
 Collection control remediation, November 4, 2026: **10 Chrome cases passed** via
 `npx playwright test tests/collection-controls.spec.js tests/collection-menu.spec.js tests/collection-progress.spec.js`.
 The three new cases first failed on the original implementation. They now verify

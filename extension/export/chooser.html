@@ -8,9 +8,14 @@
   </head>
   <body>
     <main aria-label="Post export formats">
-      <button type="button" data-format="pdf" disabled>PDF</button>
-      <button type="button" data-format="epub" disabled>EPUB</button>
-      <button type="button" data-format="markdown" disabled>Markdown</button>
+      <button type="button" data-format="pdf" aria-describedby="pdf-help" disabled>PDF</button>
+      <button type="button" data-format="epub" aria-describedby="epub-help" disabled>EPUB</button>
+      <button type="button" data-format="markdown" aria-describedby="markdown-help" disabled>Markdown</button>
+      <div class="format-help">
+        <p id="pdf-help">PDF: Print, or save as PDF in the browser dialog.</p>
+        <p id="epub-help">EPUB: Read in an ebook reader.</p>
+        <p id="markdown-help">Markdown: Editable plain text.</p>
+      </div>
     </main>
     <script src="chooser.js"></script>
   </body>

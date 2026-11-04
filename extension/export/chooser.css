@@ -20,3 +20,8 @@ button:focus-visible { outline: 2px solid #b82d47; outline-offset: 2px; }
   button { color: #f2f2f5; background: #323237; border-color: #505058; }
   button:hover { background: #414148; }
 }
+
+.format-help { grid-column: 1 / -1; padding-top: 4px; }
+.format-help p { margin: 0 0 6px; color: #60606c; font: 12px/1.45 system-ui, sans-serif; }
+.format-help p:last-child { margin-bottom: 0; }
+@media (prefers-color-scheme: dark) { .format-help p { color: #b8b8c3; } }

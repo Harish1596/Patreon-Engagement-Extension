@@ -1481,3 +1481,27 @@ Chrome cases). Fixtures cover 375×667 Cancel/Retry visibility, expanded reports
 retained chapters, and busy dismissal/reopen. The remaining P2 findings are a
 separate authorised task. This checkpoint does not establish live Patreon or
 formal assistive-technology conformance.
+
+
+## November 4, 2026 — Resolve all five approved UI critique findings
+
+Added format suitability hints (browser print/save PDF, ebook reader and editable
+text), included ZIP in collection button descriptions, corrected disclosure colours
+and enlarged popup secondary text to 12.5px. Post chooser space is now 144px and
+its fixture renders actual packaged HTML/CSS. This completes the three P2 findings
+alongside the earlier committed P1 footer/nonmodal focus fixes.
+
+Final evidence: 84 Chrome cases, 14 Brave cases including installed extension, and
+74 tooling cases; syntax for 58 JavaScript files and whitespace checks pass. The
+initial seven regressions and two isolated theme-contrast cases failed before
+implementation. Both original reviewers then scored all five scoped fixes resolved.
+Contrast measures 6.20:1 light and 7.97:1 dark. Narrow Cancel/Retry remain visible,
+active dismissal/reopen preserves work, post hints fit and popup text wraps within
+320px. The installed fixture additionally verifies actual native completion while
+the panel is dismissed and subsequent reopened downloads.
+
+One detector scan retained only two duplicate font-stack style warnings; no font
+change was needed. No runtime access/permission/CSP change, live account inspection
+or formal assistive-technology conformance claim was introduced. The original
+28/40 critique remains historical. Minor pre-existing caveat: reopening after a
+finished hidden operation restores the ready headline while retaining its report.

@@ -9,9 +9,9 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
   await page.route("https://www.patreon.com/**", (route) => route.fulfill({ contentType: "text/html", body: content }));
   await page.route("https://fixture-extension.invalid/export/chooser.html**", (route) => route.fulfill({
     contentType: "text/html",
-    body: `<!doctype html><html><body><main aria-label="Post export formats">
-      <button disabled data-format="pdf">PDF</button><button disabled data-format="epub">EPUB</button><button disabled data-format="markdown">Markdown</button>
-      </main><script>
+    body: fs.readFileSync(path.join(extensionRoot, "export/chooser.html"), "utf8")
+      .replace('<link rel="stylesheet" href="chooser.css" />', `<style>${fs.readFileSync(path.join(extensionRoot, "export/chooser.css"), "utf8")}</style>`)
+      .replace('<script src="chooser.js"></script>', `<script>
       const token = location.hash.slice(1);
       for (const button of document.querySelectorAll("button")) button.onclick = () => parent.postMessage({
         source: "patreon-reader-export", token,
@@ -22,7 +22,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
       requestAnimationFrame(() => requestAnimationFrame(() => {
         for (const button of document.querySelectorAll("button")) button.disabled = false;
       }));
-      </script></body></html>`
+      </script>`)
   }));
   await page.route("https://fixture-extension.invalid/export/collection-chooser.html**", route => route.fulfill({
     contentType: "text/html", body: fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.html"), "utf8")

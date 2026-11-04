@@ -13,9 +13,9 @@ for (const [theme, width, height] of [["light", 1280, 900], ["dark", 1280, 900],
     await page.setViewportSize({ width, height }); await page.emulateMedia({ colorScheme: theme });
     const errors = []; page.on("pageerror", error => errors.push(error.message));
     await fixture(page);
-    await expect(frame(page).getByRole("button", { name: "Single EPUB", exact: true })).toHaveAccessibleDescription("All chapters together in one book.");
-    await expect(frame(page).getByRole("button", { name: "EPUB", exact: true })).toHaveAccessibleDescription("A separate EPUB for each chapter.");
-    await expect(frame(page).getByRole("button", { name: "Markdown", exact: true })).toHaveAccessibleDescription("A separate Markdown file for each chapter.");
+    await expect(frame(page).getByRole("button", { name: "Single EPUB", exact: true })).toHaveAccessibleDescription("Read chapters together in an ebook reader.");
+    await expect(frame(page).getByRole("button", { name: "EPUB", exact: true })).toHaveAccessibleDescription("One ebook per chapter, in a ZIP archive.");
+    await expect(frame(page).getByRole("button", { name: "Markdown", exact: true })).toHaveAccessibleDescription("Editable text files, one per chapter, in a ZIP archive.");
     await expect(page.locator(".progress-details")).not.toHaveAttribute("open");
     const bounds = await page.locator('iframe[title="Collection export formats"]').boundingBox();
     const panel = await menu(page).boundingBox();
