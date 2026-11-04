@@ -29,6 +29,40 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection download completion, November 4, 2026: **67 Chrome export cases,
+6 Brave cases including the installed extension, and 74 tooling cases passed**.
+Syntax covers 55 JavaScript files; whitespace checks pass. Commands:
+
+```sh
+npx playwright test tests/collection-completion.spec.js tests/collection-batches.spec.js tests/collection-retry.spec.js tests/collection-refresh.spec.js tests/collection-report.spec.js tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js tests/export.spec.js tests/export-security.spec.js
+npm run test:brave -- tests/collection-completion.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+Worker fixtures exercise native completion/interruption, owner-only notifications,
+unrelated/duplicate events, post-download search reconciliation, restart with a
+finished download, absent history, error redaction and physical archive cleanup.
+The first tooling run counted the session encryption key as an archive record;
+assertions now specifically check archive records and disk files. Initial browser
+cases raced the asynchronous chooser message; the helper now waits for a recorded
+handoff before checking final chooser readiness.
+
+Browser cases cover per-post and per-part results, early completion before the
+packaging reply, saved reports, closed/reopened dialogs, stale attempts, rejection
+of messages from content scripts, independent numbered parts and expiry without
+late-result resurrection. Installed Brave confirms Completed after actual native
+EPUB saving. Interruption and restart reconciliation use synthetic browser API
+fixtures; live interrupted downloads and live Patreon were not exercised.
+
+The existing page-local report expires after two hours and is cleared by explicit
+Refresh, navigation/reload or a new attempt. Worker restart reconciles pending
+native archives through browser history; missing history shows Status unavailable
+rather than inventing completion/interruption. Reports confirm browser download
+state, not archive validity or successful opening. No new permissions or durable
+download-history cache are introduced.
+
 Large collection batches, November 3, 2026: **62 Chrome export cases,
 7 Brave cases including the installed extension, and 69 tooling cases passed**.
 Syntax covers 54 JavaScript files; whitespace checks pass. Commands:

@@ -50,12 +50,12 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
     const session = {};
     globalThis.collectionPrepareCount = 0;
     globalThis.forgetCollectionSessions = () => collectionSessions.clear();
-    const deliver = async (message) => {
+    const deliver = async (message, sender = { id: "fixture-extension", tab: { id: 1, url: location.href } }) => {
       for (const listener of messages) {
         const result = await new Promise((resolve) => {
           let responded = false;
           const respond = (value) => { responded = true; resolve(value); };
-          const returned = listener(message, { id: "fixture-extension", tab: { id: 1, url: location.href } }, respond);
+          const returned = listener(message, sender, respond);
           if (returned !== true && !responded) resolve(returned);
         });
         if (result !== undefined) return result;
@@ -68,6 +68,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
       for (const listener of listeners) listener(result, "local");
     };
     globalThis.deliverExtensionMessage = deliver;
+    globalThis.deliverBackgroundMessage = message => deliver(message, { id: "fixture-extension" });
     const api = {
       runtime: {
         id: "fixture-extension",
@@ -260,6 +261,9 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
   await page.addScriptTag({ path: path.join(extensionRoot, "background/archives.js") });
   await page.evaluate(() => {
     globalThis.archiveTestBackend = PatreonArchives.install({ download: async (job, file) => {
+      globalThis.collectionArchiveHandoffs ||= [];
+      globalThis.collectionArchiveHandoffs.push({ id: job.id, filename: job.filename });
+      if (globalThis.collectionEarlyCompletion) await globalThis.deliverBackgroundMessage({ type: "COLLECTION_ARCHIVE_RESULT", id: job.id, state: "complete" });
       PatreonExporter.saveBlob(file, job.filename);
       return { started: true };
     } });

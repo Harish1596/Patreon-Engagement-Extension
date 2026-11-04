@@ -1371,3 +1371,28 @@ above the discovery bound. A worker fixture prepares/restores 1,000 metadata
 records and builds index 999 after restart. Installed Brave verifies the existing
 smaller native-download/cache/expiry flow; large native collection handoffs and
 live Patreon collections were not exercised. Tests use sanitized synthetic posts.
+
+
+## November 4, 2026 — Track native collection download results
+
+Collection reports now list each output file's In progress, Completed, Interrupted
+or Status unavailable result and update all posts belonging to that part. Native
+state changes are sent only to the owning tab before temporary-file cleanup;
+post-handoff search and worker restoration reconcile quick or missed events.
+Fixed explanations replace raw browser errors. IDs belong to the current report,
+so stale or duplicate results cannot overwrite a new attempt or terminal outcome.
+Reports remain page-local with their existing expiry/reset behavior, and saved
+reports include file results. Existing cancellation/retry preserves earlier
+completed/interrupted parts. No new permission or durable history cache is added.
+
+Verification passed: 67 Chrome export cases, 6 Brave cases including the installed
+extension, 74 tooling cases, syntax for 55 JavaScript files and whitespace checks.
+The first native-worker tests incorrectly counted the shared encryption-key record
+as archive metadata; assertions now check the archive namespace and physical files.
+Two initial browser tests reached their assertions before chooser delivery;
+the helper now waits for a recorded handoff. Final runs cover early/late results,
+independent parts, sender/attempt guards, saved/closed reports, expiry, native API
+reconciliation and cleanup. Installed Brave verifies real EPUB completion;
+interruption/restart reconciliation uses synthetic API fixtures. Live Patreon and
+live browser interruption/resume were not tested. Completed means the browser
+confirmed saving, and does not establish archive validity.

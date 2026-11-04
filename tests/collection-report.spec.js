@@ -39,7 +39,7 @@ test("download report lists skipped and failed posts, redacts URLs, and updates 
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "Retry failed posts", exact: true }).click(); await pending;
   await expect(report(page)).toContainText("2 included · 1 skipped · 0 failed");
-  await expect(report(page)).toContainText("Browser completion has not been confirmed");
+  await expect(report(page)).toContainText("The browser is saving the file");
   text = await reportText(page);
   expect(text.match(/DOWNLOAD-STARTED:/g)).toHaveLength(2);
   expect(text).not.toContain("FAILED:");

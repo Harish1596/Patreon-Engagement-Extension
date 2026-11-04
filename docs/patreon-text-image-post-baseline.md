@@ -1620,3 +1620,33 @@ parts, later-part retry/cancellation, format changes and the discovery bound.
 Worker fixtures cover metadata restore at 1,000 posts and the final indexed build.
 Installed Brave regression coverage uses its smaller native-download fixture;
 no live Patreon collection of more than 100 posts was inspected in this task.
+
+
+**November 4 collection download results:** The report now tracks native download
+completion/interruption per generated archive, superseding the earlier handoff-only
+report limit above. Each numbered part is registered with its archive ID and post
+URLs before packaging, so results arriving before the PACKAGE reply are retained.
+Reports show In progress for handed-off files and update affected rows to Completed
+or Interrupted when the worker reports a native result. Missing browser history
+on worker restoration shows Status unavailable with unconfirmed rows. Per-file
+results and row statuses are included in saved text reports. Included totals count
+all handed-off posts; completed/interrupted totals are listed separately.
+
+The worker notifies only the owning tab before deleting temporary archive files.
+It reconciles native state after the download call and when restoring a pending
+archive after restart, as well as handling downloads.onChanged events. Interruption
+reasons use fixed explanations; raw browser errors, local paths and URLs are not
+forwarded. Terminal results are deduplicated. The content listener accepts only
+messages from the extension background context for IDs in the current report.
+New attempts/Refresh/navigation/expiry discard those IDs, preventing stale events
+from changing a later report. Closed dialogs retain updates while their page and
+two-hour report remain alive; no new durable report storage is introduced.
+Cancellation/retry of remaining parts preserves earlier terminal outcomes.
+
+Synthetic worker fixtures cover both terminal states, cleanup, unrelated events,
+restart/search reconciliation, missing history and private-error redaction.
+Browser fixtures cover early completion, closed/reopened reports, saved results,
+independent parts, stale sender/attempt rejection and expiry. Installed Brave
+confirms Completed after a real native EPUB download; interruption/restart cases
+are synthetic. No live Patreon markup, new selector, access rule or permission
+was established. Browser completion confirms saving, not archive validity.

@@ -30,18 +30,33 @@
     downloadReport = null;
     renderDownloadReport();
   }
+  const handedOff = post => ["download-started", "completed", "interrupted", "unconfirmed"].includes(post.status);
+  function partResults() {
+    return [...(downloadReport?.parts?.values() || [])].filter(part => part.started).map(part =>
+      `${part.filename}: ${part.state === "complete" ? "Completed" : part.state === "interrupted" ? `Interrupted · ${part.reason}` : part.state === "unavailable" ? "Status unavailable · Completion could not be confirmed." : "In progress · The browser is saving the file."}`).join("\n");
+  }
+  function applyPartResult(part) {
+    if (!downloadReport) return;
+    const status = part.state === "complete" ? "completed" : part.state === "interrupted" ? "interrupted" : part.state === "unavailable" ? "unconfirmed" : "download-started";
+    for (const post of downloadReport.posts) if (part.urls.includes(post.url)) {
+      post.status = status;
+      post.reason = status === "completed" ? "The browser confirmed the file finished downloading."
+        : ["interrupted", "unconfirmed"].includes(status) ? part.reason : "Included in the collection file handed to the browser.";
+    }
+  }
   function renderDownloadReport() {
     const view = shadow?.querySelector(".download-report");
     if (!view) return;
     view.hidden = !downloadReport;
     if (!downloadReport) return;
     const summary = view.querySelector("summary");
-    const totals = Object.fromEntries(["ready", "prepared", "download-started", "skipped", "failed", "cancelled"].map(status =>
+    const totals = Object.fromEntries(["ready", "prepared", "download-started", "completed", "interrupted", "unconfirmed", "skipped", "failed", "cancelled"].map(status =>
       [status, downloadReport.posts.filter(post => post.status === status).length]));
-    summary.textContent = `Download report · ${totals["download-started"]} included · ${totals.skipped} skipped · ${totals.failed} failed`;
+    summary.textContent = `Download report · ${totals["download-started"] + totals.completed + totals.interrupted + totals.unconfirmed} included · ${totals.skipped} skipped · ${totals.failed} failed · ${totals.completed} completed · ${totals.interrupted} interrupted`;
     view.querySelector(".report-state").textContent = downloadReport.state;
+    view.querySelector(".download-parts").textContent = partResults();
     const list = view.querySelector("ol"); list.replaceChildren();
-    const labels = { ready: "Ready", prepared: "Prepared", "download-started": "Download started", skipped: "Skipped", failed: "Failed", cancelled: "Cancelled" };
+    const labels = { ready: "Ready", prepared: "Prepared", "download-started": "Download started", completed: "Completed", interrupted: "Interrupted", unconfirmed: "Status unavailable", skipped: "Skipped", failed: "Failed", cancelled: "Cancelled" };
     for (const post of downloadReport.posts) {
       const row = element("li");
       row.append(element("strong", {}, post.title || post.url || "Post"), element("p", {}, `${labels[post.status]}${post.reason ? ` · ${post.reason}` : ""}`));
@@ -54,7 +69,7 @@
     if (downloadReport?.format) return; // Preserve the last attempt while its chooser is refreshed.
     if (!downloadReport) {
       downloadReport = { title: cleanReportText(collectionTitle()), source: `${location.origin}${location.pathname}`,
-        createdAt: new Date().toISOString(), format: "", state: "Preparation complete. Nothing downloaded yet.", posts: [] };
+        createdAt: new Date().toISOString(), format: "", state: "Preparation complete. Nothing downloaded yet.", posts: [], parts: new Map() };
       reportTimer = setTimeout(resetDownloadReport, COLLECTION_CACHE_MS);
     }
     const posts = new Map();
@@ -81,7 +96,7 @@
   function saveDownloadReport() {
     if (!downloadReport || busy) return;
     const lines = [downloadReport.title, `Source: ${downloadReport.source}`, `Report time: ${downloadReport.createdAt}`,
-      `Format: ${downloadReport.format || "Not selected"}`, `Status: ${downloadReport.state}`, "",
+      `Format: ${downloadReport.format || "Not selected"}`, `Status: ${downloadReport.state}`, partResults(), "",
       "Download started means the file was handed to the browser, not that it finished saving.", ""];
     for (const post of downloadReport.posts) lines.push(`${post.status.toUpperCase()}: ${post.title || post.url || "Post"}`, post.url, post.reason, "");
     globalThis.PatreonExporter.saveBlob(new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" }), `${fileStem(downloadReport.title)} - Download Report.txt`);
@@ -192,8 +207,8 @@
     if (!busy || !operation || operation.handedOff) return;
     const ownerHost = host;
     operation.controller.abort();
-    if (downloadReport) for (const post of downloadReport.posts) if (post.status !== "skipped" && post.status !== "download-started") { post.status = "cancelled"; post.reason = "Export cancelled before this post was downloaded."; }
-    reportState(downloadReport?.posts.some(post => post.status === "download-started")
+    if (downloadReport) for (const post of downloadReport.posts) if (post.status !== "skipped" && !handedOff(post)) { post.status = "cancelled"; post.reason = "Export cancelled before this post was downloaded."; }
+    reportState(downloadReport?.posts.some(post => handedOff(post))
       ? "Cancelled remaining parts. Earlier downloads were already handed to the browser." : "Cancelled. Nothing downloaded.");
     const dropping = dropCheckpoint();
     finishOperation(operation);
@@ -684,7 +699,7 @@
       downloadReport.mode = format;
       downloadReport.format = format === "epub-book" ? "Single EPUB" : `${label} files (ZIP)`;
       // Retry state comes from committed disk entries, not previous failed attempts.
-      for (const post of downloadReport.posts) if (post.status !== "skipped" && post.status !== "download-started") { post.status = "ready"; post.reason = ""; }
+      for (const post of downloadReport.posts) if (post.status !== "skipped" && !handedOff(post)) { post.status = "ready"; post.reason = ""; }
       reportState(start ? "Building the next part. Earlier parts were handed to the browser." : "Building chapters. No collection file downloaded yet.");
       const signature = JSON.stringify(prepared.postUrls);
       if (!checkpoint || checkpoint.format !== format || (checkpoint.total || checkpoint.count) !== prepared.count || checkpoint.signature !== signature) {
@@ -764,12 +779,18 @@
       reportState("Chapters prepared. Packaging the collection file.");
       report(book ? "Assembling EPUB book…" : "Packaging collection ZIP…");
       setProgress(book ? "Assembling EPUB book" : "Packaging collection ZIP");
+      // Register before PACKAGE: a small native download can finish before its
+      // request reply arrives. Keep results attached to this attempt and part.
+      const partResult = { urls: prepared.postUrls.slice(offset, offset + checkpoint.count),
+        filename: `${fileStem(collectionTitle())}${suffix}.${book ? "epub" : "zip"}`, state: "pending", started: false };
+      downloadReport?.parts.set(checkpoint.id, partResult);
       const packaged = await archive.request("PACKAGE", { id: checkpoint.id, operationId: operation.id }, signal);
       checkOperation(operation);
       if (!packaged.started) throw new Error("The collection download could not be started.");
       operation.handedOff = true;
-      if (downloadReport) for (const post of downloadReport.posts) if (post.status === "prepared") { post.status = "download-started"; post.reason = "Included in the collection file handed to the browser."; }
-      reportState("Download started. Browser completion has not been confirmed.");
+      partResult.started = true;
+      applyPartResult(partResult);
+      reportState("Collection file handed to the browser.");
       setBusy(true);
       // The browser now owns the disk-backed archive until completion/interrupt.
       const next = offset + checkpoint.count;
@@ -849,7 +870,7 @@
     const retry = element("button", { type: "button", class: "close retry", hidden: "" }, "Retry failed posts");
     retry.addEventListener("click", () => { if (checkpoint) run(checkpoint.format); });
     const reportView = element("details", { class: "download-report", hidden: "" });
-    reportView.append(element("summary", {}, "Download report"), element("p", { class: "report-state" }),
+    reportView.append(element("summary", {}, "Download report"), element("p", { class: "report-state" }), element("p", { class: "download-parts", style: "white-space:pre-line" }),
       element("ol", { "aria-label": "Post download results" }));
     const saveReport = element("button", { type: "button", class: "close" }, "Save report");
     saveReport.addEventListener("click", saveDownloadReport); reportView.append(saveReport);
@@ -901,6 +922,16 @@
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
+    if (message.type === "COLLECTION_ARCHIVE_RESULT") {
+      const part = downloadReport?.parts?.get(message.id);
+      if (sender.tab || !part || !["complete", "interrupted", "unavailable"].includes(message.state)) return;
+      // Terminal results are immutable; ignore duplicate or out-of-order replies.
+      if (["complete", "interrupted", "unavailable"].includes(part.state)) return;
+      part.state = message.state; part.started = true;
+      part.reason = cleanReportText(message.reason || "The browser interrupted the download.");
+      applyPartResult(part); renderDownloadReport();
+      respond({ reported: true }); return;
+    }
     if (message.type === "COLLECTION_EXPORT_CACHE_EXPIRED" && requestToken && message.token === requestToken && !busy) {
       requestToken = "";
       clearDiscovery();

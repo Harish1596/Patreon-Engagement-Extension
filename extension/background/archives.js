@@ -140,6 +140,27 @@
       retention?.changed();
       return true;
     }
+    function downloadReason(error) {
+      if (error === "USER_CANCELED") return "The download was cancelled in the browser.";
+      if (error === "FILE_NO_SPACE") return "The device has insufficient disk space.";
+      if (["FILE_ACCESS_DENIED", "FILE_BLOCKED", "FILE_SECURITY_CHECK_FAILED", "FILE_VIRUS_INFECTED"].includes(error)) return "The browser or device blocked saving the file.";
+      if (typeof error === "string" && error.startsWith("NETWORK_")) return "A network error interrupted the download.";
+      return "The browser interrupted the download. Check the browser Downloads page for details.";
+    }
+    async function finishDownload(job, state, error) {
+      if (job.terminal) return;
+      job.terminal = true;
+      if (state === "interrupted" && error === undefined && job.downloadId !== undefined) {
+        try { const [item] = await call(api.downloads, "search", { id: job.downloadId }); error = item?.error; }
+        catch { /* A generic fixed explanation is sufficient if history is gone. */ }
+      }
+      // Notify before cleanup removes the download-to-owner association. Only
+      // fixed explanations leave the worker; browser errors/paths stay private.
+      await call(api.tabs, "sendMessage", job.owner, { type: "COLLECTION_ARCHIVE_RESULT", id: job.id,
+        state, ...(state === "unavailable" ? { reason: "The browser download record is unavailable. Completion could not be confirmed." }
+          : state === "interrupted" ? { reason: downloadReason(error) } : {}) }).catch(() => {});
+      await cleanup(job, true);
+    }
     const ready = (async () => {
       const stored = await call(api.storage.session, "get", null);
       for (const [key, value] of Object.entries(stored)) {
@@ -169,7 +190,8 @@
       if (!download) for (const job of [...jobs.values()]) {
         if (job.downloadId === undefined) continue;
         const [state] = await call(api.downloads, "search", { id: job.downloadId });
-        if (!state || ["complete", "interrupted"].includes(state.state)) await cleanup(job, true);
+        if (!state) await finishDownload(job, "unavailable");
+        else if (["complete", "interrupted"].includes(state.state)) await finishDownload(job, state.state, state.error);
       }
     })();
     ready.catch(() => {});
@@ -207,7 +229,7 @@
           await persist(job);
           const [state] = await call(api.downloads, "search", { id: job.downloadId });
           if (state?.state === "complete" || state?.state === "interrupted") {
-            setTimeout(() => cleanup(job, true).catch(() => {}), 0);
+            setTimeout(() => finishDownload(job, state.state, state.error).catch(() => {}), 0);
           }
         } catch (error) { job.downloading = false; throw error; }
         return { started: true, downloadId: job.downloadId };
@@ -391,7 +413,7 @@
       });
     }
     api.runtime.onMessage.addListener((message, sender, respond) => {
-      if (!message?.type?.startsWith("COLLECTION_ARCHIVE_") || ["COLLECTION_ARCHIVE_PROGRESS", "COLLECTION_ARCHIVE_HANDOFF"].includes(message.type)) return;
+      if (!message?.type?.startsWith("COLLECTION_ARCHIVE_") || ["COLLECTION_ARCHIVE_PROGRESS", "COLLECTION_ARCHIVE_HANDOFF", "COLLECTION_ARCHIVE_RESULT"].includes(message.type)) return;
       if (sender.id !== api.runtime.id || !sender.tab || !/^https:\/\/www\.patreon\.com\//.test(sender.tab.url || "")) { respond({ error: "Archive requests must come from Patreon." }); return; }
       handle(message, sender).then(respond, error => respond({ error: error.message || "Temporary archive storage is unavailable." }));
       return true;
@@ -401,7 +423,7 @@
     });
     api.downloads?.onChanged.addListener(delta => {
       if (!["complete", "interrupted"].includes(delta.state?.current)) return;
-      ready.then(() => Promise.all([...jobs.values()].filter(job => job.downloadId === delta.id).map(job => cleanup(job, true)))).catch(() => {});
+      ready.then(() => Promise.all([...jobs.values()].filter(job => job.downloadId === delta.id).map(job => finishDownload(job, delta.state.current, delta.error?.current)))).catch(() => {});
     });
     return Object.freeze({ ready, sweep, clear });
   }

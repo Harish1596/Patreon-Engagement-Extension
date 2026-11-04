@@ -15,13 +15,16 @@ const source = fs.readFileSync(path.join(extension, "shared/zip.js"), "utf8")
 const id = "11111111-1111-4111-8111-111111111111";
 const transferId = "22222222-2222-4222-8222-222222222222";
 
-function harness(t, { maxBytes, deliver, onProgress } = {}) {
+function harness(t, { maxBytes, deliver, onProgress, native = false, initialState = "in_progress" } = {}) {
   const disk = fs.mkdtempSync(path.join(os.tmpdir(), "patreon-archive-test-"));
   t.after(() => fs.rmSync(disk, { force: true, recursive: true }));
   const records = {};
   const writers = new Set();
   let listener;
   let removed;
+  let changed;
+  const downloadStates = new Map();
+  const notifications = [];
   let elapsed = 0;
   let failWrite = false;
   let downloads = 0;
@@ -70,14 +73,22 @@ function harness(t, { maxBytes, deliver, onProgress } = {}) {
     };
   }
   const browser = {
-    runtime: { id: "fixture-extension", onMessage: { addListener(value) { listener = value; } } },
-    tabs: { async sendMessage(tabId, message) { if (message.type === "COLLECTION_ARCHIVE_PROGRESS") { progress.push(message); onProgress?.(message); } return { reported: true, handedOff: true }; }, onRemoved: { addListener(value) { removed = value; } } },
+    runtime: { id: "fixture-extension", getURL: name => `chrome-extension://fixture-extension/${name}`, async sendMessage(message) { return message.type === "ARCHIVE_BLOB_OPEN" ? { url: "blob:chrome-extension://fixture-extension/archive" } : {}; }, onMessage: { addListener(value) { listener = value; } } },
+    tabs: { async sendMessage(tabId, message) { notifications.push({ tabId, ...message }); if (message.type === "COLLECTION_ARCHIVE_PROGRESS") { progress.push(message); onProgress?.(message); } return { reported: true, handedOff: true }; }, onRemoved: { addListener(value) { removed = value; } } },
     storage: { session: {
       async get() { return structuredClone(records); },
       async set(value) { Object.assign(records, structuredClone(value)); },
       async remove(key) { delete records[key]; }
     } }
   };
+  if (native) {
+    browser.offscreen = { async hasDocument() { return true; }, async closeDocument() {} };
+    browser.downloads = {
+      onChanged: { addListener(value) { changed = value; } },
+      async download() { const id = ++downloads; downloadStates.set(id, { id, state: initialState }); return id; },
+      async search({ id }) { return downloadStates.has(id) ? [downloadStates.get(id)] : []; }
+    };
+  }
   const restart = async () => {
     for (const writer of [...writers]) await writer.abort();
     const scope = { browser, URL, AbortController, Uint8Array, DataView, TextEncoder, TextDecoder, ReadableStream, DecompressionStream, setTimeout, crypto: require("node:crypto").webcrypto,
@@ -86,13 +97,17 @@ function harness(t, { maxBytes, deliver, onProgress } = {}) {
     vm.runInNewContext(source, scope);
     scope.PatreonDiskCrypto = scope.PatreonExportCrypto.create();
     controller = scope.PatreonArchives.install({ root: async () => directory(disk), ...(maxBytes === undefined ? {} : { maxBytes }),
-      download: async () => { downloads++; if (deliver) return deliver(); return { started: true }; } });
+      ...(native ? {} : { download: async () => { downloads++; if (deliver) return deliver(); return { started: true }; } }) });
     await controller.ready;
     return scope;
   };
   const send = (action, data = {}, owner = 1) => new Promise(resolve => listener({ type: `COLLECTION_ARCHIVE_${action}`, id, ...data },
     { id: browser.runtime.id, tab: { id: owner, url: "https://www.patreon.com/collection/500" } }, resolve));
-  return { disk, records, restart, send, writers, progress,
+  return { disk, records, restart, send, writers, progress, notifications, downloadStates,
+    finishDownload: (downloadId, state, error) => {
+      downloadStates.set(downloadId, { id: downloadId, state, error });
+      changed({ id: downloadId, state: { current: state }, ...(error ? { error: { current: error } } : {}) });
+    },
     sweep: () => controller.sweep(),
     fail: value => { failWrite = value; }, advance: minutes => { elapsed += minutes * 60_000; },
     closeOwner: () => removed(1), downloadCount: () => downloads, largestRead: () => largestRead };
@@ -301,4 +316,68 @@ test("closing the owner during streamed book assembly aborts without a plaintext
   assert.equal(h.downloadCount(), 0);
   for (let attempt = 0; attempt < 50 && fs.existsSync(path.join(h.disk, "patreon-archives-v1", id)); attempt++) await new Promise(resolve => setTimeout(resolve, 5));
   assert.equal(fs.existsSync(path.join(h.disk, "patreon-archives-v1", id)), false);
+});
+
+for (const state of ["complete", "interrupted"]) {
+  test(`native ${state} notifies the owner before removing archive files`, async t => {
+    const h = harness(t, { native: true });
+    const scope = await h.restart();
+    await h.send("CREATE", { count: 1, filename: "Collection.zip" });
+    await store(h, scope, 0, "Chapter");
+    const result = await h.send("PACKAGE", { operationId: "attempt" });
+    assert.equal(result.started, true);
+    h.finishDownload(999, state); // Unrelated browser downloads cannot update reports.
+    h.finishDownload(result.downloadId, state, "USER_CANCELED");
+    await new Promise(resolve => setTimeout(resolve, 30));
+    const messages = h.notifications.filter(item => item.type === "COLLECTION_ARCHIVE_RESULT");
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].tabId, 1);
+    assert.equal(messages[0].id, id);
+    assert.equal(messages[0].state, state);
+    if (state === "interrupted") assert.match(messages[0].reason, /cancelled in the browser/);
+    assert.equal(Object.keys(h.records).filter(key => key.startsWith("collection-archive:")).length, 0);
+    assert.equal(fs.existsSync(path.join(h.disk, "patreon-archives-v1", id)), false);
+    h.finishDownload(result.downloadId, state);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    assert.equal(h.notifications.filter(item => item.type === "COLLECTION_ARCHIVE_RESULT").length, 1);
+  });
+}
+
+test("worker restart reconciles a finished native download and redacts arbitrary browser errors", async t => {
+  const h = harness(t, { native: true });
+  const scope = await h.restart();
+  await h.send("CREATE", { count: 1, filename: "Collection.zip" });
+  await store(h, scope, 0, "Chapter");
+  const result = await h.send("PACKAGE", { operationId: "attempt" });
+  h.downloadStates.set(result.downloadId, { state: "interrupted", error: "https://private.example/file?token=secret" });
+  await h.restart();
+  const [message] = h.notifications.filter(item => item.type === "COLLECTION_ARCHIVE_RESULT");
+  assert.equal(message.state, "interrupted");
+  assert.match(message.reason, /Check the browser Downloads page/);
+  assert.equal(JSON.stringify(message).includes("secret"), false);
+  assert.equal(Object.keys(h.records).filter(key => key.startsWith("collection-archive:")).length, 0);
+});
+
+test("an already finished download is reconciled even without an onChanged event", async t => {
+  const h = harness(t, { native: true, initialState: "complete" });
+  const scope = await h.restart();
+  await h.send("CREATE", { count: 1, filename: "Collection.zip" });
+  await store(h, scope, 0, "Chapter");
+  assert.equal((await h.send("PACKAGE", { operationId: "attempt" })).started, true);
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(h.notifications.filter(item => item.type === "COLLECTION_ARCHIVE_RESULT" && item.state === "complete").length, 1);
+  assert.equal(Object.keys(h.records).filter(key => key.startsWith("collection-archive:")).length, 0);
+});
+
+test("missing browser history is unconfirmed rather than a false terminal result", async t => {
+  const h = harness(t, { native: true });
+  const scope = await h.restart();
+  await h.send("CREATE", { count: 1, filename: "Collection.zip" });
+  await store(h, scope, 0, "Chapter");
+  const result = await h.send("PACKAGE", { operationId: "attempt" });
+  h.downloadStates.delete(result.downloadId);
+  await h.restart();
+  const [message] = h.notifications.filter(item => item.type === "COLLECTION_ARCHIVE_RESULT");
+  assert.equal(message.state, "unavailable");
+  assert.match(message.reason, /could not be confirmed/);
 });
