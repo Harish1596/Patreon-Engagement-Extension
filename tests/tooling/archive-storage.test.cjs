@@ -520,3 +520,40 @@ for (const mismatch of ['missing book', 'filename', 'chapter name', 'chapter met
     assert.equal(h.downloadCount(), 0);
   });
 }
+
+for (const mode of ["zip", "epub", "markdown"]) test(`${mode} output omits skipped chapters across restart while preserving order and navigation`, async t => {
+  const h = harness(t);
+  let scope = await h.restart();
+  const single = mode !== "zip";
+  await h.send("CREATE", { count: 5, filename: `Skip.${mode === "markdown" ? "md" : mode}`,
+    ...(single ? { book, ...(mode === "markdown" ? { markdown: true } : {}) } : {}) });
+  for (const index of [0, 2, 4]) assert.equal((await h.send("SKIP", { index })).skipped, true);
+  for (const index of [1, 3]) {
+    const navigation = '<nav aria-label="Chapter navigation"><p>Old links</p></nav>';
+    const data = mode === "epub" ? storedZip(scope, [["mimetype", "application/epub+zip"], ["EPUB/styles.css", "body{}"],
+      ["EPUB/post.xhtml", `<html><body>Chapter ${index}${navigation}</body></html>`]])
+      : `<a id="chapter-${String(index + 1).padStart(3, "0")}"></a>\n\nChapter ${index}`;
+    await store(h, scope, index, data, single ? { ...chapterMetadata, title: `Title ${index}` } : undefined);
+  }
+  await h.restart();
+  assert.equal((await h.send("GET")).entries[2].skipped, true);
+  assert.equal((await h.send("PACKAGE")).started, true);
+  const bytes = fs.readFileSync(path.join(h.disk, "patreon-archives-v1", id, "archive.zip"));
+  if (mode === "zip") assert.deepEqual(readZip(bytes).map(entry => entry.name), ["2 - Chapter.md", "4 - Chapter.md"]);
+  if (mode === "markdown") {
+    assert.match(bytes.toString(), /Title 1\]\(#chapter-002\)/);
+    assert.match(bytes.toString(), /Title 3\]\(#chapter-004\)/);
+    assert.doesNotMatch(bytes.toString(), /chapter-001|chapter-003|chapter-005/);
+  }
+  if (mode === "epub") {
+    const entries = readZip(bytes);
+    const first = entries.find(entry => entry.name === "EPUB/chapters/002/post.xhtml").data.toString();
+    const last = entries.find(entry => entry.name === "EPUB/chapters/004/post.xhtml").data.toString();
+    assert.match(first, /\.\.\/004\/post.xhtml/); assert.doesNotMatch(first, /Previous chapter/);
+    assert.match(last, /\.\.\/002\/post.xhtml/); assert.doesNotMatch(last, /Next chapter/);
+    assert.ok(entries.find(entry => entry.name === "EPUB/styles.css"));
+    const nav = entries.find(entry => entry.name === "EPUB/nav.xhtml").data.toString();
+    assert.match(nav, /chapters\/002\/post.xhtml/); assert.match(nav, /chapters\/004\/post.xhtml/);
+    assert.doesNotMatch(nav, /chapters\/(001|003|005)\/post.xhtml/);
+  }
+});

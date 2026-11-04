@@ -9,7 +9,7 @@ async function ready(page) {
   await setup(page, { content: '<main><h1>Progress collection</h1><a class="fixture_gridCard" href="/posts/101">First</a><a class="fixture_gridCard" href="/posts/102">Second</a></main>',
     url: "https://www.patreon.com/collection/500" });
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("2 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
 }
 
 test("progress shows the current title and elapsed time, rejects stale updates, and freezes on cancellation", async ({ page }) => {

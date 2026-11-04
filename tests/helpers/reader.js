@@ -124,6 +124,8 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
           if (message.type === "BUILD_COLLECTION_EXPORT") {
             globalThis.collectionBuildIndices ||= [];
             globalThis.collectionBuildIndices.push(message.index);
+            if (globalThis.collectionSkippedIndices?.includes(message.index)) return { skippedPost: {
+              url: collectionSessions.get(message.token).postUrls[message.index], reason: "No supported text body was available." } };
             if (globalThis.collectionFailedIndices?.includes(message.index)) return { error: "Synthetic chapter failure." };
             const result = globalThis.collectionBuildResult || {
               files: [
@@ -224,7 +226,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
     globalThis.readStored = api.storage.local.get;
     addEventListener("message", (event) => {
       if (event.origin === "https://fixture-extension.invalid"
-        && ["patreon-reader-export", "patreon-reader-collection-export"].includes(event.data?.source)) {
+        && event.data?.source === "patreon-reader-export") {
         deliver({
           type: event.data.source === "patreon-reader-export" ? "POST_EXPORT_CHOICE" : "COLLECTION_EXPORT_CHOICE",
           token: event.data.token,

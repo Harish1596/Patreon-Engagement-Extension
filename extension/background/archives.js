@@ -10,7 +10,7 @@
     const ttl = 2 * 60 * 60_000;
     const uuid = value => typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
     const uint32 = value => Number.isSafeInteger(value) && value >= 0 && value <= 0xffffffff;
-    const validEntry = entry => !entry || (typeof entry.name === "string" && !/[/\\\x00]/.test(entry.name)
+    const validEntry = entry => !entry || (entry.skipped === true && Object.keys(entry).length === 1) || (entry.skipped === undefined && typeof entry.name === "string" && !/[/\\\x00]/.test(entry.name)
       && uint32(entry.crc) && uint32(entry.size) && uint32(entry.compressedSize) && uint32(entry.diskSize) && uuid(entry.transferId));
     const validChapter = entry => typeof entry.title === "string" && entry.title.length <= 4000
       && typeof entry.creator === "string" && entry.creator.length <= 2000 && typeof entry.language === "string"
@@ -172,9 +172,9 @@
           || !Number.isSafeInteger(value.owner) || !Number.isSafeInteger(value.count) || value.count < 1 || value.count > 100
           || !Array.isArray(value.entries) || value.entries.length > value.count || !value.entries.every(validEntry) || typeof value.filename !== "string"
           || !validFormat(value)
-          || (value.markdown && !value.entries.every(entry => !entry || entry.name.endsWith(".md")))
+          || (value.markdown && !value.entries.every(entry => !entry || entry.skipped || entry.name.endsWith(".md")))
           || (value.downloadId !== undefined && !uint32(value.downloadId))
-          || (value.book !== undefined && (!validBook(value.book) || !value.entries.every(entry => !entry || validChapter(entry))))
+          || (value.book !== undefined && (!validBook(value.book) || !value.entries.every(entry => !entry || entry.skipped || validChapter(entry))))
           || /[/\\\x00]/.test(value.filename) || !Number.isFinite(value.expires) || (value.expires <= Date.now() && value.downloadId === undefined)) {
           await call(api.storage.session, "remove", key); continue;
         }
@@ -249,6 +249,8 @@
     }
     async function packageZip(job, operationId) {
       if (job.entries.filter(Boolean).length !== job.count) throw new Error("Some archive chapters are missing.");
+      const included = Array.from({ length: job.count }, (_, index) => index).filter(index => !job.entries[index].skipped);
+      if (!included.length) throw new Error("No supported chapters are available to download.");
       const disk = await folder(job);
       await removeFile(job, "archive.zip");
       const output = await (await disk.getFileHandle("archive.zip", { create: true })).createWritable();
@@ -258,7 +260,7 @@
       let offset = 0;
       let bytesCopied = 0;
       let lastUpdate = -Infinity;
-      const bytesTotal = job.entries.reduce((sum, entry) => sum + entry.compressedSize, 0);
+      const bytesTotal = job.entries.reduce((sum, entry) => sum + (entry.compressedSize || 0), 0);
       async function progress(index, current, force = false, stage = "copy") {
         check(job);
         const now = Date.now();
@@ -285,7 +287,7 @@
             }
           });
         } else {
-          for (let index = 0; index < job.count; index++) {
+          for (const index of included) {
             check(job);
             const entry = job.entries[index];
             await progress(index, index, true);
@@ -309,10 +311,10 @@
           const end = new Uint8Array(22);
           const view = new DataView(end.buffer);
           view.setUint32(0, 0x06054b50, true);
-          view.setUint16(8, job.count, true); view.setUint16(10, job.count, true);
+          view.setUint16(8, included.length, true); view.setUint16(10, included.length, true);
           view.setUint32(12, centralSize, true); view.setUint32(16, offset, true);
           await outputWrite(end);
-          await progress(job.count - 1, job.count, true, "finalize");
+          await progress(included.at(-1), job.count, true, "finalize");
         }
         check(job);
         await output.close();
@@ -366,6 +368,12 @@
         if (message.type === "COLLECTION_ARCHIVE_PACKAGE") return packageZip(job, message.operationId);
         const index = message.index;
         if (!Number.isSafeInteger(index) || index < 0 || index >= job.count) throw new Error("The archive chapter index is invalid.");
+        if (message.type === "COLLECTION_ARCHIVE_SKIP") {
+          if (job.writer || (job.entries[index] && !job.entries[index].skipped)) throw new Error("A stored or active chapter cannot be skipped.");
+          job.entries[index] = { skipped: true };
+          await persist(job);
+          return { skipped: true, entry: job.entries[index] };
+        }
         if (message.type === "COLLECTION_ARCHIVE_BEGIN") {
           if (!uuid(message.transferId) || typeof message.name !== "string" || /[/\\\x00]/.test(message.name) || new TextEncoder().encode(message.name).length > 65535) throw new Error("The archive chapter name is invalid.");
           if (job.markdown && !message.name.endsWith(".md")) throw new Error("The Markdown chapter name is invalid.");

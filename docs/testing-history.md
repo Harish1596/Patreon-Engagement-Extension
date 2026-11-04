@@ -1547,3 +1547,31 @@ a fixed three-choice resize baseline and an expectation for the concurrently
 removed popup media section; intentional user popup changes were kept separate.
 No live private collection, universal viewer rendering or full browser-zoom matrix
 was claimed. Existing part/storage limits remain in force.
+
+
+## November 4, 2026 — Fetch collections only after choosing a format
+
+Removed eager collection/post preflight from the menu entry path. Format choices
+are local; the chosen download discovers URLs and reads each uncached chapter
+once, retaining its document through any exact-host permission click. Existing
+source caches, ordered parts, retry files and native result tracking remain.
+Refresh waits for the next selection. Cancellation/dismissal retain their distinct
+stop/hide behavior, including an image-permission pause.
+
+Independent review caught unsupported posts becoming mandatory failed entries.
+Generation-time skips and persistent archive skip metadata now omit these
+slots; sparse book navigation/TOC and Markdown contents retain the valid order.
+No empty file is handed off for an all-skipped part. A stale installed Refresh
+assertion now performs the selected download before checking cache reuse.
+
+RED→GREEN evidence includes eager chooser/session reads, metadata-only worker
+registration, unsupported-post skipping, ZIP/EPUB/Markdown skipped-slot assembly
+across restart, and permission-denial reporting. Chrome/Brave still abort during
+launch, including elevated attempts; rendered layout, real permission gestures,
+native output and live Patreon behavior are unverified for this task. Current
+commands and final results are in TESTING.md. No new permission, data source or
+Patreon DOM selector was introduced.
+
+Final local evidence: 98 tooling tests pass; 61 JavaScript files pass syntax checks;
+whitespace checks pass; Playwright collects 129 cases across 23 files. Browser
+execution remains blocked as described above, so no browser success is implied.

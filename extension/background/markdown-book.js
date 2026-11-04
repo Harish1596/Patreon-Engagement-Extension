@@ -9,16 +9,17 @@
   const url = value => value.replace(/[<>"()\\\s]/g, char => encodeURIComponent(char).replace(/[()]/g, c => `%${c.charCodeAt(0).toString(16)}`));
 
   async function write({ job, output, chapterBytes, fileFor, check, progress }) {
+    const included = Array.from({ length: job.count }, (_, index) => index).filter(index => !job.entries[index].skipped);
     const creators = [...new Set(job.entries.map(entry => entry.creator).filter(Boolean))];
-    const total = job.entries.reduce((sum, entry) => sum + entry.size, 0);
+    const total = job.entries.reduce((sum, entry) => sum + (entry.size || 0), 0);
     const text = async value => { check(job); await output(utf8(value)); };
     await text(`**Creator:** ${escape(creators.join(", ") || "Not available")}\n\n**Download time:** ${escape(job.book.downloadedAt)}\n\n**Source:** [${escape(job.book.source)}](${url(job.book.source)})\n\n# ${escape(job.book.title)}\n\n## Contents\n\n`);
-    for (let index = 0; index < job.count; index++) {
+    for (const index of included) {
       await text(`- [${escape(job.entries[index].title)}](#chapter-${String(index + 1).padStart(3, "0")})\n`);
     }
     await text("\n---\n\n");
     let copied = 0;
-    for (let index = 0; index < job.count; index++) {
+    for (const index of included) {
       check(job);
       const entry = job.entries[index];
       const iterator = chapterBytes(await fileFor(index), job, index)[Symbol.asyncIterator]();
@@ -58,9 +59,9 @@
         await reader.cancel().catch(() => {}); reader.releaseLock();
       }
       copied += size;
-      await text(index + 1 === job.count ? "\n" : "\n\n---\n\n");
+      await text(index === included.at(-1) ? "\n" : "\n\n---\n\n");
     }
-    await progress(job.count - 1, copied, total, "finalize");
+    await progress(included.at(-1), copied, total, "finalize");
   }
   globalThis.PatreonMarkdownBook = Object.freeze({ write });
 })();

@@ -13,7 +13,7 @@ async function fixture(page, count = 2) {
     })
   })), skipped: 0 }; }, count);
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText(`${count} posts are ready`);
+  await expect(page.getByRole("status")).toContainText("Choose a format");
 }
 async function bytes(download) {
   const chunks = []; for await (const chunk of await download.createReadStream()) chunks.push(chunk);
@@ -67,7 +67,7 @@ test("Single Markdown cancellation prevents a late file and 101 chapters use num
   await page.evaluate(() => { globalThis.collectionMessageHolds = []; releaseCollectionMessage(); });
   await expect(page.getByRole("status")).toContainText("Cancelled"); expect(downloads).toHaveLength(0);
   await page.getByRole("button", { name: "Start again", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("101 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await formats(page).getByRole("button", { name: "Single Markdown", exact: true }).click({ timeout: 5000 });
   await expect.poll(() => downloads.length, { timeout: 60_000 }).toBe(2);
   expect(downloads.map(item => item.suggestedFilename())).toEqual(["Collected stories - Part 001 of 002.md", "Collected stories - Part 002 of 002.md"]);

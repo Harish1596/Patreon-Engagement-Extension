@@ -139,8 +139,9 @@ user-requested export containing images from that origin.
 
 ### Download a collection
 
-On a Patreon `/collection/...` page, select **Download Collection**. After
-preparation, choose:
+On a Patreon `/collection/...` page, select **Download Collection** and choose
+a format immediately. Opening the menu does not fetch collection metadata or
+visit posts. Fetching starts only after a format is selected:
 
 - **Single EPUB**: downloads one `.epub` named after the
   collection, with a title page, Creator/Download time/Source metadata, an ordered
@@ -157,8 +158,10 @@ of up to 100 chapters, including Single EPUB and Single Markdown. Existing stora
 limits still apply to image-heavy parts.
 
 All collection modes preserve the discovered collection order and reuse the same
-cached sources. Repeated post links are removed. Unavailable, locked, or unsupported
-posts are skipped and reported before export. A chapter that fails later must
+cached sources. Repeated post links are removed. Explicitly locked posts are
+excluded during discovery; unavailable or unsupported posts are skipped when
+their chapter is reached. Skips appear in the report and can leave gaps in chapter
+filenames/paths, which preserve discovered positions. A chapter that fails later must
 be retried before the complete output part is saved; completed encrypted chapters
 are retained for retry. Switching between combined and separate-file modes reuses
 source text/images but rebuilds the format-specific files.
@@ -171,7 +174,8 @@ Patreon exposes no title or precise cause, the report uses its post URL and an
 explicitly limited explanation rather than guessing whether it is locked.
 
 Choose **Save report** to download `<collection> - Download Report.txt`. Reports
-are available after preparation and after export failures, not just successful
+are available once a selected download discovers its posts, including after
+export failures, not just successful
 downloads. A packaging failure leaves chapters marked Prepared; a successful
 retry replaces failed outcomes. “Download started” means the collection file was
 handed to the browser, not confirmation it finished saving. Reports are not
@@ -188,17 +192,18 @@ They do not retain a complete combined file in page memory. Per-chapter source c
 still requires memory. EPUB/Markdown viewer compatibility and live Patreon behavior need
 user verification.
 When Patreon's collection API explicitly marks a post as inaccessible, it is
-excluded before worker preparation and reported separately as a locked post.
-Missing access flags still use normal preparation checks. A collection containing
+excluded during discovery and reported separately as a locked post.
+Posts without an access flag are checked when their chapter is generated. A collection containing
 only locked posts shows a message without opening worker tabs.
 
-Discovered links, access flags, and preparation results are cached for
+Discovered links, access flags, and download session metadata are cached for
 two hours on the current collection page. Reopening the panel or downloading
 another format reuses them. Select **Refresh collection** to pick up new chapters,
-edits, ordering or membership changes immediately. Refresh rereads collection
-pagination and compares full-content fingerprints. An unchanged accessible post
+edits, ordering or membership changes on the next selected download. Refresh
+clears the report and generated chapters without fetching posts. Selecting a
+format then rereads collection pagination and compares full-content fingerprints. An unchanged accessible post
 with a live cached source reuses its text and images without reopening its post
-tab. Only new, changed, uncached or expired posts need page preparation/retrieval.
+tab. Only new, changed, uncached or expired posts need page retrieval.
 Removed or newly locked posts are dropped. Reused source entries keep their
 original two-hour expiry; refreshing does not renew them.
 
@@ -210,9 +215,8 @@ post conservatively. The DOM-only fallback therefore performs a full recheck.
 Refresh still retrieves collection API pages to detect changes; it avoids repeated
 post-page/image retrieval when sources are verified unchanged. Generated ZIP/EPUB
 retry files and the previous report are cleared so the new collection order,
-book navigation and access results cannot reuse stale output. The status reports
-how many unchanged cached posts were reused. Expired discovery is refreshed on the next
-opening; navigating away or reloading clears the page cache. Prepared metadata
+book navigation and access results cannot reuse stale output. The download progress reports cached chapters as they are reused. Expired discovery is refreshed on the next
+selected download; navigating away or reloading clears the page cache. Prepared metadata
 uses browser session storage so idle background-worker restarts do not invalidate
 the format buttons; it is removed on cancellation, owner-tab closure, or expiry,
 and browser-session storage clears when the browser session ends. Missing or
@@ -339,17 +343,18 @@ falls back to repeatedly using Patreon's **Load more** control. A button disable
 during loading is treated as temporary: the extension waits for Patreon to enable
 it again and continues instead of preparing a partial collection.
 
-The extension prepares linked posts locally, reusing an already-open matching
-post tab when possible. During preparation it otherwise creates one inactive temporary Patreon tab
-and navigates that same tab through every post in sequence. Readiness retries
-remain in the background without activating the worker or collection tab, so you
-can use another tab while the operation runs. The preflight worker
-closes as soon as preparation finishes; each chapter generation request closes
-its temporary worker when that chapter is received by the background.
+The selected download reads linked posts locally, reusing an already-open
+matching post tab when possible. Otherwise, it opens an inactive temporary
+Patreon tab for the current uncached chapter. It checks and exports that same
+loaded document without a separate preflight visit. Readiness retries stay in
+the background, and each chapter closes its temporary worker after receipt.
 Cancellation and failures also close the active worker. Before exporting each post, the extension waits for the
 requested document to finish loading and verifies its post ID, preventing an old
 page from being exported again while the worker navigates. Image
-permissions use the same exact-origin prompt as individual post export. PDF is
+permissions remain limited to the exact hosts encountered. Approved hosts
+continue automatically. A new host pauses the download for **Allow images and
+continue** in the extension frame; the current post stays loaded. Denying access
+stops the attempt and preserves completed chapters for retry. PDF is
 not included in this first separate-file implementation because browser-native
 Save as PDF cannot be placed into a ZIP without a dedicated PDF generator.
 

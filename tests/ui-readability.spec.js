@@ -10,7 +10,7 @@ for (const theme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme: theme });
     await setup(page, { url: "https://www.patreon.com/collection/500", content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">First</a></main>' });
     await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("1 post is ready");
+    await expect(page.getByRole("status")).toContainText("Choose a format");
     const frame = page.frameLocator('iframe[title="Collection export formats"]');
     await expect(frame.getByRole("button", { name: "EPUB", exact: true })).toHaveAccessibleDescription(/ZIP/);
     await expect(frame.getByRole("button", { name: "Markdown", exact: true })).toHaveAccessibleDescription(/editable.*ZIP/i);
@@ -20,7 +20,10 @@ for (const theme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme: theme });
     await setup(page, { url: "https://www.patreon.com/collection/500", content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">First</a></main>' });
     await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("1 post is ready");
+    await expect(page.getByRole("status")).toContainText("Choose a format");
+    await page.evaluate(() => { globalThis.collectionMessageHolds = ["BUILD_COLLECTION_EXPORT"]; });
+    await page.frameLocator('iframe[title="Collection export formats"]').getByRole("button", { name: "Markdown", exact: true }).click();
+    await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("BUILD_COLLECTION_EXPORT");
     const colors = await page.locator(".progress-details summary").evaluate(node => ({ text: getComputedStyle(node).color, surface: getComputedStyle(node.closest("section")).backgroundColor }));
     const values = [luminance(colors.text), luminance(colors.surface)].sort((a, b) => b - a);
     expect((values[0] + .05) / (values[1] + .05)).toBeGreaterThanOrEqual(4.5);

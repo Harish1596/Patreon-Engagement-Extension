@@ -1763,3 +1763,42 @@ Initial enlarged choices were rechecked at narrow and desktop sizes. Native Brav
 verifies actual combined Markdown saving, embedded images and confirmed completion.
 The explicit extension package allowlist includes the new writer. These are fixture
 and installed-extension observations, not new live Patreon evidence.
+
+
+**November 4 on-demand collection downloads:** Opening/reopening Download
+Collection now displays all four format choices without collection API discovery,
+Load more clicks, post descriptions or worker-tab visits. A format choice starts
+URL discovery and registers metadata only (`deferred` session mode); there is no
+separate all-post preflight pass. Each uncached chapter describes and exports the
+same loaded document. Completed source snapshots still support other formats and
+retries without network reads. Existing open matching tabs are reused. Refresh
+invalidates discovery/output state; rereading starts with the next format choice.
+
+Image hosts are discovered per chapter during that selected download. Existing
+browser grants proceed automatically. Missing exact HTTPS-host grants pause for
+an extension-frame Allow images and continue click while retaining the loaded
+post. The frame reads required origins from the worker session; the worker checks
+actual grants again before build. Token, frame origin/source, request ID and
+operation checks guard the exchange. Cancel/navigation resolve pending waits and
+close owned workers; dismissal/reopen retains the waiting operation. Denial stops
+the attempt rather than repeatedly requesting the same host on later chapters.
+No broad HTTPS grant, manifest permission or Patreon selector was added.
+
+Unavailable/unsupported descriptions are reported as skipped during generation,
+matching the previous preflight exclusion boundary. Persistent archive skip
+markers distinguish them from retryable missing chapters. All output modes omit
+skipped slots while preserving discovered numbering; sparse book paths/Markdown
+anchors can have gaps. Single EPUB assembly repairs previous/next links and TOC,
+manifest and spine for included chapters. Only a skipped-part EPUB's chapter XHTML
+is buffered for navigation repair; image resources remain streamed. An entirely
+skipped part produces no empty native file. Build/image/formatting failures retain
+the existing retry requirement, and skipped posts are excluded from native result
+membership.
+
+Synthetic Node regressions cover no-visit registration, same-document approval,
+denial/cancellation, cache hits, worker restart and skip-aware ZIP/EPUB/Markdown
+assembly/navigation. Updated browser fixtures cover delayed discovery, permission
+wait guards/reopen/cancel, skips, refresh, retries, batching and installed output.
+Browser execution is blocked by Chrome/Brave launch aborts (SIGABRT/EPERM), even
+with elevation. No rendered/native-permission or live Patreon confirmation is
+claimed for this change; see TESTING.md for exact commands/results.

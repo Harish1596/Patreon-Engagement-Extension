@@ -8,6 +8,7 @@
   </head>
   <body>
     <main aria-label="Collection export formats">
+      <div id="formats">
       <button type="button" data-format="epub-book" aria-label="Single EPUB" aria-describedby="book-description" disabled>
         <span class="choice"><span class="title">Single EPUB</span><span class="description" id="book-description">Read chapters together in an ebook reader.</span></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" /></svg>
@@ -24,6 +25,13 @@
         <span class="choice"><span class="title">Markdown <span class="type">ZIP</span></span><span class="description" id="markdown-description">Editable text files, one per chapter, in a ZIP archive.</span></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" /></svg>
       </button>
+      </div>
+      <section id="image-permission" hidden aria-label="Image access">
+        <p class="title">Images need your permission</p>
+        <p class="description">Allow the image hosts used by this collection to include images in your download.</p>
+        <p class="description" id="image-hosts"></p>
+        <button id="allow-images" type="button" disabled>Allow images and continue</button>
+      </section>
     </main>
     <script src="collection-chooser.js"></script>
   </body>

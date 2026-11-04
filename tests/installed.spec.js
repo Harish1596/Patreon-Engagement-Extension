@@ -168,12 +168,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect(collectionDownload).toBeVisible();
     await expect.poll(() => collection.evaluate(() => performance.getEntriesByType("resource").some(entry => entry.name.includes("/api/posts?")))).toBe(true);
     await collectionDownload.click();
-    await expect(collection.getByRole("status")).toContainText("posts are ready", { timeout: 20_000 });
-    await expect.poll(() => popup.evaluate(async () => {
-      const sessions = Object.entries(await chrome.storage.session.get(null)).filter(([key]) => key.startsWith("collection-export:"));
-      return sessions[0]?.[1].posts.map(post => Boolean(post.revision));
-    })).toEqual([true, true]);
-    expect(collectionApiCalls).toBeGreaterThanOrEqual(3);
+    await expect(collection.getByRole("status")).toContainText("Choose a format", { timeout: 20_000 });
     const collectionMarkdown = collection.frameLocator('iframe[title="Collection export formats"]')
       .getByRole("button", { name: "Markdown", exact: true });
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
@@ -213,6 +208,11 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
       await collection.getByRole("button", { name: "Close collection download", exact: true }).click();
       await expect(collection.getByRole("dialog", { name: "Download Collection", exact: true })).toBeHidden();
     });
+    await expect.poll(() => popup.evaluate(async () => {
+      const sessions = Object.entries(await chrome.storage.session.get(null)).filter(([key]) => key.startsWith("collection-export:"));
+      return sessions[0]?.[1].posts.map(post => Boolean(post.revision));
+    })).toEqual([true, true]);
+    expect(collectionApiCalls).toBeGreaterThanOrEqual(3);
     // The actual downloads API must finish even while the nonmodal panel is closed.
     await expect(collection.getByRole("dialog", { name: "Download Collection", exact: true })).toBeHidden();
     await collection.getByRole("button", { name: "Download Collection", exact: true }).click();
@@ -296,7 +296,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     })).toBe(0);
     await expect.poll(() => popup.evaluate(() => chrome.offscreen.hasDocument())).toBe(false);
     await collection.getByRole("button", { name: "Refresh collection", exact: true }).click();
-    await expect(collection.getByRole("status")).toContainText("2 unchanged cached posts were reused");
+    await expect(collection.getByRole("status")).toContainText("Choose a format");
+    await downloadCollectionZip(() => collectionMarkdown.click());
+    await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     context.off("page", countPostTab);
     expect(openedPostTabs).toBe(0);
     const preferencesBeforeExpiry = await popup.evaluate(() => chrome.storage.local.get(null));

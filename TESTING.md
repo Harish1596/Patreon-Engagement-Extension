@@ -1080,3 +1080,41 @@ including an elevated retry, before any test body ran. Browser plugin not
 available; regular Playwright was used. Rendered light/dark layout and remote
 image export regressions remain unverified in this task; no live Patreon check.
 Unrelated in-progress download changes were present and excluded from this commit.
+
+
+November 4, 2026 — On-demand collection downloads. Opening the chooser now
+performs no collection fetch or preflight visits. Selecting a format starts URL
+discovery, then describes/builds each uncached chapter in the same document.
+New image hosts pause for a direct extension-frame permission click. Denial stops
+the attempt. Unsupported/unavailable posts are skipped at generation time and
+omitted from all four output modes; sparse EPUB navigation and Markdown anchors
+preserve discovered numbering. Refresh defers rereading until a format is chosen.
+
+Checks and reproducible commands:
+
+```sh
+npm run test:tooling
+npm run check
+git diff --check
+npx playwright test --list
+npx playwright test tests/collection-demand.spec.js tests/collection-menu.spec.js tests/collection-export.spec.js tests/collection-refresh.spec.js tests/collection-retry.spec.js tests/collection-report.spec.js tests/collection-batches.spec.js tests/collection-book.spec.js tests/collection-markdown.spec.js tests/collection-controls.spec.js tests/collection-progress.spec.js tests/collection-completion.spec.js
+npm run test:brave -- tests/collection-demand.spec.js tests/collection-menu.spec.js tests/installed.spec.js
+```
+
+Node regressions first demonstrated the old eager chooser/session and post visits,
+then passed after the change. Follow-up failing regressions reproduced unsupported
+chapter blocking and skip-aware assembly, then passed after the fix. The permission
+denial flag was also verified RED→GREEN. Final checks pass: **98 tooling tests**, syntax for **61 JavaScript files**,
+and `git diff --check`. `npx playwright test --list` collects **129 browser cases
+in 23 files**; collection does not execute them. One independent read-only reviewer found the
+unsupported-post regression (fixed with generation-time skips and writer tests)
+and an installed Refresh assertion that no longer exercised download reuse (now
+selects a format before asserting). No additional reviewer pass was performed.
+
+Browser plugin not available. `npm run test:brave -- tests/collection-menu.spec.js`
+failed to launch for all five cases. `npm test -- --max-failures=1` collected 124
+cases at that point, then stopped at the first Chrome launch failure (appearance
+spec); 123 were not run. Both browsers aborted with SIGABRT and kill EPERM,
+including elevated execution. Later added skip/permission fixtures have not run.
+This is an environment blocker, not a passing rendered/browser/native-download
+check. No live Patreon request, account payload, image URL or permission was used.

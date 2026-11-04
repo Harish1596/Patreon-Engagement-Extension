@@ -10,7 +10,7 @@ async function fixture(page, largeText = false) {
     contentType: "text/css", body: fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.css"), "utf8") + '\n.title{font-size:30px}.description{font-size:24px}'
   }));
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("2 posts are ready");
+  await expect(page.getByRole("status")).toContainText("Choose a format");
   await expect(frame(page).getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
 }
 for (const [theme, width, height] of [["light", 1280, 900], ["dark", 1280, 900], ["dark", 360, 740]]) {
@@ -18,7 +18,7 @@ for (const [theme, width, height] of [["light", 1280, 900], ["dark", 1280, 900],
     await page.setViewportSize({ width, height }); await page.emulateMedia({ colorScheme: theme });
     const errors = []; page.on("pageerror", error => errors.push(error.message));
     await fixture(page);
-    await expect(frame(page).getByRole("button")).toHaveCount(4);
+    await expect(frame(page).locator("[data-format]")).toHaveCount(4);
     await expect(frame(page).getByRole("button", { name: "Single Markdown", exact: true })).toHaveAccessibleDescription("All chapters in one editable text file.");
     await expect(frame(page).getByRole("button", { name: "Single EPUB", exact: true })).toHaveAccessibleDescription("Read chapters together in an ebook reader.");
     await expect(frame(page).getByRole("button", { name: "EPUB", exact: true })).toHaveAccessibleDescription("One ebook per chapter, in a ZIP archive.");
@@ -31,7 +31,7 @@ for (const [theme, width, height] of [["light", 1280, 900], ["dark", 1280, 900],
     const geometry = await frame(page).locator("body").evaluate(body => ({
       height: document.documentElement.clientHeight, scrollHeight: document.documentElement.scrollHeight,
       width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
-      buttons: [...body.querySelectorAll("button")].map(node => ({ bottom: node.getBoundingClientRect().bottom, height: node.getBoundingClientRect().height }))
+      buttons: [...body.querySelectorAll("[data-format]")].map(node => ({ bottom: node.getBoundingClientRect().bottom, height: node.getBoundingClientRect().height }))
     }));
     expect(geometry.scrollHeight).toBeLessThanOrEqual(Math.ceil(bounds.height));
     expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.width);
@@ -60,7 +60,7 @@ test("chooser follows enlarged text and accepts resize messages only from its cu
   await expect(iframe).toHaveCSS("height", resized);
   await frame(page).locator("body").evaluate(() => parent.postMessage({ source: "patreon-reader-collection-size", token: location.hash.slice(1), height: 50000 }, "https://www.patreon.com"));
   await expect(iframe).toHaveCSS("height", resized);
-  const geometry = await frame(page).locator("body").evaluate(() => ({ height: document.documentElement.clientHeight, bottom: document.querySelector('button:last-child').getBoundingClientRect().bottom }));
+  const geometry = await frame(page).locator("body").evaluate(() => ({ height: document.documentElement.clientHeight, bottom: document.querySelector('#formats button:last-child').getBoundingClientRect().bottom }));
   expect(geometry.bottom).toBeLessThanOrEqual(geometry.height);
   await frame(page).getByRole("button", { name: "Markdown", exact: true }).focus();
   await page.keyboard.press("Escape");
@@ -74,7 +74,7 @@ test("initial doubled text enables every choice without an inner frame scrollbar
   await fixture(page, true);
   const geometry = await frame(page).locator("body").evaluate(() => ({
     height: document.documentElement.clientHeight, scrollHeight: document.documentElement.scrollHeight,
-    bottom: document.querySelector("button:last-child").getBoundingClientRect().bottom
+    bottom: document.querySelector("#formats button:last-child").getBoundingClientRect().bottom
   }));
   expect(geometry.height).toBeGreaterThan(600);
   expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.height);

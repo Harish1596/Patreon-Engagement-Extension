@@ -72,7 +72,7 @@ test("indexed chapter failure keeps the session retryable across worker restart"
   assert.equal(calls.remove.length, calls.create.length);
 });
 
-function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, fastTimers = false, fetchMedia, failDescribe = () => false, failBuild = () => false } = {}) {
+function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, fastTimers = false, fetchMedia, failDescribe = () => false, failBuild = () => false, descriptionOrigins = [], granted = true, grantOnPrompt = true } = {}) {
   let listener;
   let removedListener;
   let nextTabId = 10;
@@ -102,7 +102,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
     holds.set(type, { enter, gate });
     return { entered, release };
   }
-  const calls = { build: [], create: [], update: [], remove: [], workerChunks: [], progress: [], staleReplies: 0 };
+  const calls = { permissions: [], describe: [], build: [], create: [], update: [], remove: [], workerChunks: [], progress: [], staleReplies: 0 };
   const browser = {
     runtime: {
       id: "fixture-extension",
@@ -136,6 +136,10 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
           calls.progress.push(message);
           return { reported: true };
         }
+        if (message.type === "COLLECTION_MEDIA_PERMISSION") {
+          calls.permissions.push(message); granted = grantOnPrompt;
+          return { granted };
+        }
         const pending = pendingUrls.get(tabId);
         if (pending && ["DESCRIBE_POST_EXPORT", "BUILD_POST_EXPORT"].includes(message.type)) {
           if (pending.attempts-- > 0) calls.staleReplies++;
@@ -144,8 +148,9 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
         const url = tabUrls.get(tabId) || "https://www.patreon.com/posts/open-999";
         const id = new URL(url).pathname.split("/").pop();
         if (message.type === "DESCRIBE_POST_EXPORT") {
+          calls.describe.push({ tabId, expectedPostId: message.expectedPostId });
           if (failDescribe(id)) return { error: "This post does not expose a supported text body. https://media.example/private?signature=secret" };
-          return { post: { title: `Post ${id}`, origins: [], postId: id } };
+          return { post: { title: `Post ${id}`, origins: descriptionOrigins, postId: id } };
         }
         if (message.type === "BUILD_POST_EXPORT") {
           calls.build.push({ tabId, ...message });
@@ -177,7 +182,7 @@ function backgroundHarness({ delayedNavigation = false, navigationReplies = 2, f
       },
       onRemoved: { addListener(value) { removedListener = value; } }
     },
-    permissions: { async contains() { return true; } },
+    permissions: { async contains() { return granted; } },
     storage: { session: {
       async get() { return structuredClone(sessionStore); },
       async set(values) { Object.assign(sessionStore, structuredClone(values)); },
@@ -616,4 +621,79 @@ test("maximum collection metadata restores and builds a chapter beyond the first
   assert.equal(built.files[0].title, "Post 1200");
   const excessive = Array.from({ length: 1001 }, (_, index) => `https://www.patreon.com/posts/${201 + index}`);
   assert.match((await send({ type: "PREPARE_COLLECTION_EXPORT", token, urls: excessive })).error, /invalid post list/);
+});
+
+
+test("deferred collection discovery registers URLs without opening or describing posts", async () => {
+  const { send, calls } = backgroundHarness();
+  const token = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const result = await send({ type: "PREPARE_COLLECTION_EXPORT", token, deferred: true,
+    urls: [101, 102].map(id => `https://www.patreon.com/posts/${id}`) });
+  assert.equal(result.count, 2);
+  assert.equal(calls.create.length, 0);
+  assert.equal(calls.update.length, 0);
+  const built = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  assert.equal(built.files.length, 1);
+  assert.equal(calls.create.length, 1);
+  assert.equal(calls.update.length, 0);
+});
+
+
+test("deferred chapter approval retains the loaded post and checks permission before building", async () => {
+  const { send, calls } = backgroundHarness({ descriptionOrigins: ["https://media.example/*"], granted: false });
+  const token = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, deferred: true, urls: ["https://www.patreon.com/posts/101"] });
+  const result = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0, operationId: "test" });
+  assert.equal(result.files.length, 1);
+  assert.equal(calls.permissions.length, 1);
+  assert.equal(calls.describe.length, 1);
+  assert.equal(calls.create.length, 1);
+  assert.equal(calls.update.length, 0);
+  assert.equal(calls.describe[0].tabId, calls.build[0].tabId);
+  assert.equal(calls.permissions[0].operationId, "test");
+  const again = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  assert.equal(again.files[0].cached, true);
+  assert.equal(calls.describe.length, 1);
+});
+
+test("denied deferred image access does not build a chapter and closes its worker", async () => {
+  const { send, calls } = backgroundHarness({ descriptionOrigins: ["https://media.example/*"], granted: false, grantOnPrompt: false });
+  const token = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, deferred: true, urls: ["https://www.patreon.com/posts/101"] });
+  const result = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  assert.match(result.error, /not granted/);
+  assert.equal(result.permissionDenied, true);
+  assert.equal(calls.build.length, 0);
+  assert.equal(calls.remove.length, calls.create.length);
+});
+
+test("cancelling while image permission waits closes the loaded post and ignores late approval", async () => {
+  const { send, calls, hold, disk } = backgroundHarness({ descriptionOrigins: ["https://media.example/*"], granted: false });
+  const token = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, deferred: true, urls: ["https://www.patreon.com/posts/101"] });
+  const pending = hold("COLLECTION_MEDIA_PERMISSION");
+  const building = send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 });
+  await pending.entered;
+  assert.equal((await send({ type: "CANCEL_COLLECTION_EXPORT", token })).cancelled, true);
+  assert.match((await building).error, /cancel/);
+  pending.release();
+  await new Promise(setImmediate);
+  assert.equal(calls.build.length, 0);
+  assert.equal(disk.size, 0);
+  assert.equal(calls.remove.length, calls.create.length);
+});
+
+
+test("deferred unsupported posts are skipped during generation without blocking other chapters", async () => {
+  const { send, calls } = backgroundHarness({ fastTimers: true, failDescribe: id => id === "102" });
+  const token = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+  await send({ type: "PREPARE_COLLECTION_EXPORT", token, deferred: true, urls: [101, 102, 103].map(id => `https://www.patreon.com/posts/${id}`) });
+  assert.equal((await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 0 })).files.length, 1);
+  const skipped = await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 1 });
+  assert.equal(skipped.skippedPost.url, "https://www.patreon.com/posts/102");
+  assert.doesNotMatch(skipped.skippedPost.reason, /secret|https:/);
+  assert.equal((await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 2 })).files.length, 1);
+  const described = calls.describe.length;
+  assert.ok((await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 1 })).skippedPost);
+  assert.equal(calls.describe.length, described);
 });
