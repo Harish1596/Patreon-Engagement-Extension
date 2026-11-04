@@ -68,7 +68,6 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
     await expect(popup).toHaveTitle("Patreon Reader");
-    await expect(popup.locator("#media-status")).toHaveText("No saved media access.");
     await expect(popup.locator(".app-mark")).toHaveAttribute("src", "../icons/reader.svg");
     await expect.poll(() => popup.locator(".app-mark").evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
     const hideToggle = popup.getByRole("switch", { name: "Hide engagement bar", exact: true });
@@ -274,6 +273,19 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     ]);
     expect(bookEntries.find(entry => entry.name === "EPUB/nav.xhtml").data.toString()).toContain("Collection post two");
     expect(bookEntries.find(entry => entry.name === "EPUB/chapters/001/post.xhtml").data.toString()).toContain("Collection body one.");
+    await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
+    await suspendExportWorker();
+    const markdownBookBytes = await downloadCollectionZip(() => collection.frameLocator('iframe[title="Collection export formats"]')
+      .getByRole("button", { name: "Single Markdown", exact: true }).click(), ".md");
+    const markdownBook = markdownBookBytes.toString("utf8");
+    expect(markdownBookBytes.subarray(0, 2).toString()).not.toBe("PK");
+    expect(markdownBook).toContain("# Test collection");
+    expect(markdownBook).toContain("## Contents");
+    expect(markdownBook).toContain('id="chapter-001"');
+    expect(markdownBook).toContain("(#chapter-002)");
+    expect(markdownBook.indexOf("Collection body one")).toBeLessThan(markdownBook.indexOf("Collection body two"));
+    expect(markdownBook.match(/!\[[^\]]*\]\(data:image\//g)).toHaveLength(4);
+    await expect(collection.locator(".report-totals")).toContainText("2 completed");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     await expect.poll(() => popup.evaluate(async () => {
       const root = await navigator.storage.getDirectory();

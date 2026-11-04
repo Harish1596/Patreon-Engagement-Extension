@@ -142,18 +142,25 @@ user-requested export containing images from that origin.
 On a Patreon `/collection/...` page, select **Download Collection**. After
 preparation, choose:
 
-- **Single EPUB** under **One book**: downloads one `.epub` named after the
+- **Single EPUB**: downloads one `.epub` named after the
   collection, with a title page, Creator/Download time/Source metadata, an ordered
   table of contents, and previous/next chapter links. Images are packaged inside
   the book. Open it directly in an EPUB reader; no outer ZIP needs extracting.
-- **EPUB** or **Markdown** under **Separate files (ZIP)**: creates the existing
-  collection ZIP with one numbered file per accessible text post.
+- **Single Markdown**: downloads one editable `.md` document named after the
+  collection, with Creator/Download time/Source details, a linked contents list,
+  ordered chapter headings, per-post source details and embedded inline images.
+- **EPUB** or **Markdown** with a **ZIP** label: downloads an archive with one
+  numbered file per accessible text post.
 
-Both options preserve the discovered collection order and reuse the same cached
-sources. Repeated post links are removed. Unavailable, locked, or unsupported
+Collections with more than 100 prepared chapters use automatically numbered parts
+of up to 100 chapters, including Single EPUB and Single Markdown. Existing storage
+limits still apply to image-heavy parts.
+
+All collection modes preserve the discovered collection order and reuse the same
+cached sources. Repeated post links are removed. Unavailable, locked, or unsupported
 posts are skipped and reported before export. A chapter that fails later must
-be retried before the complete book or ZIP is saved; completed encrypted chapters
-are retained for retry. Switching between book and separate-file modes reuses
+be retried before the complete output part is saved; completed encrypted chapters
+are retained for retry. Switching between combined and separate-file modes reuses
 source text/images but rebuilds the format-specific files.
 
 Expand **Download report** in the collection dialog to see each post's result.
@@ -168,17 +175,17 @@ are available after preparation and after export failures, not just successful
 downloads. A packaging failure leaves chapters marked Prepared; a successful
 retry replaces failed outcomes. “Download started” means the collection file was
 handed to the browser, not confirmation it finished saving. Reports are not
-inserted into the book/ZIP and are saved only when requested. They contain post
+inserted into generated files and are saved only when requested. They contain post
 links/titles, status and reasons, not post bodies or media URLs; URLs in failure
 messages are omitted. The latest report stays in this page's memory for up to
 two hours, survives closing/reopening the dialog, and clears on Refresh
 collection, navigation/reload or expiry. Cancel updates it so it can be reviewed.
 New downloads replace the previous report. Saved report files remain yours.
 
-The single book is assembled one chapter at a time in temporary storage, using
+Combined files are assembled one chapter at a time in temporary storage, using
 the same progress, cancellation, two-hour retention and shared archive budget.
-It does not retain a complete book in page memory. Per-chapter source conversion
-still requires memory. EPUB reader compatibility and live Patreon behavior need
+They do not retain a complete combined file in page memory. Per-chapter source conversion
+still requires memory. EPUB/Markdown viewer compatibility and live Patreon behavior need
 user verification.
 When Patreon's collection API explicitly marks a post as inaccessible, it is
 excluded before worker preparation and reported separately as a locked post.

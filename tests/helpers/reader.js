@@ -260,6 +260,7 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
   await page.addScriptTag({ path: path.join(extensionRoot, "background/disk-crypto.js") });
   await page.evaluate(() => { globalThis.PatreonDiskCrypto = PatreonExportCrypto.create(); });
   await page.addScriptTag({ path: path.join(extensionRoot, "background/epub-book.js") });
+  await page.addScriptTag({ path: path.join(extensionRoot, "background/markdown-book.js") });
   await page.addScriptTag({ path: path.join(extensionRoot, "background/archives.js") });
   await page.evaluate(() => {
     globalThis.archiveTestBackend = PatreonArchives.install({ download: async (job, file) => {

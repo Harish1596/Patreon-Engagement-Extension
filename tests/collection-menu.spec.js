@@ -1,9 +1,14 @@
 const { test, expect } = require("@playwright/test");
-const { setup } = require("./helpers/reader");
+const { setup, extensionRoot } = require("./helpers/reader");
+const fs = require("node:fs");
+const path = require("node:path");
 const menu = page => page.getByRole("dialog", { name: "Download Collection", exact: true });
 const frame = page => page.frameLocator('iframe[title="Collection export formats"]');
-async function fixture(page) {
+async function fixture(page, largeText = false) {
   await setup(page, { url: "https://www.patreon.com/collection/500", content: '<main><h1>Collection</h1><a class="fixture_gridCard" href="/posts/101">First</a><a class="fixture_gridCard" href="/posts/102">Second</a></main>' });
+  if (largeText) await page.route("https://fixture-extension.invalid/export/collection-chooser.css", route => route.fulfill({
+    contentType: "text/css", body: fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.css"), "utf8") + '\n.title{font-size:30px}.description{font-size:24px}'
+  }));
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("2 posts are ready");
   await expect(frame(page).getByRole("button", { name: "Markdown", exact: true })).toBeEnabled();
@@ -13,6 +18,8 @@ for (const [theme, width, height] of [["light", 1280, 900], ["dark", 1280, 900],
     await page.setViewportSize({ width, height }); await page.emulateMedia({ colorScheme: theme });
     const errors = []; page.on("pageerror", error => errors.push(error.message));
     await fixture(page);
+    await expect(frame(page).getByRole("button")).toHaveCount(4);
+    await expect(frame(page).getByRole("button", { name: "Single Markdown", exact: true })).toHaveAccessibleDescription("All chapters in one editable text file.");
     await expect(frame(page).getByRole("button", { name: "Single EPUB", exact: true })).toHaveAccessibleDescription("Read chapters together in an ebook reader.");
     await expect(frame(page).getByRole("button", { name: "EPUB", exact: true })).toHaveAccessibleDescription("One ebook per chapter, in a ZIP archive.");
     await expect(frame(page).getByRole("button", { name: "Markdown", exact: true })).toHaveAccessibleDescription("Editable text files, one per chapter, in a ZIP archive.");
@@ -41,12 +48,13 @@ for (const [theme, width, height] of [["light", 1280, 900], ["dark", 1280, 900],
 test("chooser follows enlarged text and accepts resize messages only from its current frame and token", async ({ page }) => {
   await fixture(page);
   const iframe = page.locator('iframe[title="Collection export formats"]');
+  const initialHeight = await iframe.evaluate(node => node.getBoundingClientRect().height);
   await frame(page).locator("body").evaluate(body => {
     const style = document.createElement("style");
     style.textContent = '.title{font-size:22px}.description{font-size:18px}button{padding:20px}';
     body.append(style);
   });
-  await expect.poll(() => iframe.evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThan(300);
+  await expect.poll(() => iframe.evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThan(initialHeight);
   const resized = await iframe.evaluate(node => node.style.height);
   await frame(page).locator("body").evaluate(() => parent.postMessage({ source: "patreon-reader-collection-size", token: "old-token", height: 500 }, "https://www.patreon.com"));
   await expect(iframe).toHaveCSS("height", resized);
@@ -58,4 +66,20 @@ test("chooser follows enlarged text and accepts resize messages only from its cu
   await page.keyboard.press("Escape");
   await expect(menu(page)).toBeHidden();
   await expect(page.getByRole("button", { name: "Download Collection", exact: true })).toBeFocused();
+});
+
+
+test("initial doubled text enables every choice without an inner frame scrollbar", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await fixture(page, true);
+  const geometry = await frame(page).locator("body").evaluate(() => ({
+    height: document.documentElement.clientHeight, scrollHeight: document.documentElement.scrollHeight,
+    bottom: document.querySelector("button:last-child").getBoundingClientRect().bottom
+  }));
+  expect(geometry.height).toBeGreaterThan(600);
+  expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.height);
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.height);
+  for (const name of ["Single EPUB", "EPUB", "Single Markdown", "Markdown"]) {
+    await expect(frame(page).getByRole("button", { name, exact: true })).toBeEnabled();
+  }
 });

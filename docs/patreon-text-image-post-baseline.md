@@ -1737,3 +1737,29 @@ external image fetching are retained. No grant is revoked by opening the popup.
 No Patreon markup, selector or Reader boundary changes are introduced. Syntax
 and a Node VM popup smoke check pass; browser verification is blocked by Chrome
 aborting at launch, including an elevated retry. No live Patreon check was made.
+
+
+**November 4 Single Markdown collections:** The existing collection chooser now
+offers both Single Markdown (`.md`) and Markdown ZIP, alongside its two EPUB
+choices. The combined file has collection Creator/Download time/Source metadata,
+a collection title and linked contents list, ordered level-two chapter titles,
+per-post metadata and embedded inline images. Generated chapter anchors use local
+part numbering; body headings nest under their chapter. Standalone post and
+separate-file Markdown output keep their original document structure.
+
+The controller stages each generated chapter independently and requests a validated
+Markdown document mode on the existing archive job. A dedicated worker module
+streams authenticated/decompressed UTF-8 chapters into disk output, checking raw
+size and CRC. It uses text/markdown;charset=utf-8 for native delivery and shares
+existing retry, cancellation, ownership, expiry, quota and completion cleanup.
+Metadata mode/filename mismatches are rejected at creation and restoration. No
+new permission, data source or Patreon DOM selector was introduced. Prepared
+sources are reused; larger collections retain 100-chapter numbered parts.
+
+Four choices at initial doubled text can exceed the previous 600px frame limit.
+A failing synthetic case and independent review established this; the finite
+allowance is now 1,000px while the parent scroll body remains viewport bounded.
+Initial enlarged choices were rechecked at narrow and desktop sizes. Native Brave
+verifies actual combined Markdown saving, embedded images and confirmed completion.
+The explicit extension package allowlist includes the new writer. These are fixture
+and installed-extension observations, not new live Patreon evidence.

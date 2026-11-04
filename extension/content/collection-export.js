@@ -691,13 +691,17 @@
     if (busy) return;
     if (checkpoint && checkpoint.format !== format) start = 0;
     const book = format === "epub-book";
-    const outputFormat = book ? "epub" : format;
+    const markdownBook = format === "markdown-book";
+    const single = book || markdownBook;
+    const extension = book ? "epub" : markdownBook ? "md" : "zip";
+    const outputFormat = book ? "epub" : markdownBook ? "markdown" : format;
+    const documentLabel = book ? "EPUB book" : "Markdown file";
     const label = outputFormat === "epub" ? "EPUB" : "Markdown";
     const operation = beginOperation();
     const signal = operation.controller.signal;
     setBusy(true);
-    setProgress(book ? "Building EPUB book" : `Building ${label} files`);
-    report(book ? "Building EPUB book…" : `Building ${label} files…`);
+    setProgress(single ? `Building ${documentLabel}` : `Building ${label} files`);
+    report(single ? `Building ${documentLabel}…` : `Building ${label} files…`);
     try {
       let prepared = await waitFor(call(api.runtime, "sendMessage", {
         type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
@@ -714,7 +718,7 @@
         prepareDownloadReport(prepared, discoveryCache?.discovered);
       }
       downloadReport.mode = format;
-      downloadReport.format = format === "epub-book" ? "Single EPUB" : `${label} files (ZIP)`;
+      downloadReport.format = single ? `Single ${label}` : `${label} files (ZIP)`;
       // Retry state comes from committed disk entries, not previous failed attempts.
       for (const post of downloadReport.posts) if (post.status !== "skipped" && !handedOff(post)) { post.status = "ready"; post.reason = ""; }
       reportState(start ? "Building the next part. Earlier parts were handed to the browser." : "Building chapters. No collection file downloaded yet.");
@@ -736,8 +740,8 @@
       if (!staged) {
         // Rebuild disk files only if the browser lost their temporary directory.
         await archive.request("CREATE", { id: checkpoint.id, count: checkpoint.count,
-          filename: `${fileStem(collectionTitle())}${suffix}.${book ? "epub" : "zip"}`,
-          ...(book ? { book: { title: `${collectionTitle()}${suffix}`, source: `${location.origin}${location.pathname}`,
+          filename: `${fileStem(collectionTitle())}${suffix}.${extension}`,
+          ...(single ? { ...(markdownBook ? { markdown: true } : {}), book: { title: `${collectionTitle()}${suffix}`, source: `${location.origin}${location.pathname}`,
             downloadedAt: new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "long" }).format(new Date()) } } : {}) }, signal);
         checkpoint.entries = [];
       } else {
@@ -765,7 +769,7 @@
           if (file.extension !== "snapshot") throw new Error("The collection returned an invalid source snapshot.");
           report(`Formatting ${label} chapter…`);
           setProgress("Formatting chapter");
-          file = await fileFromSnapshot(JSON.parse(file.data), outputFormat, prepared.postUrls[postIndex], book ? { index, count: checkpoint.count } : undefined);
+          file = await fileFromSnapshot(JSON.parse(file.data), outputFormat, prepared.postUrls[postIndex], single ? { index, count: checkpoint.count } : undefined);
           checkOperation(operation);
           checkpoint.entries[index] = await archive.store(checkpoint.id, index, decodeFile(file, postIndex, prepared.count), signal, progress => {
             if (activeOperation !== operation || signal.aborted) return;
@@ -794,12 +798,12 @@
         return;
       }
       reportState("Chapters prepared. Packaging the collection file.");
-      report(book ? "Assembling EPUB book…" : "Packaging collection ZIP…");
-      setProgress(book ? "Assembling EPUB book" : "Packaging collection ZIP");
+      report(single ? `Assembling ${documentLabel}…` : "Packaging collection ZIP…");
+      setProgress(single ? `Assembling ${documentLabel}` : "Packaging collection ZIP");
       // Register before PACKAGE: a small native download can finish before its
       // request reply arrives. Keep results attached to this attempt and part.
       const partResult = { urls: prepared.postUrls.slice(offset, offset + checkpoint.count),
-        filename: `${fileStem(collectionTitle())}${suffix}.${book ? "epub" : "zip"}`, state: "pending", started: false };
+        filename: `${fileStem(collectionTitle())}${suffix}.${extension}`, state: "pending", started: false };
       downloadReport?.parts.set(checkpoint.id, partResult);
       const packaged = await archive.request("PACKAGE", { id: checkpoint.id, operationId: operation.id }, signal);
       checkOperation(operation);
@@ -822,8 +826,8 @@
         finishOperation(operation); setBusy(false);
         return run(format, next, true);
       }
-      await prepareSession(parts > 1 ? `${parts} ${book ? "EPUB book" : `${label} ZIP`} part downloads started.`
-        : book ? "EPUB book download started." : `${label} ZIP download started.`, false, operation);
+      await prepareSession(parts > 1 ? `${parts} ${single ? documentLabel : `${label} ZIP`} part downloads started.`
+        : single ? `${documentLabel} download started.` : `${label} ZIP download started.`, false, operation);
     } catch (error) {
       if (signal.aborted || activeOperation !== operation) return;
       reportState(`Collection download failed: ${cleanReportText(error.message || "Export failed.")} Chapters marked Prepared are retained for retry.`);
@@ -891,7 +895,7 @@
     chooser = element("iframe", { title: "Collection export formats", src: "about:blank" });
     const body = element("div", { class: "collection-body" });
     const formatOptions = element("div", { class: "format-options" });
-    formatOptions.append(element("p", { class: "intro" }, "Choose one book or separate chapter files."), chooser);
+    formatOptions.append(element("p", { class: "intro" }, "Choose a single file or separate chapter files."), chooser);
     body.append(formatOptions,
       element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
       element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
@@ -964,7 +968,9 @@
       || event.source !== chooser?.contentWindow || event.data?.token !== requestToken) return;
     if (event.data.source === "patreon-reader-collection-close") { close(true); return; }
     if (event.data.source === "patreon-reader-collection-size") {
-      if (Number.isSafeInteger(event.data.height) && event.data.height >= 100 && event.data.height <= 600) {
+      // Four choices at doubled text can exceed 600px. The outer scroll body
+      // still bounds the panel while this finite limit keeps the frame usable.
+      if (Number.isSafeInteger(event.data.height) && event.data.height >= 100 && event.data.height <= 1000) {
         chooser.style.height = `${event.data.height}px`;
         const height = event.data.height;
         // Enable choices only after the outer panel has settled around the new
@@ -1021,8 +1027,8 @@
       if (message.type === "COLLECTION_ARCHIVE_HANDOFF") {
         activeOperation.handedOff = true;
         setBusy(true);
-        report(checkpoint.format === "epub-book" ? "Starting EPUB download…" : "Starting ZIP download…");
-        setProgress(checkpoint.format === "epub-book" ? "Starting EPUB download" : "Starting ZIP download");
+        report(checkpoint.format === "epub-book" ? "Starting EPUB download…" : checkpoint.format === "markdown-book" ? "Starting Markdown download…" : "Starting ZIP download…");
+        setProgress(checkpoint.format === "epub-book" ? "Starting EPUB download" : checkpoint.format === "markdown-book" ? "Starting Markdown download" : "Starting ZIP download");
         respond({ handedOff: true });
       } else {
         if (!Number.isSafeInteger(message.current) || !Number.isSafeInteger(message.total)
@@ -1033,9 +1039,9 @@
         }
         currentPost(message.index + (checkpoint.offset || 0), checkpoint.total || message.total, message.name, "File");
         if (message.stage === "finalize") {
-          report(checkpoint.format === "epub-book" ? "Finalizing EPUB…" : "Finalizing ZIP…");
-          setProgress(checkpoint.format === "epub-book" ? "Finalizing EPUB" : "Finalizing ZIP");
-        } else byteProgress(checkpoint.format === "epub-book" ? "Assembling EPUB book" : "Packaging collection ZIP", message.bytesCopied, message.bytesTotal);
+          report(checkpoint.format === "epub-book" ? "Finalizing EPUB…" : checkpoint.format === "markdown-book" ? "Finalizing Markdown…" : "Finalizing ZIP…");
+          setProgress(checkpoint.format === "epub-book" ? "Finalizing EPUB" : checkpoint.format === "markdown-book" ? "Finalizing Markdown" : "Finalizing ZIP");
+        } else byteProgress(checkpoint.format === "epub-book" ? "Assembling EPUB book" : checkpoint.format === "markdown-book" ? "Assembling Markdown file" : "Packaging collection ZIP", message.bytesCopied, message.bytesTotal);
         detail("bytes", `${bytes(message.bytesCopied)} of ${bytes(message.bytesTotal)} packaged`);
         respond({ reported: true });
       }
@@ -1075,7 +1081,7 @@
       respond({ reported: true });
       return;
     }
-    if (!["epub", "markdown", "epub-book"].includes(message.format)) {
+    if (!["epub", "markdown", "epub-book", "markdown-book"].includes(message.format)) {
       respond({ error: "The collection export format is invalid." });
       return;
     }

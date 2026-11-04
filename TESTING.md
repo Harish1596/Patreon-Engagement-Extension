@@ -29,6 +29,50 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Single Markdown collections, November 4, 2026: **88 Chrome cases, 12 Brave cases
+including the installed extension, and 89 tooling cases passed**. Syntax covers
+60 JavaScript files; whitespace checks pass. Commands:
+
+```sh
+npx playwright test tests/collection-markdown.spec.js tests/collection-controls.spec.js tests/ui-readability.spec.js tests/popup.spec.js tests/collection-menu.spec.js tests/collection-completion.spec.js tests/collection-batches.spec.js tests/collection-retry.spec.js tests/collection-refresh.spec.js tests/collection-report.spec.js tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js tests/export.spec.js tests/export-security.spec.js
+npm run test:brave -- tests/collection-markdown.spec.js tests/collection-menu.spec.js tests/collection-controls.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+New feature cases first failed without Single Markdown support. Backend tests
+exercise raw UTF-8 output rather than ZIP bytes, restart metadata, escaped titles,
+TOC order, bounded reads/writes/decoding, size/CRC/authentication/UTF-8 failures,
+quota, cancellation and native MIME/cleanup. Browser cases inspect combined
+metadata, local anchors, nested headings, Unicode and embedded images, preserved
+Markdown ZIP output, chapter/packaging retry, cancellation and 101-post parts.
+The installed Brave fixture saves an actual `.md`, checks content/images/completed
+report and confirms cache reuse after worker restart and final disk cleanup.
+Packaging includes the new worker module through the explicit allowlist; its
+presence assertion was observed failing before the allowlist correction.
+
+Fresh independent review found the four-choice initial 200% text layout exceeded
+the former 600px frame allowance, leaving every choice disabled. A dedicated
+initial-render case failed before correction, then passed with a 1,000px finite
+bound. Source/origin/token/integer guards remain; the outer body still bounds the
+panel viewport. Reviewer recheck measured 761px frame/756px content at 360×740 and
+613px frame/608px content at 1280×900, all four choices enabled and no inner frame
+scrollbar. Normal light/dark/narrow captures were inspected; one mechanical scan
+was clean. No second detector scan was needed for the numeric bound correction.
+
+The initial installed run expected a saved-media popup section concurrently
+removed in intentional user work. Its obsolete assertion was removed; popup
+implementation changes were preserved separately. An enlarged-text fixture also
+incorrectly compared against a fixed 300px baseline; it now uses the initial
+measured height. These failures were distinct from the new Markdown writer.
+
+Collections retain the 1,000-discovered-post and 100-chapter-part bounds, shared
+archive/source disk limits, existing permissions and access checks. There is no
+collection-sized aggregate message or buffer. These are synthetic and isolated
+installed-extension checks, not a live Patreon or universal Markdown-viewer/zoom
+compatibility claim. Earlier test counts remain dated checkpoints below.
+
 All five UI critique findings, November 4, 2026: **84 Chrome cases, 14 Brave cases
 including the installed extension, and 74 tooling cases passed**. Syntax covers
 58 JavaScript files; whitespace checks pass. Commands:

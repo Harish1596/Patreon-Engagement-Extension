@@ -1518,3 +1518,32 @@ permission API. Scoped whitespace checks pass. The 18 targeted popup/export
 browser cases could not start: Chrome aborted at launch, including an elevated
 retry. No rendered or live Patreon verification is claimed. Unrelated download
 work already in progress was excluded from this focused commit.
+
+
+## November 4, 2026 — Add combined Markdown collection downloads
+
+Added Single Markdown alongside Markdown ZIP, mirroring EPUB's combined/separate
+choices. Combined documents carry collection and chapter metadata, linked contents,
+ordered nested headings and embedded inline media. Independent encrypted retry
+chapters feed a bounded streaming Markdown writer; raw output is UTF-8 `.md`, not
+a renamed ZIP. Existing native delivery, completion reports, cache, ownership,
+quota, cancellation and numbered parts are retained. Mode and filename validation
+survive worker restoration. The packaged extension includes the writer explicitly.
+
+Final verification: 88 Chrome cases, 12 Brave cases including installed extension,
+89 tooling cases, syntax for 60 JavaScript files and whitespace checks. Feature,
+backend-mode and package-presence assertions were observed failing before their
+implementations. Tests cover ordered metadata/Unicode/embedded media, chapter and
+packaging retry, cancel/101-post parts, authenticated stream/CRC/size/UTF-8 failure,
+restart, quotas and native MIME/cleanup. Native Brave checks real `.md` content,
+completion and reused sources after worker restart.
+
+Independent review reproduced disabled choices when initial doubled text exceeded
+the old 600px allowance. A failing initial-render regression now passes with a
+1,000px bound; sender/token guards and outer viewport bounds remain. The reviewer
+verified all four choices at 360×740 and 1280×900; no other material issue was found
+in the scoped review. One mechanical scan was clean. Initial fixture issues were
+a fixed three-choice resize baseline and an expectation for the concurrently
+removed popup media section; intentional user popup changes were kept separate.
+No live private collection, universal viewer rendering or full browser-zoom matrix
+was claimed. Existing part/storage limits remain in force.
