@@ -8,18 +8,21 @@ const source = fs.readFileSync(path.resolve(__dirname, "../../extension/export/c
 async function chooserHarness({ missingAtLoad = false } = {}) {
   let missing = missingAtLoad;
   const reports = [], calls = [];
+  let onMessage;
+  const parent = { postMessage(message, origin) { reports.push({ message, origin }); } };
   const buttons = ["epub", "markdown"].map(format => ({ dataset: { format }, disabled: true,
     addEventListener(event, listener) { this.click = listener; } }));
-  vm.runInNewContext(source, {
+  vm.runInNewContext(source, { ResizeObserver: class { observe() {} }, window: { addEventListener(type, listener) { if (type === "message") onMessage = listener; } },
     browser: { runtime: { async sendMessage(message) {
       calls.push(message.type);
       if (missing) return { error: "The collection export request expired. Reopen Download." };
       if (message.type === "GET_COLLECTION_EXPORT_REQUEST") return { origins: [] };
       return { started: true };
     } } },
-    location: { hash: "#test-token" }, document: { querySelectorAll: () => buttons },
-    parent: { postMessage(message, origin) { reports.push({ message, origin }); } }, Promise, Error
+    location: { hash: "#test-token" }, document: { addEventListener() {}, querySelector: () => ({ getBoundingClientRect: () => ({ height: 252 }) }), querySelectorAll: () => buttons },
+    parent, Promise, Error
   });
+  onMessage({ source: parent, origin: "https://www.patreon.com", data: { source: "patreon-reader-collection-sized", token: "test-token", height: 256 } });
   await new Promise(setImmediate);
   return { buttons, reports, calls, loseSession() { missing = true; } };
 }

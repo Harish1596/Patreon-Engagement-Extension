@@ -29,6 +29,50 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+Collection menu layout, November 4, 2026: **71 Chrome export cases,
+5 Brave cases including the installed extension, and 74 tooling cases passed**.
+Syntax covers 56 JavaScript files; whitespace checks pass. Commands:
+
+```sh
+npx playwright test tests/collection-menu.spec.js tests/collection-completion.spec.js tests/collection-batches.spec.js tests/collection-retry.spec.js tests/collection-refresh.spec.js tests/collection-report.spec.js tests/collection-book.spec.js tests/collection-export.spec.js tests/collection-progress.spec.js tests/archive-stream.spec.js tests/export.spec.js tests/export-security.spec.js
+npm run test:brave -- tests/collection-menu.spec.js tests/installed.spec.js
+npm run test:tooling
+npm run check
+git diff --check
+```
+
+The supplied screenshot showed clipped choices and an inner frame scrollbar.
+Synthetic tests now load the packaged chooser HTML/CSS/script through a mock
+extension API bridge, rather than plain substitute buttons. At 1280×900 in light
+and dark themes and 360×740 in dark theme, tests verify all three descriptive
+choices, minimum button heights, no frame overflow, panel bounds and keyboard
+Enter downloads. Enlarged text triggers actual resize measurement; stale tokens
+and oversized messages are ignored, and Escape closes the panel and restores
+focus. Page-error capture is clear. Browser plugin not available; validation uses
+the repository Playwright setup with isolated Chrome/Brave profiles.
+
+Batched screenshots outside the repo were inspected. The confirmation pass shows
+a quiet collapsed report and preparation details, full-width choices and no inner
+chooser scrollbar. The mechanical design scan found two 10px ZIP badges; their
+font size is now 11px. The detector was not rerun after that correction.
+
+Initial tooling mocks lacked ResizeObserver/document layout APIs and were updated.
+Early browser runs exposed a visibility-dependent animation-frame wait in the mock
+API bridge, fast pointer delivery before frame resizing settled, and missing
+controls while the chooser was hidden during generation. The bridge no longer
+waits on child-frame rendering. The chooser now waits for its owning panel's
+layout acknowledgement before enabling choices, and remains in place, dimmed,
+during generation. Finished progress details collapse. A format-switch fixture
+explicitly brings the permission frame into view after an error. The superseded
+broad run was interrupted; final runs above pass with those corrections.
+
+Native Brave exercises all three actual formats and repeated downloads. Synthetic
+fixtures establish layout and interaction behavior; the supplied account screenshot
+is the live evidence, and the redesign has not been verified on a signed-in live
+Patreon collection. Other viewports, localization and arbitrary browser zoom are
+not exhaustively covered. Download/cache/access behavior and permissions are
+unchanged.
+
 Collection download completion, November 4, 2026: **67 Chrome export cases,
 6 Brave cases including the installed extension, and 74 tooling cases passed**.
 Syntax covers 55 JavaScript files; whitespace checks pass. Commands:

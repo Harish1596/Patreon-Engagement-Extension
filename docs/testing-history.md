@@ -1396,3 +1396,34 @@ reconciliation and cleanup. Installed Brave verifies real EPUB completion;
 interruption/restart reconciliation uses synthetic API fixtures. Live Patreon and
 live browser interruption/resume were not tested. Completed means the browser
 confirmed saving, and does not establish archive validity.
+
+
+## November 4, 2026 — Make collection download choices readable
+
+Replaced the cramped grouped chooser with three full-width descriptive download
+actions and explicit ZIP badges. The permission frame resizes to measured content,
+validates its owner/token on messages and waits for a layout acknowledgement before
+enabling choices. The parent remains responsive, keeps the chooser in place during
+generation and collapses finished preparation/progress details. Report totals move
+inside the expandable report, Refresh becomes secondary, and Escape from within
+the frame restores trigger focus. User-gesture permission requests, export formats,
+cache lifecycle and access rules are preserved.
+
+Final verification: 71 Chrome export cases, 5 Brave cases including the installed
+extension, 74 tooling cases, syntax for 56 JavaScript files and whitespace checks.
+Layout tests use actual packaged chooser assets with a mock API bridge, inspect
+light/dark 1280×900 and dark 360×740 layouts, and verify overflow, enlarged text,
+keyboard downloads, Escape and resize-message bounds. Two screenshot batches were
+inspected outside the repo. The design detector flagged 10px ZIP labels, corrected
+to 11px without a second detector pass. Browser plugin was unavailable; isolated
+Playwright profiles were used.
+
+Initial unit mocks lacked the new layout primitives. Browser failures exposed a
+child-frame animation wait in the mock bridge, pointer delivery before panel
+resizing settled, and disappearance of controls while a new chooser was hidden.
+The bridge, layout-ready handshake and stable visibility were corrected; finished
+progress collapses and the format-switch fixture explicitly scrolls its frame into
+view. The superseded broad run was interrupted before final passing runs. Native
+Brave verifies all three formats and repeated downloads. No signed-in live Patreon
+collection was inspected; arbitrary browser zoom and localization remain outside
+this bounded layout matrix.

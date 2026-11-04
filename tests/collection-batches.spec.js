@@ -108,6 +108,8 @@ test("choosing another format after a later-part failure starts at the first cha
   await frames(page).getByRole("button", { name: "Markdown", exact: true }).click();
   await expect(page.getByRole("button", { name: "Retry failed posts" })).toBeVisible({ timeout: 60_000 });
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; });
+  // Bring the permission frame fully into view after the error panel changes size.
+  await page.locator('iframe[title="Collection export formats"]').scrollIntoViewIfNeeded();
   await frames(page).getByRole("button", { name: "Single EPUB", exact: true }).click();
   await expect.poll(() => downloads.length, { timeout: 60_000 }).toBe(3);
   expect(downloads.slice(1).map(item => item.suggestedFilename())).toEqual([

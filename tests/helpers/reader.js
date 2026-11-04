@@ -24,20 +24,22 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
       }));
       </script></body></html>`
   }));
-  await page.route("https://fixture-extension.invalid/export/collection-chooser.html**", (route) => route.fulfill({
-    contentType: "text/html",
-    body: `<!doctype html><html><body><main aria-label="Collection export formats">
-      <button disabled data-format="epub-book">Single EPUB</button><button disabled data-format="epub">EPUB</button><button disabled data-format="markdown">Markdown</button>
-      </main><script>
-      const token = location.hash.slice(1);
-      for (const button of document.querySelectorAll("button")) button.onclick = () => parent.postMessage({
-        source: "patreon-reader-collection-export", token, format: button.dataset.format
-      }, "https://www.patreon.com");
-      // Match the real chooser's asynchronous readiness after its frame/layout settles.
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        for (const button of document.querySelectorAll("button")) button.disabled = false;
-      }));
-      </script></body></html>`
+  await page.route("https://fixture-extension.invalid/export/collection-chooser.html**", route => route.fulfill({
+    contentType: "text/html", body: fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.html"), "utf8")
+  }));
+  await page.route("https://fixture-extension.invalid/export/collection-chooser.css", route => route.fulfill({
+    contentType: "text/css", body: fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.css"), "utf8")
+  }));
+  await page.route("https://fixture-extension.invalid/export/collection-chooser.js", route => route.fulfill({
+    contentType: "text/javascript", body: `
+      window.browser = { permissions: { request: async () => true }, runtime: { sendMessage: async message => {
+        if (message.type === "GET_COLLECTION_EXPORT_REQUEST") {
+          return { origins: [] };
+        }
+        parent.postMessage({ source: "patreon-reader-collection-export", token: message.token, format: message.format }, "https://www.patreon.com");
+        return { started: true };
+      } } };
+    ` + fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.js"), "utf8")
   }));
   await page.goto(url);
   await page.evaluate(({ stored, namespace }) => {

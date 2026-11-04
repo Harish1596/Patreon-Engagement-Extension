@@ -1650,3 +1650,38 @@ independent parts, stale sender/attempt rejection and expiry. Installed Brave
 confirms Completed after a real native EPUB download; interruption/restart cases
 are synthetic. No live Patreon markup, new selector, access rule or permission
 was established. Browser completion confirms saving, not archive validity.
+
+
+**November 4 collection chooser layout:** A supplied dark-theme screenshot showed
+an internally scrolled/clipped collection chooser, plus the final checked chapter
+and elapsed preparation time crowding the ready state. Current source used a
+136px permission frame for a multi-section chooser. The screenshot's older ZIP-only
+intro differs from the current source's book-or-ZIP copy; this is observed version
+drift, not evidence of a new Patreon selector or access boundary.
+
+The collection menu now presents three full-width actions with descriptions:
+Single EPUB, individual EPUBs in a ZIP, and individual Markdown files in a ZIP.
+ZIP badges and download icons distinguish their outputs. The existing permission
+frame is retained; a ResizeObserver reports measured content height to the owning
+panel. The panel accepts bounded integer heights only from its current frame,
+extension origin and token, then acknowledges settled layout before the chooser
+enables its buttons. The original direct user-gesture permission request remains
+in the chooser's click handler. Escape from that frame closes the idle panel and
+returns focus to the trigger. No new permissions, Patreon selectors or data reads
+are introduced.
+
+The panel has a wider desktop layout and fits narrow viewports. Preparation and
+finished progress details collapse; active progress opens them. Report totals move
+inside the expandable report, leaving a concise result on its summary. Refresh is
+a secondary footer action. Choices remain dimmed in place during generation to
+avoid repeated frame disappearance/repositioning. Initial preparation keeps the
+blank frame hidden. The outer panel remains scrollable on short viewports; this
+change removes clipping/scrolling inside the chooser, not every scrollbar in a
+long expanded download report.
+
+Synthetic layout cases load actual chooser assets and inspect light/dark desktop,
+dark narrow layout, enlarged text, message guards, keyboard download and Escape.
+Screenshots were inspected in two batches. The mechanical scan's small ZIP text
+finding was corrected from 10px to 11px. Native Brave verifies repeated real EPUB,
+EPUB-book and Markdown downloads. These checks do not establish live signed-in
+Patreon verification or an exhaustive browser/zoom/localization matrix.

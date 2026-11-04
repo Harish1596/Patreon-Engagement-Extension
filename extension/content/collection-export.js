@@ -52,7 +52,11 @@
     const summary = view.querySelector("summary");
     const totals = Object.fromEntries(["ready", "prepared", "download-started", "completed", "interrupted", "unconfirmed", "skipped", "failed", "cancelled"].map(status =>
       [status, downloadReport.posts.filter(post => post.status === status).length]));
-    summary.textContent = `Download report · ${totals["download-started"] + totals.completed + totals.interrupted + totals.unconfirmed} included · ${totals.skipped} skipped · ${totals.failed} failed · ${totals.completed} completed · ${totals.interrupted} interrupted`;
+    const result = totals.interrupted ? `${totals.interrupted} interrupted` : totals.failed ? `${totals.failed} failed`
+      : totals["download-started"] ? `${totals["download-started"]} in progress` : totals.completed ? `${totals.completed} completed`
+      : totals.skipped ? `${totals.skipped} skipped` : "";
+    summary.textContent = `Download report${result ? ` · ${result}` : ""}`;
+    view.querySelector(".report-totals").textContent = `${totals["download-started"] + totals.completed + totals.interrupted + totals.unconfirmed} included · ${totals.skipped} skipped · ${totals.failed} failed · ${totals.completed} completed · ${totals.interrupted} interrupted`;
     view.querySelector(".report-state").textContent = downloadReport.state;
     view.querySelector(".download-parts").textContent = partResults();
     const list = view.querySelector("ol"); list.replaceChildren();
@@ -127,7 +131,7 @@
       if (node) { node.textContent = ""; node.hidden = true; }
     }
     const details = shadow?.querySelector(".progress-details");
-    if (details) details.hidden = false;
+    if (details) { details.hidden = false; details.open = true; details.querySelector("summary").textContent = "Progress details"; }
     renderElapsed(operation);
     operation.timer = setInterval(() => {
       if (activeOperation === operation) renderElapsed(operation);
@@ -498,6 +502,12 @@
 
   function setBusy(value) {
     busy = value;
+    if (chooser) {
+      chooser.hidden = !requestToken || chooser.src === "about:blank";
+      chooser.style.pointerEvents = value ? "none" : "";
+      chooser.style.opacity = value ? ".5" : "1";
+    }
+    if (!value) { const details = shadow?.querySelector(".progress-details"); if (details) details.open = false; }
     const close = shadow?.querySelector(".close");
     if (close) close.disabled = value;
     const refresh = shadow?.querySelector(".refresh");
@@ -508,6 +518,7 @@
   }
 
   function loadChooser() {
+    chooser.hidden = false;
     chooser.src = `${api.runtime.getURL("export/collection-chooser.html")}?instance=${crypto.randomUUID()}#${requestToken}`;
   }
 
@@ -613,6 +624,10 @@
     setBusy(false);
     finishOperation(operation);
     if (checkpoint) showRetry();
+    else {
+      const details = shadow.querySelector(".progress-details");
+      details.open = false; details.querySelector("summary").textContent = "Preparation details";
+    }
   }
 
   function showRetry() {
@@ -832,7 +847,28 @@
     host = element("div", { "data-patreon-collection-download": "" });
     shadow = host.attachShadow({ mode: "open" });
     const style = element("style");
-    style.textContent = `:host{all:initial}*{box-sizing:border-box}.trigger{position:fixed;right:20px;bottom:20px;z-index:2147483646;border:1px solid #dedee3;border-radius:999px;padding:10px 16px;color:#202026;background:#fff;box-shadow:0 8px 30px #0003;font:650 14px/1.4 system-ui,sans-serif;cursor:pointer}.trigger:hover{background:#f4f4f6}section{position:fixed;right:20px;bottom:74px;z-index:2147483647;width:340px;max-width:calc(100vw - 24px);padding:18px;border:1px solid #dedee3;border-radius:16px;color:#202026;background:#fff;box-shadow:0 12px 48px #0003;font:14px/1.45 system-ui,sans-serif}[hidden]{display:none!important}header{display:flex;align-items:start;justify-content:space-between;gap:12px}h2{margin:0;font-size:18px}p{margin:6px 0 14px;color:#686872;font-size:12px}.close{padding:5px 9px;border:1px solid #dedee3;border-radius:8px;color:inherit;background:#f4f4f6;font:inherit;cursor:pointer}.close:disabled{opacity:.5;cursor:default}iframe{display:block;width:100%;height:136px;border:0}progress{display:block;width:100%;height:8px;margin:12px 0 0;accent-color:#b82d47}#collection-export-status{min-height:38px;margin:10px 0 0}[data-tone=error]{color:#a32037}[data-tone=success]{color:#216e39}:focus-visible{outline:2px solid #b82d47;outline-offset:2px}@media(prefers-color-scheme:dark){.trigger,section{color:#f2f2f5;background:#232326;border-color:#48484e}.trigger:hover,.close{background:#323237}.close{border-color:#505058}p{color:#b4b4be}[data-tone=error]{color:#ff9bac}[data-tone=success]{color:#82d99b}}`;
+    style.textContent = `
+      :host{all:initial}*{box-sizing:border-box}[hidden]{display:none!important}
+      .trigger{position:fixed;right:20px;bottom:20px;z-index:2147483646;border:1px solid #dedee3;border-radius:999px;padding:10px 16px;color:#202026;background:#fff;box-shadow:0 8px 30px #0003;font:650 14px/1.4 system-ui,sans-serif;cursor:pointer}
+      .trigger:hover{background:#f4f4f6}
+      section{position:fixed;right:20px;bottom:74px;z-index:2147483647;width:400px;max-width:calc(100vw - 24px);padding:22px;border:1px solid #dedee3;border-radius:16px;color:#202026;background:#fff;box-shadow:0 12px 48px #0003;font:14px/1.5 system-ui,sans-serif;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#a0a0aa transparent}
+      header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+      h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.02em}
+      p{margin:0;color:#60606c;font-size:13px}
+      .intro{margin-bottom:16px}
+      .close{min-height:36px;padding:7px 11px;border:1px solid #dedee3;border-radius:8px;color:inherit;background:#f4f4f6;font:inherit;cursor:pointer}
+      .dismiss{display:grid;place-items:center;width:44px;min-height:44px;padding:8px;background:transparent}
+      .dismiss svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+      .close:hover:enabled{background:#e9e9ee}.close:disabled{opacity:.5;cursor:default}
+      iframe{display:block;width:100%;height:252px;border:0;margin:0}
+      progress{display:block;width:100%;height:6px;margin:16px 0 0;accent-color:#b82d47}
+      #collection-export-status{margin:14px 0 0;color:inherit;font-size:13px;font-weight:550}
+      [data-tone=error]{color:#a32037!important}[data-tone=success]{color:#216e39!important}
+      :focus-visible{outline:2px solid #b82d47;outline-offset:3px}
+      ::selection{color:#fff;background:#35353d}
+      @media(max-width:480px){section{right:12px;bottom:72px;padding:18px}.trigger{right:12px}}
+      @media(prefers-color-scheme:dark){.trigger,section{color:#f2f2f5;background:#232326;border-color:#48484e;scrollbar-color:#666671 transparent}.trigger:hover,.close{background:#2d2d32}.close{border-color:#4d4d56}.dismiss{background:transparent}.close:hover:enabled{background:#38383f}p{color:#b8b8c3}[data-tone=error]{color:#ff9bac!important}[data-tone=success]{color:#82d99b!important}:focus-visible{outline-color:#ff9bac}}
+    `;
     trigger = element("button", {
       type: "button", class: "trigger", "aria-haspopup": "dialog", "aria-expanded": "false"
     }, "Download Collection");
@@ -843,18 +879,25 @@
     header.append(element("h2", { id: "collection-export-heading" }, "Download Collection"));
     const dismiss = element("button", { type: "button", class: "close", "aria-label": "Close collection download" }, "×");
     dismiss.addEventListener("click", () => close(true));
+    dismiss.classList.add("dismiss");
+    const closeIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    closeIcon.setAttribute("viewBox", "0 0 24 24"); closeIcon.setAttribute("aria-hidden", "true");
+    const closePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    closePath.setAttribute("d", "m6 6 12 12M6 18 18 6"); closeIcon.append(closePath);
+    dismiss.replaceChildren(closeIcon);
     header.append(dismiss);
     chooser = element("iframe", { title: "Collection export formats", src: "about:blank" });
     dialog.append(header,
-      element("p", {}, "Download one EPUB book or a ZIP of separate files, in collection order."),
+      element("p", { class: "intro" }, "Choose one book or separate chapter files."),
       chooser,
       element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
       element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
-    const details = element("div", { class: "progress-details", hidden: "" });
+    const details = element("details", { class: "progress-details", hidden: "" });
+    details.append(element("summary", {}, "Progress details"));
     for (const name of ["current", "counts", "bytes", "elapsed"]) {
       details.append(element("p", { [`data-progress-${name}`]: "", ...(name === "elapsed" ? {} : { hidden: "" }) }));
     }
-    style.textContent += ".progress-details p{margin:4px 0;font-size:12px;overflow-wrap:anywhere}.progress-details [data-progress-current]{color:inherit;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}section{max-height:calc(100vh - 98px);overflow:auto}";
+    style.textContent += ".progress-details p{margin:4px 0;font-size:12px;overflow-wrap:anywhere}.progress-details [data-progress-current]{color:inherit;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.progress-details{margin-top:12px}.progress-details summary{color:#80808c;font-size:12px;cursor:pointer}.progress-details[open] summary{margin-bottom:8px}section{max-height:calc(100vh - 98px);max-height:calc(100dvh - 98px);overflow:auto}";
     dialog.append(details);
     const refresh = element("button", { type: "button", class: "close refresh" }, "Refresh collection");
     refresh.addEventListener("click", () => {
@@ -862,7 +905,7 @@
       prepareSession("", true).catch(showPreparationError);
     });
     const controls = element("div", { class: "controls" });
-    style.textContent += ".controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}";
+    style.textContent += ".controls{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:12px}.refresh{border-color:transparent;background:transparent;color:#60606c;font-size:12px}.refresh:hover:enabled{text-decoration:underline}@media(prefers-color-scheme:dark){.refresh{color:#b8b8c3;background:transparent}}";
     const cancel = element("button", { type: "button", class: "close cancel", hidden: "" }, "Cancel");
     cancel.addEventListener("click", cancelOperation);
     const restart = element("button", { type: "button", class: "close restart", hidden: "" }, "Start again");
@@ -870,11 +913,11 @@
     const retry = element("button", { type: "button", class: "close retry", hidden: "" }, "Retry failed posts");
     retry.addEventListener("click", () => { if (checkpoint) run(checkpoint.format); });
     const reportView = element("details", { class: "download-report", hidden: "" });
-    reportView.append(element("summary", {}, "Download report"), element("p", { class: "report-state" }), element("p", { class: "download-parts", style: "white-space:pre-line" }),
+    reportView.append(element("summary", {}, "Download report"), element("p", { class: "report-totals" }), element("p", { class: "report-state" }), element("p", { class: "download-parts", style: "white-space:pre-line" }),
       element("ol", { "aria-label": "Post download results" }));
     const saveReport = element("button", { type: "button", class: "close" }, "Save report");
     saveReport.addEventListener("click", saveDownloadReport); reportView.append(saveReport);
-    style.textContent += ".download-report{margin-top:14px;border-top:1px solid currentColor;padding-top:10px}.download-report summary{cursor:pointer;font-weight:650;font-size:13px}.download-report ol{max-height:220px;overflow:auto;padding-left:22px;margin:8px 0;font-size:12px}.download-report li{margin:10px 0;overflow-wrap:anywhere}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline}.download-report strong{font-size:12px}";
+    style.textContent += ".download-report{margin-top:14px;border-top:1px solid #dedee3;padding-top:10px}.download-report summary{cursor:pointer;font-weight:650;font-size:13px}.download-report ol{max-height:220px;overflow:auto;padding-left:22px;margin:8px 0;font-size:12px}.download-report li{margin:10px 0;overflow-wrap:anywhere}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline}.download-report strong{font-size:12px}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}}";
     dialog.append(reportView);
     controls.append(refresh, cancel, restart, retry);
     dialog.append(controls);
@@ -911,13 +954,27 @@
   }
 
   window.addEventListener("message", event => {
-    if (!open || busy || event.origin !== api.runtime.getURL("").replace(/\/$/, "")
-      || event.source !== chooser?.contentWindow || event.data?.source !== "patreon-reader-collection-error"
-      || event.data.token !== requestToken || typeof event.data.error !== "string") return;
+    if (!open || event.origin !== api.runtime.getURL("").replace(/\/$/, "")
+      || event.source !== chooser?.contentWindow || event.data?.token !== requestToken) return;
+    if (event.data.source === "patreon-reader-collection-close") { close(true); return; }
+    if (event.data.source === "patreon-reader-collection-size") {
+      if (Number.isSafeInteger(event.data.height) && event.data.height >= 100 && event.data.height <= 600) {
+        chooser.style.height = `${event.data.height}px`;
+        const height = event.data.height;
+        // Enable choices only after the outer panel has settled around the new
+        // frame height. Otherwise fast clicks can land at its previous position.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (open && event.source === chooser?.contentWindow && event.data.token === requestToken
+            && chooser.style.height === `${height}px`) {
+            event.source.postMessage({ source: "patreon-reader-collection-sized", token: requestToken, height }, event.origin);
+          }
+        }));
+      }
+      return;
+    }
+    if (busy || event.data.source !== "patreon-reader-collection-error" || typeof event.data.error !== "string") return;
     report(event.data.error, "error");
-    setProgress();
-    finishOperation();
-    setBusy(false);
+    setProgress(); finishOperation(); setBusy(false);
   });
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
