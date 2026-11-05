@@ -29,6 +29,39 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 5, 2026 — Popup product identity and page status
+
+The toolbar popup now leads with Patreon Reader, a version badge read from the
+runtime manifest, and “Reading comfort. Offline access.” Reading preferences,
+Page status and Community have separate labelled sections. Existing toggles and
+branded community links remain; a short hint directs downloads to Patreon pages.
+The popup consumes the existing collection-download mounted flag rather than
+changing page integration. A disconnected tab with an exposed Patreon HTTPS URL
+gets a refresh instruction; other tabs, including those whose URL the browser
+withholds, get the open-post-or-collection instruction. No permissions were added.
+
+Validation:
+
+- Two new callback/promise API regressions failed on the old heading before the
+  implementation, then passed with manifest-derived version and contextual status.
+- `npm test -- tests/popup.spec.js tests/ui-readability.spec.js --workers=2 --output=/tmp/popup-header-final-results`:
+  **13 passed**, including persistent independent toggles, save failures, keyboard
+  community links, 320px bounds and dynamic badge layout in light/dark themes.
+- `npm run test:brave -- tests/popup.spec.js tests/ui-readability.spec.js --output=/tmp/popup-header-brave-results`:
+  **13 passed**. This run preceded the final additional badge geometry assertion;
+  the same runtime implementation was used in both runs.
+- `npm run check`: **90 JavaScript files**; `git diff --check` is clean.
+- Browser plugin not available; a separate Playwright Chrome capture loaded only
+  popup CSS/JS and mocked extension APIs, avoiding Patreon fixture styles. Both
+  themes fit 320 × 508px, with the real icon loaded, no horizontal overflow,
+  working Reader toggle and no page errors. 200% zoom also has no horizontal
+  overflow. Screenshots are outside the repository under `/tmp/popup-header-*`.
+
+The supplied Return YouTube Dislike screenshot informed identity/version hierarchy;
+its account, premium and donation features were not added. This refines the existing
+popup rather than introducing a new surface. No new live Patreon or signed-in
+browser data was inspected; native browser-popup placement remains user-verifiable.
+
 ## November 5, 2026 — Support button colors
 
 Discord now uses blurple (#5865f2) and GitHub uses charcoal (#24292f), with

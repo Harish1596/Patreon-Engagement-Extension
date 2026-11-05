@@ -17,43 +17,52 @@
           alt=""
         />
         <div class="header-copy">
-          <h1>Post preferences</h1>
-          <p id="status" data-tone="loading" aria-live="polite">
-            Checking Patreon…
-          </p>
+          <div class="identity-row">
+            <h1>Patreon Reader</h1>
+            <span id="version" class="version" hidden></span>
+          </div>
+          <p class="tagline">Reading comfort. Offline access.</p>
         </div>
       </header>
 
-      <label class="setting" for="hidden-toggle">
-        <span class="setting-copy">
-          <span class="setting-title">Hide Engagement Bar</span>
-          <span class="setting-description">Likes, comments, reposts and shares</span>
-        </span>
-        <span class="switch">
-          <input
-            id="hidden-toggle"
-            type="checkbox"
-            role="switch"
-            aria-label="Hide engagement bar"
-            checked
-          />
-          <span class="slider" aria-hidden="true"></span>
-        </span>
-      </label>
+      <section class="preferences" aria-labelledby="preferences-heading">
+        <h2 id="preferences-heading">Reading preferences</h2>
+        <label class="setting" for="hidden-toggle">
+          <span class="setting-copy">
+            <span class="setting-title">Hide Engagement Bar</span>
+            <span class="setting-description">Likes, comments, reposts and shares</span>
+          </span>
+          <span class="switch">
+            <input
+              id="hidden-toggle"
+              type="checkbox"
+              role="switch"
+              aria-label="Hide engagement bar"
+              checked
+            />
+            <span class="slider" aria-hidden="true"></span>
+          </span>
+        </label>
 
-      <label class="setting" for="reader-toggle">
-        <span class="setting-copy">
-          <span class="setting-title">Enable Reader Customization</span>
-          <span class="setting-description">Adds Aa controls to post actions</span>
-        </span>
-        <span class="switch">
-          <input id="reader-toggle" type="checkbox" role="switch"
-            aria-label="Enable Reader Customization" disabled />
-          <span class="slider" aria-hidden="true"></span>
-        </span>
-      </label>
+        <label class="setting" for="reader-toggle">
+          <span class="setting-copy">
+            <span class="setting-title">Enable Reader Customization</span>
+            <span class="setting-description">Adds Aa controls to post actions</span>
+          </span>
+          <span class="switch">
+            <input id="reader-toggle" type="checkbox" role="switch"
+              aria-label="Enable Reader Customization" disabled />
+            <span class="slider" aria-hidden="true"></span>
+          </span>
+        </label>
+      </section>
+      <section class="page-status" aria-labelledby="page-status-heading">
+        <h2 id="page-status-heading">Page status</h2>
+        <p id="status" data-tone="loading" aria-live="polite">Checking Patreon…</p>
+        <p class="download-hint">Download posts and collections from their Patreon pages.</p>
+      </section>
       <section class="support" aria-labelledby="support-heading">
-        <h2 id="support-heading">Support</h2>
+        <h2 id="support-heading">Community</h2>
         <!-- Brand marks: Simple Icons (CC0). -->
         <nav class="community-links" aria-labelledby="support-heading">
           <a class="community-link" id="discord-link" target="_blank" rel="noopener noreferrer"

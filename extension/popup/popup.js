@@ -13,6 +13,12 @@ for (const name of ["discord", "github"]) {
 }
 
 const { api, call } = globalThis.PatreonExtension;
+const version = api.runtime.getManifest?.().version;
+if (version) {
+  const badge = document.querySelector("#version");
+  badge.textContent = `v${version}`;
+  badge.hidden = false;
+}
 const toggle = document.querySelector("#hidden-toggle");
 const readerToggle = document.querySelector("#reader-toggle");
 const status = document.querySelector("#status");
@@ -26,13 +32,17 @@ function render() {
 }
 
 async function showPageStatus() {
+  let tab;
   try {
-    const [tab] = await call(api.tabs, "query", { active: true, currentWindow: true });
+    [tab] = await call(api.tabs, "query", { active: true, currentWindow: true });
     const state = tab?.id === undefined ? null
       : await call(api.tabs, "sendMessage", tab.id, { type: "GET_STATE" });
     if (typeof state?.isPostPage !== "boolean") throw new Error("No page response");
-    if (!state.isPostPage) {
-      status.textContent = "Available on Patreon post pages";
+    if (state.collectionDownloadMounted) {
+      status.textContent = "Collection downloads are available on this page";
+      status.dataset.tone = "success";
+    } else if (!state.isPostPage) {
+      status.textContent = "Open a Patreon post or collection to get started.";
       status.dataset.tone = "inactive";
     } else if (state.readerEnabled && state.readerMounted === false) {
       status.textContent = "Reader controls not found on this post";
@@ -42,7 +52,13 @@ async function showPageStatus() {
       status.dataset.tone = "success";
     }
   } catch (_) {
-    status.textContent = "Open or refresh a Patreon post to connect";
+    let onPatreon = false;
+    try {
+      const url = new URL(tab?.url);
+      onPatreon = url.protocol === "https:" && (url.hostname === "patreon.com" || url.hostname.endsWith(".patreon.com"));
+    } catch (_) { /* The browser may not expose the active tab URL. */ }
+    status.textContent = onPatreon ? "Refresh this page to enable Patreon Reader."
+      : "Open a Patreon post or collection to get started.";
     status.dataset.tone = "inactive";
   }
 }

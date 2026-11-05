@@ -8,18 +8,19 @@ test("compact popup keeps text and switches within its 320px layout", async ({ p
     .replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
   await setup(page, { content: html });
   await page.addStyleTag({ path: path.join(extensionRoot, "popup/popup.css") });
+  await page.evaluate(() => { chrome.runtime.getManifest = () => ({ version: "1.1.1" }); });
   await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
   await expect(page.getByText("Runs locally on Patreon post pages", { exact: true })).toHaveCount(0);
   await expect(page.locator(".scope-note, .lock")).toHaveCount(0);
   for (const colorScheme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme });
     await expect(page.locator("body")).toHaveCSS("width", "320px");
-    for (const status of ["Preferences apply to all posts", "Open or refresh a Patreon post to connect",
+    for (const status of ["Preferences apply to all posts", "Open a Patreon post or collection to get started.",
       "Reader controls not found on this post", "Unable to save. Please try again."]) {
       await page.locator("#status").evaluate((node, text) => { node.textContent = text; }, status);
       const fits = await page.evaluate(() => {
         const body = document.body.getBoundingClientRect();
-        return [...document.querySelectorAll(".app-header, .setting, .setting-copy, .switch, #status")]
+        return [...document.querySelectorAll(".app-header, .identity-row, .version, .tagline, .setting, .setting-copy, .switch, #status, .download-hint")]
           .every(node => {
             const rect = node.getBoundingClientRect();
             return rect.left >= body.left && rect.right <= body.right && node.scrollWidth <= node.clientWidth;
@@ -71,9 +72,9 @@ test("popup distinguishes page connection failures from unsupported or undetecte
   });
   await expect(page.locator("#status")).toHaveText("Reader controls not found on this post");
   await page.evaluate(async () => { globalThis.pageReply = { isPostPage: false }; await showPageStatus(); });
-  await expect(page.locator("#status")).toHaveText("Available on Patreon post pages");
+  await expect(page.locator("#status")).toHaveText("Open a Patreon post or collection to get started.");
   await page.evaluate(async () => { globalThis.failMessage = true; await showPageStatus(); });
-  await expect(page.locator("#status")).toHaveText("Open or refresh a Patreon post to connect");
+  await expect(page.locator("#status")).toHaveText("Open a Patreon post or collection to get started.");
 });
 
 
@@ -107,10 +108,10 @@ test("community links open configured destinations below Reader in light and dar
     };
   });
   await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
-  const links = page.getByRole("navigation", { name: "Support" });
+  const links = page.getByRole("navigation", { name: "Community" });
   for (const colorScheme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme });
-    await expect(page.getByRole("heading", { name: "Support", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Community", exact: true })).toBeVisible();
     await expect(links).toBeVisible();
     const bounds = await links.boundingBox();
     const readerBounds = await page.locator('label[for="reader-toggle"]').boundingBox();
@@ -136,3 +137,43 @@ test("community links open configured destinations below Reader in light and dar
     }
   }
 });
+
+for (const namespace of ["chrome", "browser"]) {
+  test(`${namespace} popup separates product identity from contextual page status`, async ({ page }) => {
+    const fs = require("node:fs");
+    const html = fs.readFileSync(path.join(extensionRoot, "popup/popup.html"), "utf8")
+      .replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
+    await setup(page, { content: html, namespace });
+    await page.evaluate(namespace => {
+      globalThis[namespace].runtime.getManifest = () => ({ version: "9.8.7" });
+    }, namespace);
+    await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Patreon Reader");
+    await expect(page.locator("#version")).toHaveText("v9.8.7");
+    await expect(page.locator(".app-header")).toContainText("Reading comfort. Offline access.");
+    await expect(page.locator(".app-header #status")).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Reading preferences", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Page status", exact: true })).toContainText("Preferences apply to all posts");
+    await expect(page.getByText("Download posts and collections from their Patreon pages.", { exact: true })).toBeVisible();
+    await page.evaluate(async () => {
+      globalThis.pageReply = { isPostPage: false, collectionDownloadMounted: true };
+      await showPageStatus();
+    });
+    await expect(page.locator("#status")).toHaveText("Collection downloads are available on this page");
+    await page.evaluate(async namespace => {
+      const api = globalThis[namespace];
+      api.tabs.query = namespace === "browser" ? async () => [{ id: 1, url: "https://www.patreon.com/collection/500" }]
+        : (options, done) => done([{ id: 1, url: "https://www.patreon.com/collection/500" }]);
+      globalThis.failMessage = true;
+      await showPageStatus();
+    }, namespace);
+    await expect(page.locator("#status")).toHaveText("Refresh this page to enable Patreon Reader.");
+    await page.evaluate(async namespace => {
+      const api = globalThis[namespace];
+      api.tabs.query = namespace === "browser" ? async () => [{ id: 1, url: "https://example.com/" }]
+        : (options, done) => done([{ id: 1, url: "https://example.com/" }]);
+      await showPageStatus();
+    }, namespace);
+    await expect(page.locator("#status")).toHaveText("Open a Patreon post or collection to get started.");
+  });
+}
