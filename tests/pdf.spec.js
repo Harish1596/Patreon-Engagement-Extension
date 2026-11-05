@@ -73,3 +73,23 @@ test('browser PDF preserves U+1E2A and related diacritics across styled text', a
   const doc = await inspectPdf(data), text = doc.pages.map(page => page.text).join(' ').normalize('NFC');
   for (const expected of ['Chapter Ḫ', 'Creator ḫ', 'Normal Ḫ ḫ Ṭ ṭ Ḥ ḥ', 'Bold Ḫ', 'Italic Ḫ', 'Both Ḫ']) expect(text).toContain(expected);
 });
+
+test('browser PDF uses cuneiform fallback in mixed text, contents and links', async ({ page }) => {
+  await pdfWorkerFixture(page);
+  const data = await page.evaluate(async snapshot => {
+    const input = PatreonPdf.chapter({ ...snapshot, title: 'Chapter Ḫ𒀭', author: 'Creator𒀭', body: { tag: 'div', children: [
+      { tag: 'p', children: ['Before𒀭after Ḫ'] },
+      { tag: 'p', children: [{ tag: 'strong', children: ['Bold𒀭'] }] },
+      { tag: 'p', children: [{ tag: 'em', children: ['Italic𒀭'] }] },
+      { tag: 'p', children: [{ tag: 'strong', children: [{ tag: 'em', children: ['Both𒀭'] }] }] },
+      { tag: 'p', children: [{ tag: 'a', href: 'https://example.com/cuneiform', children: ['Link𒀭'] }] }
+    ] } });
+    return Array.from(await pdfFixtureRender([input], { title: 'Collection𒀭', source: 'https://www.patreon.com/collection/500', downloadedAt: 'Today' }));
+  }, chapter);
+  const doc = await inspectPdf(data);
+  expect(doc.metadata.info.Title).toBe('Collection𒀭');
+  expect(doc.pages[0].text).toMatch(/Chapter Ḫ\s*𒀭/);
+  expect(doc.pages[0].annotations.some(item => item.dest)).toBe(true);
+  for (const pattern of [/Creator\s*𒀭/, /Before\s*𒀭\s*after Ḫ/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/]) expect(doc.pages[1].text).toMatch(pattern);
+  expect(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cuneiform')).toBe(true);
+});

@@ -35,11 +35,11 @@ function dimensions(data, type) {
 function bounded(width, height) {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1 || width > MAX_SIDE || height > MAX_SIDE || width * height > MAX_PIXELS) throw new Error('A PDF image exceeds the 8,192-pixel side or 16-million-pixel limit.');
 }
-function glyphs(value) {
+function glyphs(value, ranges = PatreonPdfGlyphs, label = 'PDF font') {
   for (const char of value) {
     const cp = char.codePointAt(0);
-    if ('\n\r\t'.includes(char) || PatreonPdfGlyphs.some(([a, b]) => cp >= a && cp <= b)) continue;
-    throw new Error(`The PDF font does not support character U+${cp.toString(16).toUpperCase()}. Use EPUB or Markdown for this text.`);
+    if ('\n\r\t'.includes(char) || ranges.some(([a, b]) => cp >= a && cp <= b)) continue;
+    throw new Error(`The ${label} does not support character U+${cp.toString(16).toUpperCase()}. Use EPUB or Markdown for this text.`);
   }
 }
 async function normalize(chapter, budget) {
@@ -53,7 +53,7 @@ async function normalize(chapter, budget) {
       const svg = new TextDecoder('utf-8', { fatal: true }).decode(data);
       if (!/^\s*<svg\b/i.test(svg) || /<!|<(?:script|foreignObject|image|use|style|animate|set)\b|\bon\w+\s*=|\bhref\s*=|url\s*\(\s*[^#]/i.test(svg)) throw new Error('The PDF SVG image contains unsupported markup.');
       // SVG text uses the same primary font coverage as the document.
-      glyphs(svg.replace(/<[^>]*>/g, ''));
+      glyphs(svg.replace(/<[^>]*>/g, ''), PatreonPdfFonts[0].ranges, 'PDF SVG font');
       continue;
     }
     const [width, height] = dimensions(data, type);

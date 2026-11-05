@@ -52,6 +52,38 @@
     return { version: 1, title: snapshot.title, author: snapshot.author, sourceUrl: url(snapshot.sourceUrl, true),
       language: snapshot.language, downloadedAt: typeof snapshot.downloadedAt === 'string' ? snapshot.downloadedAt : '', body, assets };
   }
+  function withFallbackFonts(value, budget = { runs: 0 }) {
+    if (Array.isArray(value)) { value.forEach(item => withFallbackFonts(item, budget)); return; }
+    if (!value || typeof value !== 'object') return;
+    for (const [key, item] of Object.entries(value)) {
+      if (key !== 'text' || typeof item !== 'string') { if (item && typeof item === 'object') withFallbackFonts(item, budget); continue; }
+      const fonts = globalThis.PatreonPdfFonts;
+      if (!fonts?.length || !/[^\u0000-\u007f]/.test(item)) continue;
+      const runs = []; let fallback = false, family = fonts[0].family, start = 0, offset = 0;
+      const append = end => {
+        if (end === start) return;
+        if (budget.runs + runs.length >= 100_000) throw new Error('The PDF exceeds its font fallback complexity limit. Use individual files.');
+        runs.push({ text: item.slice(start, end), font: family });
+      };
+      for (const char of item) {
+        const cp = char.codePointAt(0);
+        const next = fonts.find(font => font.ranges.some(([begin, end]) => cp >= begin && cp <= end))?.family || fonts[0].family;
+        if (next !== fonts[0].family) fallback = true;
+        if (next !== family) { append(offset); start = offset; family = next; }
+        offset += char.length;
+      }
+      if (fallback) append(offset);
+      if (fallback) {
+        budget.runs += runs.length;
+        const inlineStyle = {};
+        for (const name of ['link', 'bold', 'italics', 'decoration', 'background', 'color', 'fontSize', 'sub', 'sup', 'characterSpacing']) {
+          if (Object.hasOwn(value, name)) inlineStyle[name] = value[name];
+        }
+        value.text = runs.map(run => ({ ...inlineStyle, ...run }));
+      }
+    }
+  }
+
   function definition(inputs, book) {
     size(inputs);
     if (!Array.isArray(inputs) || !inputs.length || inputs.length > 100) throw new Error('The PDF chapter count is invalid.');
@@ -121,11 +153,13 @@
       if (book) content.push(...metadata);
       content.push(...blocks(post.body, post.assets));
     }
-    return { pageSize: 'A4', pageMargins: [51, 51, 51, 51],
+    const document = { pageSize: 'A4', pageMargins: [51, 51, 51, 51],
       info: { title: book?.title || chapters[0].title, author: book ? 'Patreon creators' : chapters[0].author },
       defaultStyle: { font: 'NotoSans', fontSize: 11, lineHeight: 1.35, color: '#222222' },
       styles: { title: { fontSize: 24, bold: true, margin: [0, 10, 0, 16] }, heading: { fontSize: 18, bold: true }, metadata: { fontSize: 9, margin: [0, 0, 0, 4] } },
       footer: page => ({ text: String(page), alignment: 'center', fontSize: 9, margin: [0, 15, 0, 0] }), content };
+    withFallbackFonts(document.content);
+    return document;
   }
   globalThis.PatreonPdf = Object.freeze({ chapter, definition, size, MAX_INPUT, MAX_OUTPUT, MAX_PIXELS, MAX_SIDE });
 })();

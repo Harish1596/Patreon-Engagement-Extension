@@ -2003,3 +2003,21 @@ The larger 75-chapter fixture also continues to render. Input/output limits, ima
 budgets, membership/origin rules and cache lifecycle retain their existing contracts.
 No private post text or new live Patreon markup was captured. This supersedes the
 earlier Roboto-primary coverage statements, not the original dated observations.
+
+
+**November 5 Cuneiform PDF fallback:** A subsequent retained-collection failure
+at U+1202D (𒀭) identifies a script outside the primary Noto Sans family. Document
+text now uses per-run font selection with a bundled, hash-pinned Noto Sans
+Cuneiform face. Latin/diacritics retain their primary font and styling, while the
+single Cuneiform regular face serves all style aliases. Metadata text, contents
+entries and clickable links preserve their characters. Fallback expansion is
+bounded to 100,000 runs per PDF; unsupported characters still fail explicitly.
+SVG text keeps primary-font validation because it is not rewritten with document
+fallback. Font data stays local and the shared upstream OFL notice is packaged.
+
+Synthetic real-renderer tests, browser workers and installed Brave post/Single
+PDF/PDF ZIP downloads independently extract mixed Latin/Ḫ/𒀭 text and links. A
+rasterized sample confirms visible glyphs; the larger 75-chapter fixture also
+contains mixed-script text. These checks establish export behavior, not new live
+Patreon markup or verification of the user's private collection. Reader surfaces,
+extraction, access rules, cache lifecycle and PDF resource budgets are unchanged.

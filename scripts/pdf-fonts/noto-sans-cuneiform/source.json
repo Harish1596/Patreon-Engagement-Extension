@@ -1,0 +1,18 @@
+{
+  "repository": "https://github.com/notofonts/noto-fonts",
+  "commit": "ffebf8c1ee449e544955a7e813c54f9b73848eac",
+  "files": [
+    {
+      "file": "NotoSansCuneiform-Regular.ttf",
+      "sha256": "6c9b57503e0dc9e81e30a52011b64764515afc2a77ea7e77dae53c7e04291c18",
+      "bytes": 820248,
+      "source": "hinted/ttf/NotoSansCuneiform/NotoSansCuneiform-Regular.ttf"
+    },
+    {
+      "file": "OFL.txt",
+      "sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
+      "bytes": 4377,
+      "source": "LICENSE"
+    }
+  ]
+}

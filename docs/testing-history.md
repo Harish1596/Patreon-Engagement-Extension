@@ -4,6 +4,38 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Cuneiform PDF fallback
+
+The reported U+1202D (𒀭, CUNEIFORM SIGN AN) is outside the primary Noto Sans
+coverage. A real-renderer regression reproduced the failure before the fix. PDFs
+now select a bundled Noto Sans Cuneiform face for supported text runs while keeping
+Latin and extended Latin in the primary family. Text is preserved, including
+metadata, contents entries, headings and internal/external links. The fallback has
+one regular face, used for all four style aliases; surrounding Latin keeps its
+bold/italic styling. Font input hashes and the upstream OFL notice are committed
+under `scripts/pdf-fonts/noto-sans-cuneiform/`; rendering makes no font requests.
+
+Final checks:
+
+- `npm test -- --workers=2 --output=/tmp/pdf-cuneiform-chrome-results`:
+  **154 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- tests/pdf.spec.js tests/collection-pdf.spec.js tests/installed-pdf.spec.js --output=/tmp/pdf-cuneiform-brave-results`:
+  **12 passed**, including real installed post, combined collection and PDF ZIP
+  downloads plus the larger 75-chapter runtime bridge with mixed-script text.
+- `npm run test:tooling`: **139 passed**; `npm run check`: **89 JavaScript files**.
+- `npm run package -- --force` validates the extension archive. Offline vendor
+  regeneration reproduces all five renderer/font/coverage/license/README artifacts
+  exactly; `git diff --check` is clean.
+
+Independent PDF.js extraction checks mixed Latin, Ḫ and 𒀭, metadata and links;
+a rasterized sample was visually inspected for actual glyph rendering. A separate
+regression bounds fallback expansion to 100,000 font runs per PDF before layout.
+Unsupported Unicode still fails explicitly. SVG text retains primary-font coverage
+validation because its contents are not rewritten with document-text fallback.
+This adds tested Cuneiform coverage, not universal Unicode support. Existing PDF
+byte/image/time budgets and cache/access rules are retained. No private collection
+or new live Patreon DOM was inspected; the user's collection needs live confirmation.
+
 ## November 5, 2026 — Extended Latin PDF font coverage
 
 A reported Single PDF failed at U+1E2A (Ḫ). Inspection with fontkit confirmed that

@@ -13,7 +13,7 @@ function largePdfFixture() {
   const chapters = Array.from({ length: 75 }, (_, n) => ({ version: 1, title: `Chapter ${n + 1}`,
     author: 'Fixture Creator', language: 'en', downloadedAt: 'Today',
     sourceUrl: `https://www.patreon.com/posts/${101 + n}`, assets: [{ dataUrl }],
-    body: { tag: 'div', children: [{ tag: 'p', children: [`Body ${n + 1}`] }, { tag: 'img', image: 0 }] }
+    body: { tag: 'div', children: [{ tag: 'p', children: [`Body ${n + 1}${n === 37 ? ' Ḫ 𒀭' : ''}`] }, { tag: 'img', image: 0 }] }
   }));
   const book = { title: 'Larger collection', source: 'https://www.patreon.com/collection/500', downloadedAt: 'Today' };
   return { chapters, book };

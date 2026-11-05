@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const root = path.resolve(__dirname, '../../extension');
 function adapter() {
   const context = { TextEncoder, URL }; context.globalThis = context;
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'vendor/pdfmake/coverage.js'), 'utf8'), context);
   vm.runInNewContext(fs.readFileSync(path.join(root, 'shared/pdf.js'), 'utf8'), context);
   return context.PatreonPdf;
 }
@@ -128,4 +129,36 @@ test('PDF preserves extended Latin diacritics in metadata and all four text face
   assert.equal(doc.metadata.info.Title, 'Collection Ḫ');
   const text = doc.pages.map(page => page.text).join(' ').normalize('NFC');
   for (const expected of ['Chapter Ḫ', 'Creator ḫ', 'Regular Ḫ ḫ Ṭ ṭ Ḥ ḥ Ā ā', 'Bold Ḫ', 'Italic Ḫ', 'Both Ḫ', 'Decomposed Ḫ']) assert.ok(text.includes(expected), expected + '\n' + text);
+});
+
+test('PDF font fallback preserves mixed Latin and cuneiform in styled text, metadata, contents and links', async () => {
+  const input = { ...snapshot, title: 'Chapter Ḫ𒀭', author: 'Creator𒀭', body: { tag: 'div', children: [
+    { tag: 'p', children: ['Before𒀭after Ḫ'] },
+    { tag: 'h2', children: ['Heading𒀭'] },
+    { tag: 'p', children: [{ tag: 'strong', children: ['Bold𒀭'] }] },
+    { tag: 'p', children: [{ tag: 'em', children: ['Italic𒀭'] }] },
+    { tag: 'p', children: [{ tag: 'strong', children: [{ tag: 'em', children: ['Both𒀭'] }] }] },
+    { tag: 'p', children: [{ tag: 'a', href: 'https://example.com/cuneiform', children: ['Link𒀭'] }] },
+    { tag: 'ul', children: [{ tag: 'li', children: ['List𒀭'] }] },
+    { tag: 'pre', children: ['Code𒀭'] }
+  ] } };
+  const bytes = await render([adapter().chapter(input)], { title: 'Collection𒀭', source: 'https://www.patreon.com/collection/500', downloadedAt: 'Today' });
+  const { inspectPdf } = require('../helpers/pdf'); const doc = await inspectPdf(bytes);
+  assert.equal(doc.metadata.info.Title, 'Collection𒀭');
+  assert.match(doc.pages[0].text, /Collection\s*𒀭/); assert.match(doc.pages[0].text, /Chapter Ḫ\s*𒀭/);
+  assert.ok(doc.pages[0].annotations.some(item => item.dest), 'Mixed-font contents entry remains linked');
+  const text = doc.pages[1].text.normalize('NFC');
+  for (const pattern of [/Creator\s*𒀭/, /Before\s*𒀭\s*after Ḫ/, /Heading\s*𒀭/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/, /List\s*𒀭/, /Code\s*𒀭/]) assert.match(text, pattern);
+  assert.ok(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cuneiform'));
+});
+
+test('font fallback bounds alternating-script fragment expansion before layout', () => {
+  const pdf = adapter();
+  const input = pdf.chapter({ ...snapshot, body: { tag: 'p', children: ['a𒀭'.repeat(50_001)] } });
+  assert.throws(() => pdf.definition([input]), /font fallback complexity limit/);
+});
+
+test('SVG text keeps its primary-font guard instead of silently dropping fallback-only glyphs', async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><text x="0" y="20">𒀭</text></svg>';
+  await assert.rejects(render([adapter().chapter({ ...snapshot, assets: [{ dataUrl: 'data:image/svg+xml,' + encodeURIComponent(svg) }], body: { tag: 'img', image: 0 } })]), /SVG font.*U\+1202D/);
 });

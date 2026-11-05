@@ -354,7 +354,11 @@ are separate from the 512 MiB disk source cache. The output allowance leaves roo
 for base64 encoding in Chrome runtime messages.
 
 The primary bundled Noto Sans fonts cover tested extended Latin diacritics, Greek
-and Cyrillic text, including bold and italic faces. Unsupported characters (including many emoji and scripts
+and Cyrillic text, including bold and italic faces. A bundled Noto Sans Cuneiform
+fallback renders cuneiform signs such as U+1202D alongside Latin text, using font
+runs that retain metadata, contents and links. The Cuneiform regular face serves
+all style aliases. Document text uses fallback; SVG text keeps primary-font coverage.
+Unsupported characters (including many emoji and scripts
 outside that coverage) produce an explicit error suggesting EPUB or Markdown.
 GIF/WebP/AVIF images are converted to static PNGs when the browser can decode
 them; SVGs use the existing sanitizer and a restricted vector path. PDF files
@@ -394,8 +398,8 @@ div[data-tag="floating-engagement-sheet"]
 
 ## Development
 
-Runtime assets include a pinned, locally packaged pdfmake renderer and Noto Sans
-fonts (with Roboto retained for explicit SVG font references). Install dependencies
+Runtime assets include a pinned, locally packaged pdfmake renderer, Noto Sans
+and its Cuneiform fallback fonts (with Roboto retained for explicit SVG font references). Install dependencies
 with `npm ci --ignore-scripts`; regenerate PDF assets
 with `node scripts/vendor-pdf.js` after a reviewed dependency update. The vendor
 README records provenance, licenses, hashes and the bounded PNG decoding patch.
