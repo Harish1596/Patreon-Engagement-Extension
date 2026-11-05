@@ -4,6 +4,19 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Support button colors
+
+Discord now uses blurple (#5865f2) and GitHub uses charcoal (#24292f), with
+white labels/logos, darker hover fills and a visible GitHub border in both themes.
+Empty/invalid destinations retain the existing neutral disabled appearance.
+
+`npm run check` passes for **90 JavaScript files**;
+`node --test tests/tooling/package.test.cjs` passes **11 tests**;
+`git diff --check` passes. Browser plugin not available; regular Playwright used.
+`npm test -- tests/popup.spec.js --grep 'community links' --max-failures=1`
+again aborts at Chrome launch (SIGABRT/kill EPERM) before the case runs. Rendered
+brand colors, hover/focus and light/dark appearance remain unverified.
+
 ## November 5, 2026 — Compact Support buttons
 
 Added a Support heading beneath Reader Customization. Renamed the two links to

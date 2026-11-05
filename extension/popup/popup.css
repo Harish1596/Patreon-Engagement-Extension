@@ -256,9 +256,25 @@ input:disabled + .slider {
   text-decoration: none;
 }
 
+#discord-link {
+  --brand-background: #5865f2;
+  --brand-hover: #4752c4;
+}
+
+#github-link {
+  --brand-background: #24292f;
+  --brand-hover: #32383f;
+  --brand-border: #6e7681;
+}
+
+.community-link[href] {
+  border-color: var(--brand-border, var(--brand-background));
+  color: #ffffff;
+  background: var(--brand-background);
+}
+
 .community-link[href]:hover {
-  border-color: var(--accent);
-  background: var(--surface-hover);
+  background: var(--brand-hover);
 }
 
 .community-link:focus-visible {
