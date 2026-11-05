@@ -588,7 +588,7 @@
     chooser = element("iframe", { title: "Post export formats" });
     dialog.append(header, element("p", {}, "Includes the displayed post text and inline images for offline use."), chooser,
       element("progress", { id: "export-progress", "aria-label": "Post download progress", hidden: "" }),
-      element("p", { id: "export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
+      element("p", { id: "export-status", role: "status", "aria-live": "polite" }, "Files are generated locally."));
     shadow.append(style, dialog);
     document.documentElement.append(host);
   }
@@ -607,7 +607,7 @@
       });
       if (!registered?.registered) throw new Error(registered?.error || "Unable to prepare media access.");
       loadChooser();
-      report("Nothing leaves this browser.");
+      report("Files are generated locally.");
       setProgress();
     } catch (error) {
       report(error.message || "Unable to prepare download options.", "error");

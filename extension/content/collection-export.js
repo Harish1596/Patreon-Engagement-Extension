@@ -942,7 +942,7 @@
     formatOptions.append(element("p", { class: "intro" }, "Choose how to save this collection."), chooser);
     body.append(formatOptions,
       element("progress", { id: "collection-export-progress", "aria-label": "Collection download progress", hidden: "" }),
-      element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Nothing leaves this browser."));
+      element("p", { id: "collection-export-status", role: "status", "aria-live": "polite" }, "Files are generated locally."));
     const details = element("details", { class: "progress-details", hidden: "" });
     details.append(element("summary", {}, "Progress details"));
     for (const name of ["current", "counts", "bytes", "elapsed"]) {

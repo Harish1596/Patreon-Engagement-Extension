@@ -1,8 +1,12 @@
 # Patreon Reader
 
-A small browser extension that hides Patreon's floating engagement bar by
-default and optionally customizes post reading appearance. Both features are
-controlled from the extension's toolbar popup.
+A browser extension for comfortable Patreon reading and offline downloads.
+Hide the floating engagement bar, customise supported posts, and save accessible
+posts or collections as PDF, EPUB or Markdown. Reading preferences live in the
+toolbar popup; Reader and Download controls appear on supported Patreon pages.
+
+Version **1.2.0** is being prepared for release. Store publication and final live
+Patreon release validation are not yet confirmed.
 
 See the [changelog](changelog.md) for features and changes in each release.
 Store artwork and regeneration instructions are in [store-assets](store-assets/README.md).
@@ -19,7 +23,7 @@ The extension has been manually tested and confirmed to work in:
 Other browsers may be compatible, but have not been verified.
 
 The list above describes manual testing of the original engagement-bar feature.
-Reader customization needs release validation in each browser; automated fixture
+Reader customisation and downloads need release validation in each browser; automated fixture
 tests do not establish compatibility with the current live Patreon site. See
 [TESTING.md](TESTING.md) for the release checklist and browser packaging notes.
 
@@ -51,7 +55,7 @@ it again.
 
 1. Open the extension's toolbar popup and turn on **Enable Reader Customization**.
 2. On a supported post page, select the **Aa** button at the start of the action
-   row: Reader → Like → Comment → Repost → Share → More.
+   row, beside Download and before Like.
 3. Adjust font family, text size (12–32px), Post Color,
    paragraph spacing (0–48px), and line spacing (1–2.5×). Changes preview immediately.
 
@@ -94,7 +98,8 @@ Each setting starts at **Site default**. Individual default buttons remove an
 override; **Reset to Patreon defaults** removes all appearance overrides without
 disabling Reader. Font choices are Patreon default, System Sans, Arial, Verdana,
 Trebuchet, Georgia, Times, and Monospace. These reference installed system fonts
-with fallbacks; no fonts are downloaded, bundled, or enumerated.
+with fallbacks; Reader does not download, bundle or enumerate fonts. PDF exports
+use separately bundled fonts for offline document rendering.
 
 Reader is off by default. Disabling it removes the Aa button and panel and
 restores the site's appearance, retaining preferences for next time. Settings
@@ -178,7 +183,9 @@ are available once a selected download discovers its posts, including after
 export failures, not just successful
 downloads. A packaging failure leaves chapters marked Prepared; a successful
 retry replaces failed outcomes. “Download started” means the collection file was
-handed to the browser, not confirmation it finished saving. Reports are not
+handed to the browser. Reports update to Completed or Interrupted when the browser
+confirms the outcome; missing download records are labelled Status unavailable.
+Completed confirms the browser save, not that a reader validated the file. Reports are not
 inserted into generated files and are saved only when requested. They contain post
 links/titles, status and reasons, not post bodies or media URLs; URLs in failure
 messages are omitted. The latest report stays in this page's memory for up to
@@ -211,7 +218,7 @@ the format buttons; it is removed on cancellation, owner-tab closure, or expiry,
 and browser-session storage clears when the browser session ends. Missing or
 expired sessions produce a visible panel error. Generated file bytes are
 released after each download. Fetched chapter text and distinct inline images
-are cached once in extension-owned local disk storage for two hours. EPUB and
+are cached once in extension-owned local disk storage for two hours. PDF, EPUB and
 Markdown are generated from that shared source, one chapter at a time, so another
 format can avoid reopening post tabs and fetching their images again. The source
 cache uses session-key AES-256-GCM encryption, survives background-worker restarts,
@@ -229,11 +236,11 @@ or a forced quit can delay disk cleanup; expired data is not reused, and leftove
 files are cleaned on the next browser start. Files already being saved by the
 browser remain available until that download completes or is interrupted.
 
-The toolbar popup shows saved optional media-origin access. **Forget media access**
-revokes those grants while preserving required Patreon access, Reader preferences
-and already cached/exported content. A later remote-media export requests access
-again. Revoking access during a download can cause its remaining image requests
-to fail; completed cached content remains governed by the normal expiry policy.
+Manage previously granted media-origin access through the browser's extension
+settings; the toolbar popup has no permission-management control. Revoking a grant
+does not delete cached content or saved downloads. A later export that needs that
+origin requests access again. Revoking access during a download can cause remaining
+image requests to fail; cached content retains its normal expiry policy.
 
 Individual post downloads also reuse a format-independent source in page memory
 for up to two hours, limited to 16 MiB. Changes to the post content, expiry, or

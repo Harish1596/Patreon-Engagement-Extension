@@ -46,11 +46,13 @@ This is the product's mechanism and scope, not a claim of competitive uniqueness
 - Users visit Patreon in their own browser profile, signed in when needed.
 - The extension toolbar popup controls engagement-bar hiding and Reader
   customisation. Reader settings are adjusted from the supported post's Aa control.
-- A supported post offers PDF, EPUB and Markdown downloads. PDF uses the browser's
-  print workflow; EPUB and Markdown are generated as downloadable files.
-- Collection pages offer EPUB books or ZIP archives of separate EPUB or Markdown
-  files. Collections download oldest to newest, with numbered parts for larger
-  collections.
+- A supported post offers PDF, EPUB and Markdown downloads. PDF uses a
+  local, bundled renderer; all three formats are generated as downloadable files
+  without a print dialog.
+- Collection pages offer a combined PDF, EPUB or Markdown file, or a ZIP of
+  separate files in any of those formats. Discovery starts when Download is
+  pressed; valid sources are reused for up to two hours. Collections download
+  oldest to newest, with numbered parts for larger collections.
 - Progress, cancellation, retry and download reports support lengthy
   collection operations and repeated downloads.
 - Users may switch tabs while work runs. Background fetching and saving must not

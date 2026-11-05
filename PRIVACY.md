@@ -1,10 +1,12 @@
 # Privacy Policy
 
-Last updated: November 4, 2026
+Last updated: November 5, 2026
 
-Patreon Reader (the "extension") is designed to provide its single
-purpose without collecting or transmitting personal information. All processing
-performed by the extension takes place locally in the user's browser.
+Patreon Reader (the "extension") provides reading customisation and offline
+exports of accessible Patreon content. The developer does not receive post
+content, images or personal data from the extension. Export generation and storage
+happen locally in the user's browser. User-requested exports can make direct
+network requests to Patreon and the displayed media origins, as described below.
 
 ## Information Processed Locally
 
@@ -32,8 +34,10 @@ create user-requested local exports:
   to the displayed post invalidate that copy; it is limited to 16 MiB and is
   discarded on page navigation or reload. Download time is generated for each
   output rather than taken from the cached copy.
-- When the user explicitly exports a collection, it reads the post links rendered
-  in that collection and temporarily opens or reuses those Patreon post pages to
+- Opening the collection download menu does not fetch posts or collection data.
+  When the user presses Download, the extension retrieves collection metadata using
+  validated same-origin API pagination, or rendered post links and Load more as a
+  fallback. It temporarily opens inactive Patreon post tabs or reuses matching tabs to
   create one combined EPUB, Markdown or PDF file, or separate EPUB/PDF/Markdown
   files inside a local ZIP.
   A single book also processes the collection title and builds local chapter
@@ -53,39 +57,45 @@ create user-requested local exports:
   retry files and streams decrypted chunks into a temporary ZIP, EPUB or PDF on local
   disk. Combined PDF chapter data is encrypted while staged; the renderer
   processes bounded document data in extension-owned worker memory. Packaged
-  PDF code and fonts require no third-party conversion service or font request. Both modes use the same retention, encryption and archive payload budget.
+  PDF code and fonts require no third-party conversion service or font request.
+  Collection output modes share the documented retention, encryption and archive
+  payload budget.
   It retains only filenames,
   sizes, checksums, owner IDs, and expiry/download IDs in browser-session storage.
   A hidden extension document creates a local Blob URL for the finished file;
   the browser downloads it without an extra visible tab or intermediary service.
 - The collection download report processes post titles, canonical Patreon post
   URLs, status and failure/skip reasons locally. The latest report stays in page
-  memory for up to two hours and is cleared on explicit refresh, navigation or
-  expiry. Cancelling an export leaves its cancellation report available to review.
+  memory for up to two hours and is cleared on navigation/reload, expiry or
+  replacement by a new download attempt. Cancelling an export leaves its cancellation report available to review.
   Per-post preparation skips are included in prepared browser-session metadata
   under the same expiry/owner cleanup policy. The extension does not persist raw
   error URLs, media links, post bodies or credentials in reports. Only clicking
   Save report creates a user-retained plain-text report file; it is not uploaded
-  or automatically included in an EPUB/ZIP. Reports label browser handoff as
-  Download started rather than claim successful completion of the native save.
+  or automatically included in the exported collection. Reports label browser
+  handoff as Download started, then update to Completed or Interrupted when the
+  browser confirms the result. Missing download records are labelled Status
+  unavailable; completion is not a guarantee of file validity.
 - To embed remote inline images, it asks the browser for access to the exact
   image origins used by that post. After permission is granted, the locally
   installed extension fetches those image bytes directly from the media origin.
   It rejects non-HTTPS sources and does not send post content or image data to
   the developer or an intermediary service.
-- Font choices reference fonts already available on the device through CSS.
-  The extension does not enumerate installed fonts, access font files, or
-  download fonts.
+- Reader font choices reference fonts already available on the device through
+  CSS, without enumerating installed fonts or reading their files. PDF generation
+  uses fonts packaged with the extension; it does not download fonts.
 
-The extension does not collect browsing history, authentication information,
-financial information, personal communications, user-generated content, or
-personally identifiable information. Content selected for export is processed
-locally at the user's request, not collected by the developer.
+The developer does not collect browsing history, authentication information,
+financial information, personal communications, post content or personally
+identifiable information through the extension. Titles, creator names, source
+URLs, text and images selected for export are processed locally at the user's
+request. The extension uses the browser's existing signed-in Patreon session to
+open accessible pages; it does not ask for or read the user's password.
 
 ## How Information Is Used
 
 The locally processed pathname is used only to decide whether the extension is
-on a supported post page. The locally stored preference is used only to apply
+on a supported post or collection page. The locally stored preference is used only to apply
 the user's selected visibility and reading appearance settings. Saved Reader
 preferences are retained while Reader is disabled so they can be restored when
 it is enabled again. Appearance changes affect only local display.
@@ -117,12 +127,14 @@ The extension uses the following access:
 - **Storage:** Saves engagement visibility, Reader enablement, and appearance
   preferences, prepared collection metadata, and reusable export sources locally
   in the browser.
-- **Downloads:** Starts collection ZIP downloads and observes their completion or
+- **Downloads:** Starts collection PDF, EPUB, Markdown and ZIP downloads and
+  observes their completion or
   interruption to release temporary files safely. Download queries are restricted
   to IDs created for those exports; unrelated download records are not processed
   or retained.
-- **Offscreen:** Provides a hidden local extension document to turn a disk-backed
-  archive into a Blob URL. It is closed after its active export downloads finish.
+- **Offscreen:** Provides a hidden local extension document for local file handoff
+  and PDF rendering. Download documents release their Blob URLs and temporary files
+  after active downloads finish; PDF rendering uses disposable local workers.
 - **Alarms:** Schedules export-data expiry cleanup even when the extension worker
   is idle. The alarm is removed when no export data remains to expire.
 - **Access to `https://www.patreon.com/*`:** Loads the packaged content script
@@ -142,14 +154,15 @@ replaces its appearance preferences with site defaults; it preserves the Reader
 enablement and engagement visibility choices. Disabling Reader retains its
 appearance preferences.
 Collection source entries are scoped to the prepared collection session and are
-removed on Cancel or closure of its owning tab. Refresh collection removes
-changed, removed, newly locked or unverifiable sources while retaining verified
-unchanged entries without renewing their original expiry. Full structured content
-and relevant title/media/author fields from refreshed collection responses are
-hashed locally for comparison; only SHA-256 fingerprints are added to prepared
-browser-session metadata, not raw response content or signed URLs. Missing access
-or full-content evidence triggers normal post revalidation. Generated retry files
-and the page-local report are reset on refresh. Expired
+removed on Cancel or closure of its owning tab. There is no manual Refresh
+Collection control. Valid discovery and source data is reused for up to two hours;
+missing or expired data is fetched when the user next presses Download. Source
+records keep their original expiry rather than extending it for each format.
+Collection metadata can include locally computed SHA-256 fingerprints of relevant
+post-content/title/media/author fields for comparison; raw API responses and signed
+request URLs are not retained as fingerprints. New posts or access changes can
+remain unseen until discovery is fetched again after expiry. Generated retry files
+and the page-local report have their separate lifetimes described below. Expired
 entries are not reused. A browser alarm deletes expired sources, prepared metadata,
 and idle archive files without waiting for another export. Closing the last normal
 or popup browser window clears export data; browser startup purges leftovers.
@@ -175,10 +188,11 @@ Completed files retained for retry stay encrypted in extension-private temporary
 disk storage. All archive jobs share a 1 GiB payload budget for encrypted retry
 files, pending writes and staged/final ZIPs, separate from the 512 MiB source-cache
 budget. Browser filesystem metadata/overhead and user-saved files are outside those
-payload limits. The browser download requires a temporary plaintext ZIP or EPUB during
+payload limits. The browser download requires a temporary plaintext ZIP, EPUB,
+Markdown or PDF during
 assembly/handoff and until completion or interruption. Failed packaging/handoffs
 remove it; a forced quit can leave it for startup/browser cleanup. There is no
-guaranteed crash-time erasure. Refresh, Cancel, format changes, and owner-tab
+guaranteed crash-time erasure. Cancel, format changes, and owner-tab
 closure remove unfinished archives. Files already handed to the browser are held until their downloads
 complete or are interrupted, then deleted. Retry metadata expires after two hours
 of inactivity. Automatic cleanup removes expired idle files, and expired jobs
@@ -187,13 +201,14 @@ its activity deadline. Startup additionally removes orphaned files. Navigation/r
 drops that page's retry checkpoint. Source-cache records are separate from
 generated archive files and retain their original two-hour limit.
 An approved optional media-origin permission may remain in the browser's extension
-settings until the user revokes it or uninstalls the extension. The toolbar popup's
-**Forget media access** control removes saved optional media grants while preserving
-required Patreon access and saved reading preferences. This revokes network access;
-it does not delete cached content or user-saved files. The extension uses that access only when the user starts another export
-containing an image from the same origin.
-No remotely stored data exists because the extension does not operate a server
-or transmit information elsewhere.
+settings until the user revokes it or uninstalls the extension. Manage grants in
+the browser's extension settings; the toolbar popup has no Forget media access
+control. Revoking a grant does not delete cached content or user-saved files.
+The extension uses that access only for a user-requested export containing an
+image from the same origin.
+The developer operates no remote export-storage service. Patreon and media hosts
+receive the direct requests needed to retrieve content and handle them under their
+own policies. This is distinct from sending exported content to the developer.
 
 ## Security
 
@@ -204,7 +219,9 @@ does not download or execute remotely hosted code.
 
 The extension operates on Patreon webpages but is not affiliated with, endorsed
 by, or sponsored by Patreon. A user's interaction with Patreon remains subject
-to Patreon's own terms and privacy practices.
+to Patreon's own terms and privacy practices. Opening the popup's Discord or
+GitHub links navigates to those external services, which apply their own privacy
+policies; the extension does not attach post contents or cached files to those links.
 
 ## Changes to This Policy
 

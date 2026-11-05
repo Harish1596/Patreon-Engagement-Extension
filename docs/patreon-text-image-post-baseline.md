@@ -1,5 +1,15 @@
 # Patreon post-page reference: text posts with inline images
 
+**November 5 release preparation:** The current package candidate is 1.2.0.
+The dated observations and earlier unreleased/hotfix labels below describe their
+original checkpoints. Post and collection exports are included in this candidate;
+new live account verification and Chrome Web Store publication are not implied.
+No selectors, Reader boundaries or observed Patreon markup changed in this
+release documentation pass. Export privacy status copy is clarified to “Files
+are generated locally”; direct Patreon/media requests are documented separately.
+Current release evidence is in TESTING.md.
+
+
 Last maintained: November 3, 2026. Current hotfix: **1.1.1** (live confirmation pending).
 Post export is an unreleased development feature with synthetic verification;
 live Patreon export verification is pending.

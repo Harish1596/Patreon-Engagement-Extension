@@ -1,63 +1,36 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 — Release candidate
 
-- Generate PDF files locally without the browser print dialog, using packaged
-  code and fonts, selectable text, embedded images and clickable links.
-- Add Single PDF and PDF files (ZIP) to collections, preserving chapter order,
-  numbered parts, encrypted staging, retries and native download reports.
-- Enforce PDF input/output, image pixel and render-time limits, with explicit
-  errors for unsupported font characters or failed image conversion.
+This version is prepared locally; Chrome Web Store publication is not yet confirmed.
 
-- Automatically delete expired export sources, metadata, and idle archive files
-  using browser alarms; clear export caches on last-window closure and startup.
-- Preserve saved Reader customisations, protect files backing active downloads,
-  and prevent expired retry jobs from being revived.
-- Show current collection post/file titles, elapsed time, completed/cached/failed
-  counts, and byte-based compression/packaging progress with distinct stages.
-- Scope progress to individual attempts so late updates cannot replace retry or
-  cancellation state, and stop elapsed timers when work ends.
-- Stream collection ZIP assembly through extension-private temporary disk files,
-  retaining chapter metadata for retry instead of all generated file contents.
-- Save disk-backed ZIPs through a hidden extension document and clean up files
-  when browser-managed downloads finish, using downloads/offscreen permissions.
-- Reuse format-independent chapter text and images across EPUB/Markdown exports
-  with a bounded two-hour extension disk cache and a small individual-post cache.
-- Deduplicate repeated inline images, generate fresh export timestamps, and
-  retain source-cache reuse across background-worker restarts.
-- Retain completed collection chapters after generation/transfer failures, retry
-  missing posts, and retry ZIP packaging without fetching completed posts again.
-- Add local post export in PDF, EPUB, and Markdown formats.
-- Embed displayed inline post images for offline use with on-demand,
-  exact-origin media permission prompts.
-- Use the sanitized post title as the default filename for every export format.
-- Add separate-file collection export as a ZIP of ordered EPUB or Markdown posts.
-- Support direct numeric collection post links and expand every Load more batch.
-- Reuse one temporary worker tab throughout each collection export.
-- Wait through transient Load more disabled states until pagination is exhausted.
-- Prefer validated local API cursor pagination with Load more as a fallback.
-- Title-case the Download Collection control and dialog heading.
-- Emit collection ZIPs with the canonical MIME type and valid entry timestamps.
-- Close collection worker tabs immediately after preflight and file generation.
-- Transfer collection files in bounded chunks to avoid browser message limits.
-- Use deflate framing for macOS-compatible outer collection ZIP archives.
-- Show accessible progress bars while post and collection downloads are prepared
-  and generated.
-- Compress outer collection ZIPs to prevent nested EPUB markers from confusing
-  macOS Archive Utility format detection.
-- Verify the loaded post identity before preparing or generating collection files
-  so worker navigation cannot export the previous chapter repeatedly.
-- Skip explicitly locked collection posts before worker preparation and report
-  their count separately from unavailable or unsupported posts.
-- Reuse collection discovery and preparation for repeat downloads for 15 minutes,
-  with an explicit Refresh collection action.
-- Extend collection discovery and prepared-session cache lifetimes to two hours.
-- Stop collection preparation and downloads from activating tabs during slow-page
-  readiness retries.
-- Restore prepared collection sessions after idle background-worker restarts and
-  show chooser errors directly in the collection panel.
-- Add cancellation during collection discovery, preparation, generation, transfer,
-  and ZIP packaging, with worker cleanup and a Start again action.
+- Download accessible posts as PDF, EPUB or Markdown with embedded inline images,
+  title-based filenames and Creator, Download time and Source details.
+- Download collections as a combined file or separate files in a ZIP, in any of
+  the three formats. Read oldest to newest, with numbered parts for large collections.
+- Choose Format and Packaging independently, then download with one action.
+- Discover posts only when Download is pressed, using validated API pagination
+  with Load more as a fallback. Skip explicitly locked posts and report other skips.
+- Reuse text and images across formats through a shared, encrypted two-hour source
+  cache bounded to 512 MiB on local disk, including across worker restarts.
+- Keep saved reading preferences while automatically expiring temporary export data
+  and clearing export caches at browser-session cleanup.
+- Fetch uncached chapters in inactive temporary tabs, close extension-created tabs
+  after use, and preserve the user's chosen browser focus.
+- Show progress, current chapter, elapsed time and packaging activity. Cancel work
+  or retry failures while retaining completed chapters where supported.
+- Generate macOS-compatible compressed ZIPs and stream archive assembly through
+  bounded local storage instead of retaining every generated file in page memory.
+- Track browser-confirmed collection download completion or interruption, and
+  provide an optional local report of included, skipped and failed posts.
+- Generate PDFs directly with packaged code and fonts, selectable text, clickable
+  links and embedded images. Preserve extended Latin diacritics and supported
+  Cuneiform characters using local font fallback.
+- Enforce PDF input/output, image and render-time limits; show explicit errors for
+  unsupported characters or conversions rather than silently losing content.
+- Identify the popup as Patreon Reader with a manifest-derived version badge,
+  reading preferences, page status and Discord/GitHub community links.
+- Preserve the existing Reader customisations and engagement-bar fixes.
 
 ## 1.1.1
 
