@@ -344,12 +344,14 @@ permissions use the same exact-origin prompt as individual post export.
 PDF ZIP generation renders one chapter at a time. Single PDF stages encrypted
 chapter data, then renders a combined document in a disposable extension worker.
 Collections use the existing numbered parts of up to 100 posts. A PDF is limited
-to 24 MiB of serialized input and 32 MiB of output; images are limited to 8,192
+to 48 MiB of serialized input and 40 MiB of output; images are limited to 8,192
 pixels per side, 16 million pixels per image and 32 million pixels per document.
 Rendering has a two-minute deadline. A limit failure is shown explicitly; select
 individual files or a smaller collection rather than receiving a truncated PDF.
 PDF pagination/encoding holds bounded input/output buffers in worker memory;
-it does not have EPUB's fully streamed book-assembly behavior.
+it does not have EPUB's fully streamed book-assembly behavior. These PDF limits
+are separate from the 512 MiB disk source cache. The output allowance leaves room
+for base64 encoding in Chrome runtime messages.
 
 The bundled Roboto fonts cover tested Latin, Greek and Cyrillic text, including
 bold and italic faces. Unsupported characters (including many emoji and scripts

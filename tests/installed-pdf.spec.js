@@ -6,6 +6,7 @@ const { browserExecutable } = require('../scripts/browser-config');
 const { inspectPdf } = require('./helpers/pdf');
 const { readZip } = require('./helpers/zip');
 test('installed Brave exports a post, a combined PDF, and individual PDFs without printing', async ({}, testInfo) => {
+  test.setTimeout(90_000);
   test.skip(process.env.TEST_BROWSER !== 'brave', 'Uses unpacked-extension support.');
   const root = path.resolve(__dirname, '../extension');
   const context = await chromium.launchPersistentContext('', { headless: true, executablePath: browserExecutable('brave'),
@@ -73,5 +74,20 @@ test('installed Brave exports a post, a combined PDF, and individual PDFs withou
     await expect(page.locator('.download-report')).toContainText('completed');
     const worker = context.serviceWorkers().find(x => x.url().startsWith(`chrome-extension://${id}/`));
     expect(worker).toBeTruthy();
+    // Exercise the real extension runtime bridge with input above the old cap.
+    const large = require('./helpers/large-pdf.cjs').largePdfFixture();
+    const largeResult = await worker.evaluate(async ({ chapters, book }) => {
+      const inputBytes = new TextEncoder().encode(JSON.stringify({ chapters, book })).length;
+      const bytes = await PatreonPdfRenderService.render(chapters, book);
+      return { inputBytes, outputBytes: bytes.length, header: new TextDecoder().decode(bytes.subarray(0, 5)) };
+    }, large);
+    expect(largeResult.inputBytes).toBeGreaterThan(24 * 1024 * 1024);
+    expect(largeResult.inputBytes).toBeLessThan(48 * 1024 * 1024);
+    expect(largeResult.header).toBe('%PDF-');
+    expect(largeResult.outputBytes).toBeGreaterThan(0);
+    expect(largeResult.outputBytes).toBeLessThan(40 * 1024 * 1024);
+    await expect.poll(() => popup.evaluate(() => chrome.offscreen.hasDocument())).toBe(false);
+    console.log('Native large PDF:', largeResult);
+
   } finally { await context.close(); }
 });

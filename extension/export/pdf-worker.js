@@ -89,7 +89,7 @@ self.onmessage = async event => {
     await new Promise((resolve, reject) => {
       stream.on('data', chunk => {
         length += chunk.length;
-        if (length > MAX_OUTPUT) { stream.destroy(); reject(new Error('This PDF exceeds the 32 MiB output limit. Export fewer posts or use individual files.')); }
+        if (length > MAX_OUTPUT) { stream.destroy(); reject(new Error(`This PDF exceeds the ${MAX_OUTPUT / 1024 / 1024} MiB output limit. Export fewer posts or use individual files.`)); }
         else chunks.push(new Uint8Array(chunk));
       });
       stream.on('error', reject); stream.on('end', resolve); stream.end();

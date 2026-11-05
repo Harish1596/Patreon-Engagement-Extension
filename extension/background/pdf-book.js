@@ -4,7 +4,7 @@
     const chapters = []; let total = 0; let copied = 0;
     const included = Array.from({ length: job.count }, (_, index) => index).filter(index => !job.entries[index].skipped);
     for (const index of included) total += job.entries[index].size;
-    if (total > PatreonPdf.MAX_INPUT) throw new Error('This PDF part exceeds the 24 MiB input limit. Use individual PDF files.');
+    if (total > PatreonPdf.MAX_INPUT) throw new Error(`This PDF part exceeds the ${PatreonPdf.MAX_INPUT / 1024 / 1024} MiB input limit. Use individual PDF files.`);
     for (const index of included) {
       check(job);
       const entry = job.entries[index];

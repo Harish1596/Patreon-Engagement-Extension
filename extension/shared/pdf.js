@@ -1,7 +1,9 @@
 /* Validated inert post snapshots -> PDF document data. No HTML execution or fetching. */
 (() => {
-  const MAX_INPUT = 24 * 1024 * 1024;
-  const MAX_OUTPUT = 32 * 1024 * 1024;
+  // Leave room for the runtime message envelope below Chrome's message ceiling.
+  // Output is base64-encoded in responses, so its byte budget is smaller.
+  const MAX_INPUT = 48 * 1024 * 1024;
+  const MAX_OUTPUT = 40 * 1024 * 1024;
   const MAX_PIXELS = 16_000_000;
   const MAX_SIDE = 8192;
   const tags = new Set('div span p h1 h2 h3 h4 h5 h6 strong em b i u s ul ol li blockquote pre code sub sup hr figure figcaption br img a'.split(' '));
@@ -17,7 +19,7 @@
   function size(value) {
     const json = JSON.stringify(value);
     if (typeof json !== 'string' || json.length > MAX_INPUT || new TextEncoder().encode(json).length > MAX_INPUT) {
-      throw new Error('This PDF exceeds the 24 MiB input limit. Export fewer posts or use individual files.');
+      throw new Error(`This PDF exceeds the ${MAX_INPUT / 1024 / 1024} MiB input limit. Export fewer posts or use individual files.`);
     }
     return json;
   }

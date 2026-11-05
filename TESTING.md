@@ -29,6 +29,41 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 5, 2026 — Increased PDF input/output limits
+
+PDF input now allows **48 MiB** of serialized data and output allows **40 MiB**.
+The previous limits were 24/32 MiB. Reported limits come from the shared constants
+across source validation, collection assembly and rendering. The 512 MiB source
+cache remains a disk budget; it is not the renderer's RAM/input allowance. The
+runtime still sends JSON input and base64 output, so the new caps leave transport
+headroom. Image/pixel guards, concurrency, timeouts and cleanup remain unchanged.
+
+Final checks:
+
+- `npm test -- --workers=2 --output=/tmp/pdf-limit-chrome-results`:
+  **152 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- tests/installed-pdf.spec.js tests/collection-pdf.spec.js tests/pdf.spec.js --output=/tmp/pdf-limit-brave-results`:
+  **10 passed**, including the actual installed extension runtime bridge with
+  >24 MiB input, native PDF saves, combined/ZIP output, retry and cancellation.
+- `npm run test:tooling`: **135 passed**; `npm run check`: **89 JavaScript files**;
+  `npm run package -- --force` validates the extension; `git diff --check` is clean.
+
+Four new regressions failed under the old caps: accepting >24 MiB input, rendering
+75 image chapters, forwarding larger input and accepting a 33 MiB output response.
+After the increase all pass. Boundary tests retain rejection of 49 MiB ASCII,
+UTF-8 data exceeding 48 MiB and output above 40 MiB. The synthetic output response
+checks transport size validation; it is not treated as a valid rendered PDF.
+
+The deterministic 75-chapter fixture has **33,635,356 input bytes**, producing
+**21,851,024 output bytes and 78 pages**. Independent PDF.js checks confirm all
+75 chapter bodies in order; the contents spans multiple pages. Installed Brave
+runs the same >24 MiB fixture through background/offscreen messaging and checks
+its returned PDF bytes and offscreen disposal. Fixture code is shared, generated
+locally and contains no private collection data. This is functional validation,
+not a peak-memory measurement or a guarantee that every 75-post collection fits.
+The user's offered collection still requires testing; no live private posts were
+fetched. Earlier dated 24/32 MiB statements remain historical evidence.
+
 ## November 5, 2026 — Oldest-first collection reading order
 
 The user chose oldest-to-newest downloads. Previously API and DOM encounter order

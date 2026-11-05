@@ -1959,3 +1959,26 @@ publication order differing from ID order, all six actual output modes, cached
 repeats, invalid/missing dates, timezone-equivalent ties, large numeric IDs and 101
 posts across parts. No new live Patreon payload or DOM layout was inspected; the
 new policy is user-directed behavior verified against sanitized fixtures.
+
+
+**November 5 larger PDF test allowance:** After a reported 75-post Single PDF hit
+the 24 MiB input guard, the user requested a higher limit for collection testing.
+Serialized PDF input is now capped at 48 MiB (previously 24), with PDF output capped
+at 40 MiB (previously 32). Input, collection aggregation and renderer errors derive
+reported limits from the shared constants. The existing runtime transport passes
+input JSON and base64 output, so these allowances leave headroom below its message
+ceiling instead of equating the 512 MiB local disk cache with renderable input/RAM.
+
+The two-minute rendering deadline, two-active-job bound, image side/pixel budgets,
+100-chapter parts, cancellation, origin policy and cache/storage cleanup are retained.
+This is a larger functional allowance, not a measured RAM ceiling. The user's
+private collection has not been fetched or validated in this task.
+
+A deterministic 75-chapter image fixture contains 33,635,356 serialized input bytes
+and generates a 21,851,024-byte, 78-page PDF. Independent PDF.js inspection confirms
+all 75 chapter bodies in order; the contents spans additional pages. Real installed
+Brave passes this same >24 MiB input through background/offscreen runtime messaging
+and returns PDF bytes, with offscreen cleanup verified. Separate transport fixtures
+accept a 33 MiB synthetic response and reject >40 MiB output; those fixtures test
+size handling, not PDF validity. New boundary tests accept >24 MiB input and reject
+49 MiB ASCII and >48 MiB UTF-8 input. No new Patreon DOM evidence is implied.

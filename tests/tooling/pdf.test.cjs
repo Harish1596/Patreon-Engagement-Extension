@@ -89,3 +89,27 @@ test('PNG inflation is bounded by declared pixels inside the packaged worker', a
   const image = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), chunk('IHDR', header), chunk('IDAT', zlib.deflateSync(Buffer.alloc(100_000))), chunk('IEND', Buffer.alloc(0))]);
   await assert.rejects(render([adapter().chapter({ ...snapshot, body: { tag: 'img', image: 0 }, assets: [{ dataUrl: 'data:image/png;base64,' + image.toString('base64') }] })]), /inflated PNG/);
 });
+
+test('PDF input accepts a document above the old cap and rejects oversized UTF-8 data', () => {
+  const pdf = adapter();
+  assert.doesNotThrow(() => pdf.size({ text: 'x'.repeat(32 * 1024 * 1024) }));
+  assert.throws(() => pdf.size({ text: 'x'.repeat(49 * 1024 * 1024) }), /48 MiB input limit/);
+  // Count encoded bytes, not only JavaScript string code units.
+  assert.throws(() => pdf.size({ text: 'é'.repeat(25 * 1024 * 1024) }), /48 MiB input limit/);
+});
+
+test('real worker renders 75 image chapters whose combined input exceeds 24 MiB', { timeout: 90_000 }, async () => {
+  const { chapters, book } = require('../helpers/large-pdf.cjs').largePdfFixture();
+  const inputBytes = Buffer.byteLength(JSON.stringify({ chapters, book }));
+  assert.ok(inputBytes > 24 * 1024 * 1024, `Fixture must cross the old limit: ${inputBytes}`);
+  assert.ok(inputBytes < 48 * 1024 * 1024);
+  const bytes = await render(chapters, book);
+  const { inspectPdf } = require('../helpers/pdf');
+  const doc = await inspectPdf(bytes);
+  // A 75-entry contents list legitimately occupies more than one page.
+  const chapterPages = doc.pages.filter(page => /\bBody \d+\b/.test(page.text));
+  assert.equal(chapterPages.length, 75);
+  chapterPages.forEach((page, index) => assert.match(page.text, new RegExp(`\\bBody ${index + 1}\\b`)));
+  assert.ok(doc.pages.length > 75);
+  console.log(`Large PDF fixture: ${inputBytes} input bytes, ${bytes.length} output bytes, ${doc.pages.length} pages.`);
+});
