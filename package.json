@@ -3,7 +3,6 @@
   "private": true,
   "version": "1.1.1",
   "scripts": {
-    "configure-links": "node scripts/configure-links.js",
     "assets": "node scripts/generate-assets.js",
     "test": "playwright test",
     "test:tooling": "node scripts/test-tooling.js",

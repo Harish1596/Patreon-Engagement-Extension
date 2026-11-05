@@ -1,4 +1,3 @@
-const { createLinksScript } = require("./configure-links");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
@@ -90,9 +89,7 @@ function validateResources(files) {
 }
 
 function readPackage(root) {
-  const files = new Map(FILES.map(name => [name,
-    name === "popup/links.js" && !fs.existsSync(path.join(root, "extension", name))
-      ? Buffer.from(createLinksScript(root)) : regularFile(
+  const files = new Map(FILES.map(name => [name, regularFile(
     name === "LICENSE" || name === "PRIVACY.md" ? root : path.join(root, "extension"), name
   )]));
   const manifest = json(files.get("manifest.json"), "manifest.json");

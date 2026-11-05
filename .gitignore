@@ -34,6 +34,3 @@ pnpm-debug.log*
 .vscode/
 *.swp
 *.swo
-
-# Generated public popup configuration
-extension/popup/links.js

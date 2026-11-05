@@ -4,6 +4,21 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Checked-in popup link configuration
+
+Replaced environment-based generation with tracked `extension/popup/links.js`.
+Both URL fields are intentionally empty for the maintainer to fill in. Edit the
+public HTTPS URLs and reload the extension; packaging includes this file directly.
+The generation script, npm command and generation-specific tests were removed.
+Local `.env` files are untouched and are no longer read for community links.
+
+Checks: `node --test tests/tooling/package.test.cjs` passes **11 tests**, including
+an edited-config snapshot with an ignored dotenv value. `npm run check` passes
+for **90 JavaScript files**; `npm run package -- --force` validates the ZIP;
+`git diff --check` passes. Popup behavior and layout code did not change in this
+follow-up. Browser tests were not rerun; the preceding Chrome launch blocker and
+unverified rendered/new-tab behavior still apply.
+
 ## November 5, 2026 — Popup community links
 
 Added Join Discord and View on GitHub below Reader Customization. Public HTTPS

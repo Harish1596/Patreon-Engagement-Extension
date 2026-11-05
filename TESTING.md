@@ -29,31 +29,20 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
-## November 5, 2026 — Popup community links
+## November 5, 2026 — Checked-in popup link configuration
 
-Added Join Discord and View on GitHub below Reader Customization. Public HTTPS
-URLs are generated from DISCORD_INVITE_LINK and GITHUB_REPO_LINK; only those two
-values enter the ignored popup configuration and allowlisted ZIP. Unconfigured
-links stay disabled. No extension permissions or Patreon page integration changed.
+Replaced environment-based generation with tracked `extension/popup/links.js`.
+Both URL fields are intentionally empty for the maintainer to fill in. Edit the
+public HTTPS URLs and reload the extension; packaging includes this file directly.
+The generation script, npm command and generation-specific tests were removed.
+Local `.env` files are untouched and are no longer read for community links.
 
-Checks on the current feat/download base:
-
-- `node --test tests/tooling/popup-links.test.cjs tests/tooling/package.test.cjs`:
-  **12 passed**, including environment precedence, exclusion of unrelated values,
-  unsafe URL rejection, and archive validation.
-- `npm run check`: **92 JavaScript files**; `git diff --check`: passed.
-- `npm run package -- --force`: validated ZIP, including generated public URLs.
-- Temporary jsdom smoke check: generated URLs initialize both anchors with new-tab
-  targets and noopener/noreferrer; missing configuration leaves both disabled.
-- Browser plugin not available. `npm test -- tests/popup.spec.js --max-failures=1`
-  collected five cases, then Chrome aborted at launch with SIGABRT/kill EPERM
-  before any test body ran; four cases did not run. Light/dark rendering, keyboard
-  navigation and actual new-tab behavior remain unverified. No live Discord,
-  GitHub or authenticated Patreon requests were made.
-
-For source installs, run `npm run configure-links` after changing `.env` and reload
-`extension/`. See README for `--env-file` and packaging configuration behavior.
-
+Checks: `node --test tests/tooling/package.test.cjs` passes **11 tests**, including
+an edited-config snapshot with an ignored dotenv value. `npm run check` passes
+for **90 JavaScript files**; `npm run package -- --force` validates the ZIP;
+`git diff --check` passes. Popup behavior and layout code did not change in this
+follow-up. Browser tests were not rerun; the preceding Chrome launch blocker and
+unverified rendered/new-tab behavior still apply.
 
 ## November 5, 2026 — Extended Latin PDF font coverage
 
