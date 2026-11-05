@@ -8,6 +8,21 @@ below; documenting the captures does not establish live behavioral coverage.
 
 ## Live Patreon verification
 
+## November 5, 2026 — User release-readiness confirmation
+
+The user confirms that the live build works as expected and that screenshots and
+artwork have been completed. The earlier report of “The PDF renderer did not
+respond” was withdrawn by the user; no downloader fix was needed or applied.
+This is user-reported live verification, separate from the automated checks and
+labelled demo captures below. Browser/OS versions, exact package path and detailed
+scenario coverage were not itemised; this does not establish an exhaustive browser,
+viewer or accessibility matrix. The final user-prepared visual assets were not
+supplied to this checkout, so the committed demo captures remain unchanged.
+Web Store upload, review and publication have not been confirmed.
+
+The earlier dated release checkpoints below retain the evidence and status
+recorded at those checkpoints.
+
 **Release 1.1.0 testing completed — user-confirmed October 25, 2026.** All
 completed testing recorded at that confirmation, including live Patreon testing
 and the latest 1.1.0 changes, is attributed to the 1.1.0 release. This supersedes earlier live-Patreon-pending

@@ -4,6 +4,18 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — User release-readiness confirmation
+
+The user confirms that the live build works as expected and that screenshots and
+artwork have been completed. The earlier report of “The PDF renderer did not
+respond” was withdrawn by the user; no downloader fix was needed or applied.
+This is user-reported live verification, separate from the automated checks and
+labelled demo captures below. Browser/OS versions, exact package path and detailed
+scenario coverage were not itemised; this does not establish an exhaustive browser,
+viewer or accessibility matrix. The final user-prepared visual assets were not
+supplied to this checkout, so the committed demo captures remain unchanged.
+Web Store upload, review and publication have not been confirmed.
+
 ## November 5, 2026 — 1.2.0 release candidate
 
 The manifest, package metadata and lockfile root now agree on **1.2.0**. README,

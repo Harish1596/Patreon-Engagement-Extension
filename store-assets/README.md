@@ -63,3 +63,9 @@ The capture tool uses Brave's installed-extension support in an isolated tempora
 profile and never opens the user's browser profile. It rejects a package that no
 longer matches the current allowlisted source files. The three captures show Reader
 appearance controls, post download formats and collection format/packaging choices.
+
+
+On November 5, 2026, the user confirmed completing the final screenshots and
+artwork for the store update. Those files were not supplied to this checkout;
+the demo assets and their provenance above are retained unchanged. Asset readiness
+does not establish that the store listing has been uploaded or published.

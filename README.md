@@ -5,8 +5,10 @@ Hide the floating engagement bar, customise supported posts, and save accessible
 posts or collections as PDF, EPUB or Markdown. Reading preferences live in the
 toolbar popup; Reader and Download controls appear on supported Patreon pages.
 
-Version **1.2.0** is being prepared for release. Store publication and final live
-Patreon release validation are not yet confirmed.
+Version **1.2.0** is being prepared for release. On November 5, 2026, the user
+confirmed that the live build works as expected and completed screenshots/artwork.
+Store publication is not yet confirmed; detailed verification limits are recorded
+in [TESTING.md](TESTING.md).
 
 See the [changelog](changelog.md) for features and changes in each release.
 Store artwork and regeneration instructions are in [store-assets](store-assets/README.md).
