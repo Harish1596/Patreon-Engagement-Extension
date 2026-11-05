@@ -1,3 +1,17 @@
+for (const name of ["discord", "github"]) {
+  const link = document.querySelector(`#${name}-link`);
+  const value = globalThis.PatreonLinks?.[name];
+  if (value) {
+    try {
+      const url = new URL(value);
+      if (url.protocol === "https:" && !url.username && !url.password) {
+        link.href = url.href;
+        link.removeAttribute("aria-disabled");
+      }
+    } catch (_) { /* Leave unconfigured links disabled. */ }
+  }
+}
+
 const { api, call } = globalThis.PatreonExtension;
 const toggle = document.querySelector("#hidden-toggle");
 const readerToggle = document.querySelector("#reader-toggle");

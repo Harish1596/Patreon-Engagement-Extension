@@ -31,6 +31,9 @@ extension to keep the toolbar hidden by default. I am sharing this in case anyon
 
 ## Install it
 
+For a source checkout, first configure the public links as described below.
+Packaged ZIPs already contain their link configuration.
+
 1. Open `chrome://extensions` (or `edge://extensions`).
 2. Turn on **Developer mode**.
 3. Click **Load unpacked** and select this repository's `extension/` folder.
@@ -452,6 +455,27 @@ Run `npm run package` to create an allowlisted, version-checked, validated ZIP i
 release unless you supply `--force`. See [release packaging](docs/release-packaging.md)
 for validation details. Tests, dependencies, docs, store assets, and Git data are
 excluded; packaging does not publish anything.
+
+## Configure community links
+
+With Node.js 20.12 or newer, create a local `.env` in the repository root:
+
+```dotenv
+DISCORD_INVITE_LINK="https://discord.gg/your-invite"
+GITHUB_REPO_LINK="https://github.com/your-account/your-repo"
+```
+
+Run `npm run configure-links`, then load or reload `extension/` in the browser.
+The popup shows **Join Discord** and **View on GitHub** below Reader Customization;
+both open a new tab. Regenerate after changing either value. Exported environment
+variables override `.env` values. To use an environment file elsewhere, run
+`npm run configure-links -- --env-file /path/to/.env`.
+
+Only these two public HTTPS URLs are written to ignored `extension/popup/links.js`.
+They are visible to extension users; keep secrets out of these variables. Missing
+values leave the corresponding link disabled. `.env` is never packaged or committed.
+Packaging uses the generated configuration if present; otherwise it generates the
+configuration in the ZIP from the repository's `.env` or exported variables.
 
 ## Reporting Issues
 

@@ -12,7 +12,9 @@ function fixture(t) {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   for (const name of [...FILES.map(name => ["LICENSE", "PRIVACY.md"].includes(name) ? name : "extension/" + name), "package.json", "package-lock.json"]) {
     fs.mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
-    fs.copyFileSync(path.join(project, name), path.join(root, name));
+    if (name === "extension/popup/links.js") {
+      fs.writeFileSync(path.join(root, name), require("../../scripts/configure-links").createLinksScript(root, {}));
+    } else fs.copyFileSync(path.join(project, name), path.join(root, name));
   }
   return root;
 }
@@ -112,4 +114,16 @@ test("rejects source-file and output-directory symlinks", { skip: process.platfo
   fs.unlinkSync(file); fs.copyFileSync(path.join(project, "extension/popup/popup.css"), file);
   fs.symlinkSync(path.join(root, "extension"), path.join(root, "dist"));
   assert.throws(() => packageExtension(root), /dist must be a real directory/);
+});
+
+test("packaging generates public links from dotenv without including the environment file", t => {
+  const root = fixture(t);
+  fs.unlinkSync(path.join(root, "extension/popup/links.js"));
+  fs.writeFileSync(path.join(root, ".env"), 'DISCORD_INVITE_LINK="https://discord.gg/example"\nGITHUB_REPO_LINK="https://github.com/example/repo"\nPRIVATE_TOKEN=synthetic-secret\n');
+  const files = readPackage(root).files;
+  const links = files.get("popup/links.js").toString("utf8");
+  assert.match(links, /https:\/\/discord.gg\/example/);
+  assert.match(links, /https:\/\/github.com\/example\/repo/);
+  assert.equal(links.includes("synthetic-secret"), false);
+  assert.equal(files.has(".env"), false);
 });

@@ -1,3 +1,4 @@
+const { createLinksScript } = require("./configure-links");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
@@ -11,7 +12,7 @@ const FILES = Object.freeze([
   "vendor/pdfmake/pdfmake.min.js", "vendor/pdfmake/vfs_fonts.js", "vendor/pdfmake/coverage.js",
   "vendor/pdfmake/LICENSE", "vendor/pdfmake/ROBOTO-LICENSE", "vendor/pdfmake/NOTO-SANS-LICENSE", "vendor/pdfmake/README.md",
   "manifest.json", "shared/extension.js", "shared/zip.js", "shared/retry.js", "background/media.js", "background/retention.js", "background/post-cache.js", "background/disk-crypto.js", "background/epub-book.js", "background/markdown-book.js", "background/archives.js", "content/patreon-dom.js", "content/reader.js", "content/export.js", "content/archive-stream.js", "content/collection-export.js", "content/content.js",
-  "content/content.css", "popup/popup.html", "popup/popup.js", "popup/popup.css",
+  "content/content.css", "popup/links.js", "popup/popup.html", "popup/popup.js", "popup/popup.css",
   "export/chooser.html", "export/chooser.js", "export/chooser.css",
   "export/collection-chooser.html", "export/collection-chooser.js", "export/collection-chooser.css",
   "export/archive-download.html", "export/archive-download.js",
@@ -89,7 +90,9 @@ function validateResources(files) {
 }
 
 function readPackage(root) {
-  const files = new Map(FILES.map(name => [name, regularFile(
+  const files = new Map(FILES.map(name => [name,
+    name === "popup/links.js" && !fs.existsSync(path.join(root, "extension", name))
+      ? Buffer.from(createLinksScript(root)) : regularFile(
     name === "LICENSE" || name === "PRIVACY.md" ? root : path.join(root, "extension"), name
   )]));
   const manifest = json(files.get("manifest.json"), "manifest.json");

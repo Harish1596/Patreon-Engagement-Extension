@@ -29,6 +29,32 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 5, 2026 — Popup community links
+
+Added Join Discord and View on GitHub below Reader Customization. Public HTTPS
+URLs are generated from DISCORD_INVITE_LINK and GITHUB_REPO_LINK; only those two
+values enter the ignored popup configuration and allowlisted ZIP. Unconfigured
+links stay disabled. No extension permissions or Patreon page integration changed.
+
+Checks on the current feat/download base:
+
+- `node --test tests/tooling/popup-links.test.cjs tests/tooling/package.test.cjs`:
+  **12 passed**, including environment precedence, exclusion of unrelated values,
+  unsafe URL rejection, and archive validation.
+- `npm run check`: **92 JavaScript files**; `git diff --check`: passed.
+- `npm run package -- --force`: validated ZIP, including generated public URLs.
+- Temporary jsdom smoke check: generated URLs initialize both anchors with new-tab
+  targets and noopener/noreferrer; missing configuration leaves both disabled.
+- Browser plugin not available. `npm test -- tests/popup.spec.js --max-failures=1`
+  collected five cases, then Chrome aborted at launch with SIGABRT/kill EPERM
+  before any test body ran; four cases did not run. Light/dark rendering, keyboard
+  navigation and actual new-tab behavior remain unverified. No live Discord,
+  GitHub or authenticated Patreon requests were made.
+
+For source installs, run `npm run configure-links` after changing `.env` and reload
+`extension/`. See README for `--env-file` and packaging configuration behavior.
+
+
 ## November 5, 2026 — Extended Latin PDF font coverage
 
 A reported Single PDF failed at U+1E2A (Ḫ). Inspection with fontkit confirmed that
