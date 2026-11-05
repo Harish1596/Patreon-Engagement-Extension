@@ -4,6 +4,20 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — README and user guide refresh
+
+Reorganised the 1.2.0 README around reading customisation, post/collection download
+choices, installation, local processing and compatibility limits. Detailed existing
+reading/export instructions are retained in `docs/usage.md`. This documentation
+branch starts from `feat/download`; the primary checkout's older 1.1.1 `main` was
+not changed or represented as containing downloads.
+
+Validation: a local Python link/heading check passed **23 references** across
+README.md and docs/usage.md; documented PDF and collection limits were compared
+with the source; `git diff --check` is clean. No runtime files or packaged policy
+changed, so browser tests and package generation were not repeated. Earlier live
+and automated confirmations retain their original scope.
+
 ## November 5, 2026 — Compact popup without page status
 
 Removed the permanent Page status heading, connection/success messages and download
