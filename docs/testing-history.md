@@ -4,6 +4,54 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — 1.2.0 release candidate
+
+The manifest, package metadata and lockfile root now agree on **1.2.0**. README,
+product context, changelog, privacy policy and the manual release checklist reflect
+current download formats, oldest-first ordering, lazy discovery, two-hour caches,
+removed permission/refresh controls and browser-confirmed completion reporting.
+Export status copy now says “Files are generated locally” rather than implying
+that direct Patreon/media network requests never occur. Existing permissions and
+export behaviour are unchanged. Publication is not confirmed.
+
+Final validation on macOS 15.7.3, Node 22.19.0, Playwright 1.64.1, Chrome
+157.0.8103.38 and Brave application version 155.1.97.57 (engine 155.0.8059.80):
+
+- `npm ci --ignore-scripts --offline`: installs the locked dependencies from local
+  cache. Its cached audit output is not a fresh vulnerability assessment.
+- `npm run check`: **91 JavaScript files**.
+- `npm run test:tooling`: **140 passed** (final log: `/tmp/release-120-final-tooling.log`).
+- `npm test -- --workers=2 --output=/tmp/release-120-final-chrome-results`:
+  **157 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- --workers=2 --output=/tmp/release-120-final-brave-results`:
+  **159 passed**, including real installed-extension storage, content/popup,
+  direct PDF, combined collection and ZIP downloads, and the 75-chapter PDF bridge.
+- An earlier parallel Chrome run timed out creating a browser context before the
+  appearance test entered app code. The isolated appearance suite passed all 9
+  tests, a clean full rerun passed, and the final suites above passed sequentially
+  after the privacy-copy adjustment. The initial failure is not omitted.
+- `npm run package -- --force`: validates the exact allowlist, root manifest,
+  resources, archive integrity and byte equality of extracted runtime/policy files.
+- `node scripts/capture-store-screenshots.js`: loads that extracted ZIP in an
+  isolated Brave profile, verifies the real popup's v1.2.0 badge, exercises Reader
+  font/colour controls, post formats and collection Markdown ZIP selection, and
+  checks a real post Markdown download for title, creator and source metadata.
+  Three actual UI captures are 1280×800, with labelled synthetic content, no page
+  errors, no private account data and no image compositing. Browser plugin not
+  available; Playwright uses Brave's installed-extension support. PNG/package
+  SHA-256 values are recorded in screenshot provenance. Screenshots were visually
+  inspected; they are demo evidence, not live Patreon screenshots.
+- `git diff --check`: clean.
+
+Candidate: `dist/patreon-reader-1.2.0.zip`, SHA-256
+`19a50121aa38d340419ebad3ec311377a95a8d7731b671fc142a5d7b637ad1d5`.
+The ZIP is local/ignored; source, policy, screenshots and provenance are committed.
+See [release notes and outstanding submission work](releases/1.2.0.md).
+Live signed-in public/member Patreon checks, upgrade retention on an existing
+store installation, third-party EPUB/viewer and macOS Archive Utility checks,
+screen-reader verification and dashboard disclosures/version review remain
+separate manual checks. This does not publish or establish Firefox/Safari support.
+
 ## November 5, 2026 — Popup product identity and page status
 
 The toolbar popup now leads with Patreon Reader, a version badge read from the

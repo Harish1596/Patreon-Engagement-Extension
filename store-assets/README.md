@@ -41,3 +41,25 @@ and other store-only assets are excluded from the release ZIP.
 Dimensions and icon padding follow the
 [Chrome Web Store image guidance](https://developer.chrome.com/docs/webstore/images).
 Artwork regeneration does not upload or publish a store update.
+
+## Release screenshots
+
+Version 1.2.0 screenshots are under `screenshots/1.2.0/`. They show the actual
+installed extension from the validated release ZIP on labelled synthetic pages,
+not private content or a signed-in account. They are captured at 1280×800 without
+compositing. `provenance.json` records package and image hashes and the browser.
+Review the images before store upload; these demo captures do not establish live
+Patreon compatibility. Existing 1.1.0 promotional artwork remains unchanged.
+
+To regenerate after release checks and packaging:
+
+```sh
+npm ci --ignore-scripts
+npm run package -- --force
+node scripts/capture-store-screenshots.js
+```
+
+The capture tool uses Brave's installed-extension support in an isolated temporary
+profile and never opens the user's browser profile. It rejects a package that no
+longer matches the current allowlisted source files. The three captures show Reader
+appearance controls, post download formats and collection format/packaging choices.

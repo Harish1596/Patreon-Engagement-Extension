@@ -29,6 +29,54 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 5, 2026 — 1.2.0 release candidate
+
+The manifest, package metadata and lockfile root now agree on **1.2.0**. README,
+product context, changelog, privacy policy and the manual release checklist reflect
+current download formats, oldest-first ordering, lazy discovery, two-hour caches,
+removed permission/refresh controls and browser-confirmed completion reporting.
+Export status copy now says “Files are generated locally” rather than implying
+that direct Patreon/media network requests never occur. Existing permissions and
+export behaviour are unchanged. Publication is not confirmed.
+
+Final validation on macOS 15.7.3, Node 22.19.0, Playwright 1.64.1, Chrome
+157.0.8103.38 and Brave application version 155.1.97.57 (engine 155.0.8059.80):
+
+- `npm ci --ignore-scripts --offline`: installs the locked dependencies from local
+  cache. Its cached audit output is not a fresh vulnerability assessment.
+- `npm run check`: **91 JavaScript files**.
+- `npm run test:tooling`: **140 passed** (final log: `/tmp/release-120-final-tooling.log`).
+- `npm test -- --workers=2 --output=/tmp/release-120-final-chrome-results`:
+  **157 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- --workers=2 --output=/tmp/release-120-final-brave-results`:
+  **159 passed**, including real installed-extension storage, content/popup,
+  direct PDF, combined collection and ZIP downloads, and the 75-chapter PDF bridge.
+- An earlier parallel Chrome run timed out creating a browser context before the
+  appearance test entered app code. The isolated appearance suite passed all 9
+  tests, a clean full rerun passed, and the final suites above passed sequentially
+  after the privacy-copy adjustment. The initial failure is not omitted.
+- `npm run package -- --force`: validates the exact allowlist, root manifest,
+  resources, archive integrity and byte equality of extracted runtime/policy files.
+- `node scripts/capture-store-screenshots.js`: loads that extracted ZIP in an
+  isolated Brave profile, verifies the real popup's v1.2.0 badge, exercises Reader
+  font/colour controls, post formats and collection Markdown ZIP selection, and
+  checks a real post Markdown download for title, creator and source metadata.
+  Three actual UI captures are 1280×800, with labelled synthetic content, no page
+  errors, no private account data and no image compositing. Browser plugin not
+  available; Playwright uses Brave's installed-extension support. PNG/package
+  SHA-256 values are recorded in screenshot provenance. Screenshots were visually
+  inspected; they are demo evidence, not live Patreon screenshots.
+- `git diff --check`: clean.
+
+Candidate: `dist/patreon-reader-1.2.0.zip`, SHA-256
+`19a50121aa38d340419ebad3ec311377a95a8d7731b671fc142a5d7b637ad1d5`.
+The ZIP is local/ignored; source, policy, screenshots and provenance are committed.
+See [release notes and outstanding submission work](docs/releases/1.2.0.md).
+Live signed-in public/member Patreon checks, upgrade retention on an existing
+store installation, third-party EPUB/viewer and macOS Archive Utility checks,
+screen-reader verification and dashboard disclosures/version review remain
+separate manual checks. This does not publish or establish Firefox/Safari support.
+
 ## November 5, 2026 — Popup product identity and page status
 
 The toolbar popup now leads with Patreon Reader, a version badge read from the
@@ -1298,13 +1346,14 @@ npm run package -- --force
 - `test` runs the Chrome browser suites; `test:brave` runs the same suites plus the unpacked-extension case in Brave.
 - `package` requires `zip` and `unzip` on PATH. Existing releases require explicit `--force` replacement. See [release packaging](docs/release-packaging.md).
 
-Latest structural-work verification: **28 Chrome cases, 29 Brave cases, and 13
+Historical structural-work verification: **28 Chrome cases, 29 Brave cases, and 13
 Node tooling cases passed**, plus syntax and whitespace checks. Chrome skips
 the Brave-only installed test intentionally. Detailed dated results, earlier
 failures/retries, and original browser/OS versions are retained in
 [testing history](docs/testing-history.md); historical counts are not current totals.
-The current hotfix version is **1.1.1**, following the user-reported 1.1.0
-dashboard upload. The 1.1.0 feature release consolidated the local 1.3.9
+The current release candidate is **1.2.0**, including the 1.1.1 hiding fix and
+post/collection downloads. The highest version in the Web Store dashboard must
+be checked before submission; this task does not inspect that account. The 1.1.0 feature release consolidated the local 1.3.9
 development series. Historical version numbers below describe their original
 checkpoints, not the current release metadata.
 
@@ -1313,7 +1362,7 @@ including exact visual-order semantics via DOM order, keyboard navigation, and
 legacy color migration assertions. The 1.3.9 ZIP was rebuilt and validated.
 This checkpoint is included in the user's final 1.1.0 testing completion confirmation.
 
-Latest popup-layout verification: **29 Chrome cases and 30 Brave cases passed**,
+Historical popup-layout verification: **29 Chrome cases and 30 Brave cases passed**,
 including a new 320px popup layout check in light/dark modes with long status
 messages and usable switches. Syntax and ZIP packaging validation also passed.
 This checkpoint is included in the user's final 1.1.0 testing completion confirmation.
@@ -1375,18 +1424,22 @@ permissions, and draft content when changing appearance.
 
 ## Manual release checklist
 
-For 1.1.1, enable Hide Engagement Bar, open the same affected post in a new tab,
+For the 1.2.0 candidate, retain the 1.1.1 regression check: enable Hide Engagement
+Bar, open the same affected post in a new tab,
 refresh/reload it, and confirm the bar remains hidden without cycling the toggle.
 Repeat with hiding off to confirm it stays visible; check with Reader on/off.
 Record live results separately from the synthetic flag-removal regression tests.
 
-Record browser and OS versions and results for Chrome, Brave, Firefox, and Safari
-for macOS. Test an actual installed build in each browser. Original manual
-support claims are not evidence that the Reader feature passes this checklist.
+For Chrome Web Store submission, record Chrome/OS versions and test the actual
+extracted release ZIP. Record Brave checks separately. Firefox and Safari require
+their own packaging and validation before advertising current download support;
+they are not established by Chrome fixture tests or the original engagement-bar
+support claims. Do not mark live account checks complete from synthetic captures.
 
-- Upgrade from 1.0.0 with both possible engagement preferences. Reader starts
-  disabled; the engagement choice survives. Restart the browser and verify
-  preferences are restored.
+- Upgrade from the currently published version with both engagement preferences
+  and Reader enabled/disabled; saved appearance and visibility choices survive.
+  Also check the legacy 1.0.0 upgrade: Reader starts disabled. Restart the browser
+  and verify preferences are restored.
 - Enable Reader in the extension popup. Exactly one Aa button appears before
   Like on the main post. Exactly one Download button appears before Aa (or before
   Like while Reader is disabled); neither appears in the floating bar or related cards.
@@ -1402,13 +1455,26 @@ support claims are not evidence that the Reader feature passes this checklist.
   details and ordering in EPUB and Markdown. Confirm all three formats default to
   the sanitized post title as their filename. Open EPUB output in at least two readers and validate it with an EPUB 3
   validator. Check Markdown data-image support in the intended viewer.
-- Open a collection and export a combined PDF plus separate PDF, EPUB and Markdown ZIPs. Confirm every
-  accessible linked post appears once, in collection order, with numbered
-  title-based filenames and embedded images. Confirm locked or unsupported posts
-  are reported as skipped, the single temporary worker tab is reused and closed,
-  cancellation cleans up,
-  and no unrelated post links are included. Confirm Load more is exhausted and
-  the prepared count matches Patreon's displayed collection total.
+- Open a collection and exercise all six combinations: PDF, EPUB and Markdown,
+  each as Single file and Separate files (ZIP). Confirm accessible posts appear
+  once, oldest to newest, using publication dates when complete or numeric post
+  ID order otherwise. Check numbered title-based files, contents/navigation and
+  numbered parts for collections over 100 accessible posts. Open ZIPs with macOS
+  Archive Utility and inspect their files, rather than relying on browser completion.
+- Opening the collection menu or changing selectors must not fetch collection
+  data. Download starts discovery; API cursor pagination retrieves all pages,
+  with Load more exhausted only on fallback. Reconcile included plus locked and
+  other skipped posts against the discovered total; accessible counts need not
+  equal Patreon's displayed total. Do not include unrelated post links.
+- Verify the two-hour cache across output formats and worker restarts, expiry
+  refetch, automatic cleanup after the last browser window closes and at startup,
+  and persistence of Reader preferences separately. Cancelling or closing the
+  owner tab cleans up its temporary work. Extension-created inactive post tabs
+  close after use; existing user tabs stay open and focus stays where the user chose.
+- Exercise cancellation, retained-chapter retry and packaging failure recovery.
+  Reports must distinguish prepared chapters, Download started, browser-confirmed
+  Completed/Interrupted and Status unavailable when history is missing. Save a
+  report and confirm it contains no post bodies, signed media URLs or raw errors.
 - While opening a post download and exporting a collection, confirm the progress
   bar is visible during work, advances by post when totals are known, and clears
   on completion or error without blocking another format choice.
