@@ -4,6 +4,22 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Final manifest description
+
+The 1.2.0 manifest description now includes accessible post and collection
+downloads in PDF, EPUB and Markdown with inline images, alongside reading
+customisation. Version fields remain 1.2.0 and permissions are unchanged.
+`node --test tests/tooling/package.test.cjs` passed all **11 tests**; the release
+ZIP was rebuilt and validated. The installed-ZIP capture tool again verified
+its real version badge, Reader/format controls and a native Markdown download.
+All three demo PNGs are byte-identical; only their package provenance changed.
+The user's separately completed artwork/screenshots are unaffected. Full browser
+suites were not repeated for this description-only manifest edit.
+
+This supersedes the earlier candidate checksum for the current local ZIP:
+`1cc620bc6a9a462071822fb6671672f66153e975ea953a931310f8895742c738`.
+Earlier dated checksums remain historical evidence. `git diff --check` is clean.
+
 ## November 5, 2026 — User release-readiness confirmation
 
 The user confirms that the live build works as expected and that screenshots and
