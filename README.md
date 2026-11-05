@@ -460,8 +460,9 @@ excluded; packaging does not publish anything.
 ## Configure community links
 
 Edit `extension/popup/links.js` and fill in `discord` and `github` with your public
-HTTPS URLs, then reload the extension. The popup shows **Join Discord** and
-**View on GitHub** below Reader Customization; both open a new tab. Empty or
+HTTPS URLs, then reload the extension. The **Support** section below Reader
+Customization shows compact **Discord** and **GitHub** buttons with their site
+logos; both open a new tab. Empty or
 invalid values leave the corresponding button disabled.
 
 This file is committed and included directly in packaged ZIPs. No `.env` or

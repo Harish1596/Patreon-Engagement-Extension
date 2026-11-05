@@ -107,21 +107,25 @@ test("community links open configured destinations below Reader in light and dar
     };
   });
   await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
-  const links = page.getByRole("navigation", { name: "Community and source code" });
+  const links = page.getByRole("navigation", { name: "Support" });
   for (const colorScheme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme });
+    await expect(page.getByRole("heading", { name: "Support", exact: true })).toBeVisible();
     await expect(links).toBeVisible();
     const bounds = await links.boundingBox();
     const readerBounds = await page.locator('label[for="reader-toggle"]').boundingBox();
     expect(bounds.y).toBeGreaterThanOrEqual(readerBounds.y + readerBounds.height);
-    for (const [name, url] of [["Join Discord", "https://discord.gg/example"],
-      ["View on GitHub", "https://github.com/example/repo"]]) {
+    for (const [name, url] of [["Discord", "https://discord.gg/example"],
+      ["GitHub", "https://github.com/example/repo"]]) {
       const link = page.getByRole("link", { name, exact: true });
       await expect(link).toHaveAttribute("href", url);
       await expect(link).toHaveAttribute("rel", "noopener noreferrer");
       await link.focus();
       await expect(link).toBeFocused();
       const rect = await link.boundingBox();
+      expect(rect.width).toBeCloseTo(103, 0);
+      expect(rect.height).toBeCloseTo(30, 0);
+      await expect(link.locator("svg")).toBeVisible();
       expect(rect.x).toBeGreaterThanOrEqual(0);
       expect(rect.x + rect.width).toBeLessThanOrEqual(320);
       await page.context().route(url, route => route.fulfill({ body: "Synthetic destination" }));

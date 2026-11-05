@@ -29,6 +29,25 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 5, 2026 — Compact Support buttons
+
+Added a Support heading beneath Reader Customization. Renamed the two links to
+Discord and GitHub with local inline brand marks (Simple Icons, CC0), hidden from
+accessible names. Button dimensions change from approximately 137 × 40 px to
+103 × 30 px, retaining readable text, theme colors and keyboard focus styling.
+Configured destinations and new-tab behavior are unchanged.
+
+`npm run check` passes for **90 JavaScript files**;
+`node --test tests/tooling/package.test.cjs` passes **11 tests**;
+`npm run package -- --force` validates the ZIP; `git diff --check` passes.
+A temporary jsdom smoke check confirms the Support heading, navigation label,
+link labels and decorative SVG markup. The UI detector reported only the existing
+Inter font warning. Browser plugin not available; regular Playwright was used.
+`npm test -- tests/popup.spec.js --grep 'community links' --max-failures=1`
+failed at Chrome launch (SIGABRT/kill EPERM) before the single case ran. Updated
+light/dark size, logo, focus and new-tab assertions remain unexecuted; no rendered
+screenshot or live destination verification is claimed.
+
 ## November 5, 2026 — Cuneiform PDF fallback
 
 The reported U+1202D (𒀭, CUNEIFORM SIGN AN) is outside the primary Noto Sans
