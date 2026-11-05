@@ -29,6 +29,7 @@ test("package has exact files and root manifest; rejects overwrites and preserve
   assert.equal(path.basename(output), `patreon-reader-${JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8")).version}.zip`);
   const manifest = JSON.parse(readPackage(root).files.get("manifest.json").toString("utf8"));
   assert.equal(readPackage(root).files.has("background/markdown-book.js"), true);
+  assert.match(readPackage(root).files.get("vendor/pdfmake/NOTO-SANS-LICENSE").toString("utf8"), /SIL OPEN FONT LICENSE/);
   assert.equal(manifest.name, "Patreon Reader");
   assert.equal(manifest.action.default_title, "Patreon Reader");
   validateArchive(output, readPackage(root).files);

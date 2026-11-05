@@ -123,7 +123,7 @@
     }
     return { pageSize: 'A4', pageMargins: [51, 51, 51, 51],
       info: { title: book?.title || chapters[0].title, author: book ? 'Patreon creators' : chapters[0].author },
-      defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.35, color: '#222222' },
+      defaultStyle: { font: 'NotoSans', fontSize: 11, lineHeight: 1.35, color: '#222222' },
       styles: { title: { fontSize: 24, bold: true, margin: [0, 10, 0, 16] }, heading: { fontSize: 18, bold: true }, metadata: { fontSize: 9, margin: [0, 0, 0, 4] } },
       footer: page => ({ text: String(page), alignment: 'center', fontSize: 9, margin: [0, 15, 0, 0] }), content };
   }

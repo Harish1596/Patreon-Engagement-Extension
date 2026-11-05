@@ -58,3 +58,18 @@ test('cancellation terminates rendering with no late result', async ({ page }) =
   }, chapter);
   expect(message).toBe('AbortError');
 });
+
+test('browser PDF preserves U+1E2A and related diacritics across styled text', async ({ page }) => {
+  await pdfWorkerFixture(page);
+  const data = await page.evaluate(async snapshot => {
+    const input = PatreonPdf.chapter({ ...snapshot, title: 'Chapter Ḫ', author: 'Creator ḫ', body: { tag: 'div', children: [
+      { tag: 'p', children: ['Normal Ḫ ḫ Ṭ ṭ Ḥ ḥ'] },
+      { tag: 'p', children: [{ tag: 'strong', children: ['Bold Ḫ'] }] },
+      { tag: 'p', children: [{ tag: 'em', children: ['Italic Ḫ'] }] },
+      { tag: 'p', children: [{ tag: 'strong', children: [{ tag: 'em', children: ['Both Ḫ'] }] }] }
+    ] } });
+    return Array.from(await pdfFixtureRender([input]));
+  }, chapter);
+  const doc = await inspectPdf(data), text = doc.pages.map(page => page.text).join(' ').normalize('NFC');
+  for (const expected of ['Chapter Ḫ', 'Creator ḫ', 'Normal Ḫ ḫ Ṭ ṭ Ḥ ḥ', 'Bold Ḫ', 'Italic Ḫ', 'Both Ḫ']) expect(text).toContain(expected);
+});

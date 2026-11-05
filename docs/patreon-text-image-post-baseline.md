@@ -1982,3 +1982,24 @@ and returns PDF bytes, with offscreen cleanup verified. Separate transport fixtu
 accept a 33 MiB synthetic response and reject >40 MiB output; those fixtures test
 size handling, not PDF validity. New boundary tests accept >24 MiB input and reject
 49 MiB ASCII and >48 MiB UTF-8 input. No new Patreon DOM evidence is implied.
+
+
+**November 5 extended Latin PDF font correction:** The user reports U+1E2A (Ḫ)
+stopping a retained 75-post collection during PDF generation. All four previous
+Roboto faces lack this glyph (and its lowercase/combining-mark forms), so this was
+an actual font-coverage limitation rather than the larger byte budget or a false
+validator rejection. The primary PDF family is now bundled Noto Sans, with regular,
+bold, italic and bold-italic faces from an immutable upstream commit. Coverage is
+regenerated from their intersection. Unsupported characters remain explicit errors;
+source text and diacritics are preserved rather than transliterated or stripped.
+
+Roboto assets remain in the VFS for compatibility. New font inputs, OFL license,
+provenance hashes and offline regeneration are maintained in scripts/pdf-fonts;
+the runtime package adds the font data and license without remote font requests.
+This changes PDF typography only; Reader customisations and post extraction are
+unaffected. Exact accented text is independently extracted from generated PDFs
+in Node/browser fixtures and real installed Brave post/Single PDF/PDF ZIP downloads.
+The larger 75-chapter fixture also continues to render. Input/output limits, image
+budgets, membership/origin rules and cache lifecycle retain their existing contracts.
+No private post text or new live Patreon markup was captured. This supersedes the
+earlier Roboto-primary coverage statements, not the original dated observations.

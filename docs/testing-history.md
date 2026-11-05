@@ -4,6 +4,43 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Extended Latin PDF font coverage
+
+A reported Single PDF failed at U+1E2A (Ḫ). Inspection with fontkit confirmed that
+all four bundled Roboto faces lack U+1E2A, its lowercase form, combining U+032E
+and related extended Latin glyphs. A real-renderer regression reproduced that
+exact error before the change. PDFs now use locally bundled Noto Sans as their
+primary family; original Roboto assets remain for compatibility. No characters
+are stripped or transliterated. Glyph validation remains enabled against coverage
+shared by all four primary faces, and unsupported emoji still fails explicitly.
+
+Final checks:
+
+- `npm test -- --workers=2 --output=/tmp/pdf-font-chrome-results`:
+  **153 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- tests/pdf.spec.js tests/collection-pdf.spec.js tests/installed-pdf.spec.js --output=/tmp/pdf-font-brave-final-results`:
+  **11 passed**, including exact diacritics in real post PDFs, combined collections
+  and every PDF ZIP entry, plus the larger 75-chapter runtime bridge.
+- `npm run test:tooling`: **136 passed**; `npm run check`: **89 JavaScript files**;
+  `npm run package -- --force` validates the archive including the font license;
+  `git diff --check` is clean.
+- Re-running `node scripts/vendor-pdf.js` reproduces the same renderer, VFS,
+  coverage, license and generated README hashes without network access.
+
+PDF.js extraction verifies U+1E2A/U+1E2B, related accented Latin, metadata and
+regular/bold/italic/bold-italic output. A decomposed H + U+032E is compared after
+NFC normalization in the test only; runtime text is unchanged. The installed HTML
+fixture now explicitly declares UTF-8: its initial new Unicode text was decoded
+as mojibake without that header, independently of font rendering.
+
+Four unmodified static TTFs, the upstream OFL license and provenance hashes are
+committed under `scripts/pdf-fonts/noto-sans/`, pinned to the official repository
+commit recorded in `source.json`. Rebuilds verify those input hashes. Only the VFS
+and license are shipped in the extension, avoiding duplicate raw font files in
+its package. This broadens tested Latin/Greek/Cyrillic coverage, not all Unicode.
+The user's private collection still needs live confirmation. PDF limits (48/40 MiB),
+image budgets, cache lifetime, permissions and local/offline processing are retained.
+
 ## November 5, 2026 — Increased PDF input/output limits
 
 PDF input now allows **48 MiB** of serialized data and output allows **40 MiB**.

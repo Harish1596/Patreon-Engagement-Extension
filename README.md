@@ -353,8 +353,8 @@ it does not have EPUB's fully streamed book-assembly behavior. These PDF limits
 are separate from the 512 MiB disk source cache. The output allowance leaves room
 for base64 encoding in Chrome runtime messages.
 
-The bundled Roboto fonts cover tested Latin, Greek and Cyrillic text, including
-bold and italic faces. Unsupported characters (including many emoji and scripts
+The primary bundled Noto Sans fonts cover tested extended Latin diacritics, Greek
+and Cyrillic text, including bold and italic faces. Unsupported characters (including many emoji and scripts
 outside that coverage) produce an explicit error suggesting EPUB or Markdown.
 GIF/WebP/AVIF images are converted to static PNGs when the browser can decode
 them; SVGs use the existing sanitizer and a restricted vector path. PDF files
@@ -394,8 +394,9 @@ div[data-tag="floating-engagement-sheet"]
 
 ## Development
 
-Runtime assets include a pinned, locally packaged pdfmake renderer and Roboto
-fonts. Install dependencies with `npm ci --ignore-scripts`; regenerate PDF assets
+Runtime assets include a pinned, locally packaged pdfmake renderer and Noto Sans
+fonts (with Roboto retained for explicit SVG font references). Install dependencies
+with `npm ci --ignore-scripts`; regenerate PDF assets
 with `node scripts/vendor-pdf.js` after a reviewed dependency update. The vendor
 README records provenance, licenses, hashes and the bounded PNG decoding patch.
 Loading the checked-in extension requires no runtime build or remote code. `extension.js` shares

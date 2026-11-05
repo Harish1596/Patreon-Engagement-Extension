@@ -113,3 +113,19 @@ test('real worker renders 75 image chapters whose combined input exceeds 24 MiB'
   assert.ok(doc.pages.length > 75);
   console.log(`Large PDF fixture: ${inputBytes} input bytes, ${bytes.length} output bytes, ${doc.pages.length} pages.`);
 });
+
+test('PDF preserves extended Latin diacritics in metadata and all four text faces', async () => {
+  const source = { ...snapshot, title: 'Chapter Ḫ', author: 'Creator ḫ', body: { tag: 'div', children: [
+    { tag: 'p', children: ['Regular Ḫ ḫ Ṭ ṭ Ḥ ḥ Ā ā'] },
+    { tag: 'p', children: [{ tag: 'strong', children: ['Bold Ḫ'] }] },
+    { tag: 'p', children: [{ tag: 'em', children: ['Italic Ḫ'] }] },
+    { tag: 'p', children: [{ tag: 'strong', children: [{ tag: 'em', children: ['Both Ḫ'] }] }] },
+    { tag: 'p', children: ['Decomposed H\u032e'] }
+  ] } };
+  const bytes = await render([adapter().chapter(source)], { title: 'Collection Ḫ', source: 'https://www.patreon.com/collection/500', downloadedAt: 'Today' });
+  const { inspectPdf } = require('../helpers/pdf');
+  const doc = await inspectPdf(bytes);
+  assert.equal(doc.metadata.info.Title, 'Collection Ḫ');
+  const text = doc.pages.map(page => page.text).join(' ').normalize('NFC');
+  for (const expected of ['Chapter Ḫ', 'Creator ḫ', 'Regular Ḫ ḫ Ṭ ṭ Ḥ ḥ Ā ā', 'Bold Ḫ', 'Italic Ḫ', 'Both Ḫ', 'Decomposed Ḫ']) assert.ok(text.includes(expected), expected + '\n' + text);
+});

@@ -52,7 +52,7 @@ async function normalize(chapter, budget) {
     if (type === 'svg+xml') {
       const svg = new TextDecoder('utf-8', { fatal: true }).decode(data);
       if (!/^\s*<svg\b/i.test(svg) || /<!|<(?:script|foreignObject|image|use|style|animate|set)\b|\bon\w+\s*=|\bhref\s*=|url\s*\(\s*[^#]/i.test(svg)) throw new Error('The PDF SVG image contains unsupported markup.');
-      // SVG text uses the same bundled font coverage as the document.
+      // SVG text uses the same primary font coverage as the document.
       glyphs(svg.replace(/<[^>]*>/g, ''));
       continue;
     }
