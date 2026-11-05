@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Collection export formats</title>
+    <link rel="stylesheet" href="collection-chooser.css" />
+  </head>
+  <body>
+    <main aria-label="Collection export formats">
+      <div id="formats">
+        <fieldset>
+          <legend>Format</legend>
+          <div class="format-options">
+            <label><input type="radio" name="format" value="epub" checked disabled /><span>EPUB</span></label>
+            <label><input type="radio" name="format" value="pdf" disabled /><span>PDF</span></label>
+            <label><input type="radio" name="format" value="markdown" disabled /><span>Markdown</span></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Packaging</legend>
+          <div class="packaging-options">
+            <label><input type="radio" name="packaging" value="single" checked disabled /><span>Single file</span></label>
+            <label><input type="radio" name="packaging" value="zip" disabled /><span>Separate files (ZIP)</span></label>
+          </div>
+        </fieldset>
+        <p class="description" id="selection-description">All chapters in one ebook.</p>
+        <button id="download-collection" type="button" aria-describedby="selection-description" disabled>Download EPUB</button>
+      </div>
+      <section id="image-permission" hidden aria-label="Image access">
+        <p class="title">Images need your permission</p>
+        <p class="description">Allow the image hosts used by this collection to include images in your download.</p>
+        <p class="description" id="image-hosts"></p>
+        <button id="allow-images" type="button" disabled>Allow images and continue</button>
+      </section>
+    </main>
+    <script src="collection-chooser.js"></script>
+  </body>
+</html>

@@ -38,6 +38,33 @@ button[data-patreon-reader-button]:focus-visible {
   outline-offset: 3px !important;
 }
 
+button[data-patreon-download-button] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  width: 44px !important;
+  height: 44px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  cursor: pointer !important;
+}
+
+button[data-patreon-download-button] svg {
+  display: block;
+  flex: 0 0 auto;
+  fill: currentColor;
+}
+
+button[data-patreon-download-button][aria-expanded="true"] {
+  box-shadow: inset 0 0 0 2px currentColor !important;
+}
+
+button[data-patreon-download-button]:focus-visible {
+  outline: 2px solid currentColor !important;
+  outline-offset: 3px !important;
+}
+
 /* The action row follows the reading background independently of post text.
    Leave other controls (join, login, comment forms, etc.) in their native theme. */
 html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
@@ -102,6 +129,35 @@ html[data-patreon-reader-background-color] [data-patreon-reader-actions] :is(
 ):is(:disabled, [aria-disabled="true"]) {
   opacity: .55 !important;
   cursor: not-allowed !important;
+}
+
+/* The independent Download control follows the same action-row palette. */
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] [data-patreon-download-button] {
+  color: var(--patreon-reader-surface-color) !important;
+  background: transparent !important;
+  border: 1px solid currentColor !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] [data-patreon-download-button] svg {
+  color: inherit !important;
+  fill: currentColor !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] [data-patreon-download-button]:hover:not(:disabled) {
+  background: var(--patreon-reader-action-hover) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] [data-patreon-download-button][aria-expanded="true"] {
+  color: var(--patreon-reader-action-accent) !important;
+  background: var(--patreon-reader-action-selected) !important;
+  box-shadow: inset 0 0 0 1px currentColor !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-actions] [data-patreon-download-button]:focus-visible {
+  outline: 2px solid var(--patreon-reader-surface-color) !important;
+  outline-offset: 3px !important;
 }
 
 /* Comment actions share the reading palette, but retain their compact native
@@ -183,9 +239,9 @@ html[data-patreon-reader-text-color] :is([data-patreon-reader-body] a, [data-pat
 
 html[data-patreon-reader-background-color] [data-patreon-reader-surface],
 html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
-  [class*="PostBodies-module__"][class*="__singleColumnContent"],
+  [class*="_singleColumnContent"],
   [data-testid="single-column-post-wrapper"],
-  [class*="PostBodies-module__"][class*="__singleColumnPost"],
+  [class*="_singleColumnPost"],
   [data-testid="cta-banner-wrapper"] [class*="CTABanner-module__"][class*="__root"],
   [data-patreon-reader-body]
 ) {

@@ -28,6 +28,8 @@ test("package has exact files and root manifest; rejects overwrites and preserve
   const output = packageExtension(root), original = fs.readFileSync(output);
   assert.equal(path.basename(output), `patreon-reader-${JSON.parse(fs.readFileSync(path.join(root, "extension/manifest.json"), "utf8")).version}.zip`);
   const manifest = JSON.parse(readPackage(root).files.get("manifest.json").toString("utf8"));
+  assert.equal(readPackage(root).files.has("background/markdown-book.js"), true);
+  assert.match(readPackage(root).files.get("vendor/pdfmake/NOTO-SANS-LICENSE").toString("utf8"), /SIL OPEN FONT LICENSE/);
   assert.equal(manifest.name, "Patreon Reader");
   assert.equal(manifest.action.default_title, "Patreon Reader");
   validateArchive(output, readPackage(root).files);
@@ -110,4 +112,14 @@ test("rejects source-file and output-directory symlinks", { skip: process.platfo
   fs.unlinkSync(file); fs.copyFileSync(path.join(project, "extension/popup/popup.css"), file);
   fs.symlinkSync(path.join(root, "extension"), path.join(root, "dist"));
   assert.throws(() => packageExtension(root), /dist must be a real directory/);
+});
+
+test("packaging includes the edited public links file without reading dotenv", t => {
+  const root = fixture(t);
+  const source = 'globalThis.PatreonLinks = { discord: "https://discord.gg/example", github: "https://github.com/example/repo" };\n';
+  fs.writeFileSync(path.join(root, "extension/popup/links.js"), source);
+  fs.writeFileSync(path.join(root, ".env"), 'DISCORD_INVITE_LINK=https://discord.gg/ignored\nPRIVATE_TOKEN=synthetic-secret\n');
+  const files = readPackage(root).files;
+  assert.equal(files.get("popup/links.js").toString("utf8"), source);
+  assert.equal(files.has(".env"), false);
 });

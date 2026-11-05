@@ -1,6 +1,18 @@
 # Patreon post-page reference: text posts with inline images
 
-Last maintained: October 25, 2026. Current hotfix: **1.1.1** (live confirmation pending).
+**November 5 release preparation:** The current package candidate is 1.2.0.
+The dated observations and earlier unreleased/hotfix labels below describe their
+original checkpoints. Post and collection exports are included in this candidate;
+new live account verification and Chrome Web Store publication are not implied.
+No selectors, Reader boundaries or observed Patreon markup changed in this
+release documentation pass. Export privacy status copy is clarified to “Files
+are generated locally”; direct Patreon/media requests are documented separately.
+Current release evidence is in TESTING.md.
+
+
+Last maintained: November 3, 2026. Current hotfix: **1.1.1** (live confirmation pending).
+Post export is an unreleased development feature with synthetic verification;
+live Patreon export verification is pending.
 Feature baseline: **1.1.0**, renumbered from
 the local **1.3.9** development series without changing behavior or preferences.
 Historical 1.3.x references below retain their original checkpoint numbers.
@@ -42,6 +54,8 @@ access to it; conversation memory alone is not the persistence mechanism.
 - [Component details and CSS pitfalls](#component-details-and-css-pitfalls): native markup and failure modes.
 - [Current settings and color contract](#current-settings-and-color-contract): exact preferences/palettes.
 - [Runtime and settings ownership](#runtime-and-settings-ownership): code and lifecycle.
+- [Post export boundary](#post-export-boundary-unreleased): local formats, media access, and evidence limits.
+- [Collection export boundary](#collection-export-boundary-unreleased): separate-file ZIP behavior and evidence limits.
 - [UI-change comparison procedure](#ui-change-comparison-procedure): how to update this reference.
 - [Captured hook inventory](#captured-hook-inventory): all observed data-tag/testid values and counts.
 - [Not yet established](#not-yet-established): gaps that must not be assumed away.
@@ -66,6 +80,24 @@ The reference combines the following evidence:
   background, weak card separation, and the native comment-entry surface.
   Later user messages confirm banner background/shadow changes worked and ask
   for a darker input surface. These are scoped confirmations, not full-site QA.
+- **Collection-page structure:** An October 31, 2026 screenshot and two sanitized
+  structural captures show `/collection/{numeric-id}?view=expanded`, a
+  `main[role="main"]` region, a collection heading, 74 displayed posts, 20
+  initially rendered `a[class*="_gridCard"]` elements, direct
+  `/posts/{numeric-id}?collection={numeric-id}` destinations, and a
+  `[class*="_loadMoreContainer"] button`. The sanitized payloads are not committed.
+- **Collection pagination response:** A later October 31 user-supplied request and
+  response establish a same-origin `/api/posts` query filtered by campaign and
+  collection, ordered by `collection_order`. Its page contains 20 post resources;
+  `meta.pagination.total` reports 74 and `meta.pagination.cursors.next` supplies
+  the next cursor. The raw response, IDs, cursor, and post/media content are not
+  committed.
+- **Live collection access flags, November 1, 2026:** Read-only inspection of the
+  user's signed-in Brave collection session found 75 posts across four API pages,
+  with `attributes.current_user_can_view` true for 74 and false for one. The
+  updated discovery function returned 74 preparation URLs and one locked skip.
+  This establishes access filtering on that session, not complete installed
+  export behavior after reload; no raw response or post content is retained here.
 - **User-confirmed live testing:** On October 25, 2026, the user confirmed live
   Patreon testing was completed for the entire recorded testing history. This
   broader manual confirmation supersedes earlier live-testing-pending notes;
@@ -219,8 +251,8 @@ attributes are preferable to build hashes, but Patreon can change either.
 | --- | --- | --- |
 | Main card | `[data-tag="post-card"]` | Keep title, body, and actions within the same card. |
 | Title | `[data-tag="post-title"]` | Prefer an eligible h1 when detecting the main post; allow responsive copies. |
-| Outer surface | `[class*="PostBodies-module__"][class*="__singleColumnContentWrapper"]` | Preferred full post-background target, including outer spacing. |
-| Inner column | `[class*="PostBodies-module__"][class*="__singleColumnContent"]` | Fallback/inner surface; its substring also matches the outer wrapper. |
+| Outer surface | `[class*="_singleColumnContentWrapper"]` | Preferred full post-background target, including outer spacing; supports historical readable and current generated prefixes. |
+| Inner column | `[class*="_singleColumnContent"]` | Fallback/inner surface; its substring also matches the outer wrapper. |
 | Inner post | `[data-testid="single-column-post-wrapper"]` | Useful inner anchor; not the outermost background boundary. |
 | Article body | PostContent → RichText pattern shown below | Scope typography and article text here. |
 | Post actions | `[data-tag="top-engagement"]` | Select the visible variant associated with the main title/card. |
@@ -241,9 +273,15 @@ attributes are preferable to build hashes, but Patreon can change either.
 Current article-body selector in [patreon-dom.js](../extension/content/patreon-dom.js):
 
 ```css
-[class*="PostBodies-module__"][class*="__postContent"]
-  [class*="RichText-module__"][class*="additionalStylesPostContentWrapper"]
+[class*="_postContent"] [class*="_additionalStylesPostContentWrapper"]
 ```
+
+The original capture used readable CSS-module prefixes, as retained in the
+historical schematic above. A sanitized live probe on October 29, 2026 found
+generated prefixes (`JRIMpq_postContent` and
+`_5kju5G_additionalStylesPostContentWrapper`) with the same semantic suffixes.
+Same-card discovery remains mandatory; suffix matching is not permission to
+select an unrelated page region globally.
 
 Do not hard-code hashes such as `JRIMpq`, transient IDs such as `_r_…`, action
 counts, post IDs, exact article text, or a fixed number of ancestors. Explicitly
@@ -280,7 +318,7 @@ threshold, scroll direction rule, or animation behavior has been measured.
 | Background | Marked outer wrapper plus known inner surfaces/body. |
 | Metadata and comment foreground | Matching surface ink on selected text elements; not article font/spacing. |
 | Post creator avatar | Byline avatar container receives a theme-aware outline/drop shadow for non-default colors; native shape and sizing retained. |
-| Main post actions | Marked top action row; known Reader/native controls only. |
+| Main post actions | Marked top action row; Download, Reader, and known native controls only. |
 | Comment text and authors | Surface ink, including clickable parent rows and author-name buttons; native comment typography retained. |
 | Comment actions | Buttons within `comment-actions` inside the marked surface; icons/counts and interaction colors follow the palette. |
 | Membership banner | Inner CTA card follows page background with tinted outline/drop shadow; Join buttons and artwork remain native. |
@@ -299,6 +337,8 @@ Extension-owned markers:
 | `data-patreon-reader-actions` | Selected main-post action row. |
 | `data-patreon-reader-button` | Extension-created Aa button; does not have a native `data-tag`. |
 | `data-patreon-reader-panel` | Host for the Shadow DOM appearance panel. |
+| `data-patreon-download-button` | Extension-created post-export trigger; independent of Reader enablement. |
+| `data-patreon-download-panel` | Host for the Shadow DOM PDF/EPUB/Markdown chooser. |
 | Root `data-patreon-reader-*` flags and `--patreon-reader-*` properties | Enable individual overrides and supply validated values. |
 | Root `data-hide-patreon-floating-engagement` | Activates the independent floating-bar hiding rule. |
 
@@ -561,16 +601,18 @@ Input tints and banner shadows are derived CSS, not extra saved preferences.
 
 | File | Responsibility |
 | --- | --- |
-| [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS, ordered scripts, storage permission. |
+| [manifest.json](../extension/manifest.json) | Patreon match scope, packaged CSS/scripts, background worker, storage/downloads/offscreen/alarms permissions, and optional media-origin envelope. |
 | [extension.js](../extension/shared/extension.js) | Browser API adapter, validated preference schema, fixed fonts/presets, contrast and legacy-color normalization. |
 | [patreon-dom.js](../extension/content/patreon-dom.js) | Patreon selectors, post discovery, and surface/action-row selection; no preference or panel state. |
 | [content.js](../extension/content/content.js) | Supported-route detection, storage events, popup state messages, floating-bar visibility, batched reconciliation. |
 | [reader.js](../extension/content/reader.js) | Uses the DOM adapter; owns markers, appearance state, Aa/panel lifecycle, controls, serialized saves. |
+| [export.js](../extension/content/export.js) | Uses the DOM adapter; extracts the current title/body, sanitizes markup, embeds inline media, and creates PDF/EPUB/Markdown output. |
 | [content.css](../extension/content/content.css) | Page-side typography, surfaces, action contrast, floating-bar hiding. |
 | [popup.js](../extension/popup/popup.js) | Load/save master preferences and show page-connection status. |
+| [media.js](../extension/background/media.js) | Permission-checks and fetches HTTPS image bytes for a user-requested export. |
 
-The manifest loads `shared/extension.js`, `content/patreon-dom.js`, `content/reader.js`, and
-`content/content.js` at document
+The manifest loads `shared/extension.js`, `content/patreon-dom.js`, `content/reader.js`,
+`content/export.js`, and `content/content.js` at document
 start. Post recognition currently accepts creator-prefixed routes shaped like
 `/<creator>/posts/<slug>-<numeric-id>` (or a numeric ID without a slug), excluding
 reserved first-path segments. Recognition is not evidence of DOM readiness.
@@ -658,12 +700,620 @@ width <=480px it uses a bottom-sheet-like placement with viewport margins.
 Scrolling/resize/visualViewport updates reposition it. Those dimensions belong
 to the extension, not an inferred Patreon responsive breakpoint.
 
-No background/service-worker file or runtime network dependency is declared.
-Only storage permission is requested; packaged content scripts match
-`https://www.patreon.com/*` at document start. Development tools can fetch public
-styles for investigation; the shipped extension itself does not fetch them.
+A packaged background service worker now supports post export. The manifest
+declares `https://*/*` only as an optional host-permission envelope; it does not
+grant those origins at installation. When an export contains remote inline
+images, the trusted content script registers only the exact HTTPS origins present
+in the selected post body with the worker. The packaged extension-origin format
+frame retrieves that registration before enabling its buttons and calls the
+permissions API directly from the user's format-button gesture. It returns the
+validated format through extension runtime messaging; the worker binds the token
+to the originating Patreon tab and delivers the choice with `tabs.sendMessage`
+to the isolated content-script world. The worker rechecks permission and the Patreon sender before
+fetching those image URLs without credentials. Since the November 2 streaming-ZIP
+change, storage, downloads, and offscreen are required extension permissions.
+A subsequent November 2 retention update adds alarms for automatic expiry cleanup.
+No remote executable code, selectors, analytics, or fonts
+are fetched.
+
+## Post export boundary (unreleased)
+
+**Intended behavior:** A Download control is mounted before Reader/Like on the
+same selected main-post action row and remains available when Reader customization
+is disabled. It offers PDF, EPUB, and Markdown. Extraction is limited to the
+selected post title and RichText body discovered through the existing same-card
+DOM adapter. Comments, membership banners, recommendations, navigation, floating
+engagement, and other page UI are excluded. Scriptable/form/embed elements,
+event attributes, site classes, IDs, and inline styles are removed from the copy.
+
+Inline body images are embedded for offline use. Data URLs are processed locally.
+Remote images require a user-approved exact-origin permission and are fetched by
+the packaged worker only for a request originating from a Patreon tab. Non-HTTPS
+sources, non-image responses, individual images over 25 MiB, and combined image
+payloads over 100 MiB are rejected. A denied or failed image request aborts the
+export rather than silently producing a partial offline document. Signed image
+URLs are used transiently and are not written to the generated document.
+
+**November 2 export security hardening (synthetic evidence):** Media responses
+are consumed with a streaming byte counter, cancelled on overflow, and subject
+to a 30-second deadline including queue time. The worker allows two simultaneous
+image requests; each post fetches distinct images sequentially and passes its
+remaining budget, accounting for repeated Markdown image occurrences. Redirects
+are rejected rather than contacting another origin. Embedded data URLs are size
+checked before decoding, restricted to JPEG/PNG/GIF/WebP/AVIF/SVG, and raster
+signatures must match the declared type. These are payload limits, not a total
+extension RAM cap: DOM trees, base64 and encoding buffers also consume memory.
+
+SVGs are parsed as XML with document/entity declarations rejected and rebuilt
+using an explicit graphics-only element/attribute allowlist. Scripts, events,
+stylesheets, animation, links, embedded HTML and external image/reference URLs
+are removed. Local fragment paint/clip references and basic shapes/text/gradients
+are retained. Unsupported effects can change appearance. Cached images receive
+the same validation lazily on first use during each conversion; older cached
+SVGs or SVGs disguised as raster formats cannot bypass sanitization. Raster
+signatures are a format check, not full image-decoder validation.
+
+Markdown text, metadata and labels are escaped as literal content; generated
+formatting and HTTP(S) links are retained. Link delimiters are encoded, and code
+fences grow beyond any backtick run in the original code. Synthetic fixtures
+cover markup injection, code fences, active/external SVG content, cache reuse,
+MIME disguises and invalid declarations. Worker fixtures cover streaming overflow,
+reader cancellation, exact bytes, concurrency and timeout cancellation. Live
+Patreon media-host compatibility and third-party reader behavior remain unverified.
+Previously saved exports are not rewritten. Local caches remain unencrypted;
+expiry/lifecycle cleanup retains its documented best-effort crash limitations.
+
+**November 2 nested Markdown follow-up:** List continuation lines are indented
+under their marker, preserving fenced code inside lists, nested lists and
+blockquotes. Malformed inline/heading containers render embedded preformatted
+text as inline code so a heading cannot consume an opening fence. A CommonMark
+parser is pinned as a development-only dependency; generated HTML is inspected
+and previewed with external requests blocked to confirm code stays inert. This
+extends the earlier escaping tests with actual Markdown parsing, not live reader
+compatibility claims.
+
+**November 2 newline containment correction:** The follow-up audit established
+that bare CR characters in code could bypass list/blockquote prefixes because
+those containers split only LF lines. Markdown serialization now normalizes
+CRLF and bare CR to LF before escaping text, fencing code or applying container
+prefixes. Inline-code line folding uses that same normalization. Source DOM and
+cached trees are not rewritten; restored sources are normalized when converted,
+so older caches receive the fix too. Synthetic CommonMark/preview regressions
+cover LF, CRLF and CR in lists, nested lists, blockquotes, quoted lists, headings,
+inline code and ordinary text, including embedded backtick runs. The tests check
+both fresh and cached output for absent active HTML, script effects and external
+requests. This corrects the newline gap in the earlier nested-block evidence;
+it does not establish authenticated Patreon or third-party-reader verification.
+
+**November 2 encrypted source-cache follow-up:** New disk source entries use
+AES-256-GCM with random nonces and owner/post-bound authenticated context. Titles
+and source trees/images are encrypted together; headers retain only size, expiry
+and format markers. The key is stored only in extension `storage.session`, survives
+worker suspension, and is lost when the extension/browser session ends. Legacy
+plaintext records, malformed ciphertext and authentication failures become deleted
+cache misses. This supersedes the unencrypted-source observation above. It does
+not protect against a compromised running browser, privileged memory inspection,
+OS swap/hibernation captures or files the user deliberately saves.
+
+**November 2 encrypted retry/budget follow-up:** Archive retry chapters are stored
+as bounded AES-GCM frames authenticated to job/index/transfer/offset. Packaging
+decrypts one frame at a time into the browser-required temporary plaintext ZIP.
+The final ZIP is not an idle reusable cache: failed handoffs remove it and startup
+removes idle ZIPs. Active native-download backing files remain until completion.
+Legacy plaintext retry metadata/files are discarded. This supersedes the earlier
+unencrypted-retry observation; temporary ZIPs can still leave plaintext after a
+forced termination, and deletion does not establish secure erasure.
+
+All archive jobs share a separate 1 GiB payload budget, counting committed files,
+pending writes and the ZIP simultaneously. Serialized writes prevent concurrent
+jobs from exceeding that payload budget; restart reconstructs usage from disk and
+failed deletion keeps accounting conservative. The source cache retains its own
+512 MiB budget. Filesystem metadata/overhead and user-saved downloads are outside
+these payload limits. Tests cover concurrency, abort/retry accounting, staged-ZIP
+limits after worker restart, tampering, failed handoff cleanup and legacy purging.
+
+**November 2 permission-management follow-up:** The toolbar popup lists the count
+of saved optional HTTPS media-origin grants and offers Forget media access. It
+uses the extension permission API, excludes the required Patreon origin, and
+reports removal failures separately from preference saving. Revocation does not
+clear source caches, user-saved files or preferences; future remote-media requests
+require access again. Popup fixtures cover success/failure, retained Patreon
+access/preferences, and light/dark layout; installed Brave verifies the native
+permission list is available. No page selectors or Reader boundaries changed.
+
+**November 2 source reuse:** Individual exports retain one inert source tree and
+distinct image data URLs for two hours in page memory, up to 16 MiB. A SHA-256
+fingerprint of normalized body markup, image sources, and post metadata invalidates
+it when content changes; Reader styles are removed before fingerprinting. Download
+time is regenerated for each output. Route changes clear the entry. Larger posts
+still export but are not retained in this small memory cache. Repeated image
+sources share an asset index and EPUB image entry. EPUB decodes cached image bytes
+on demand; Markdown uses data URLs directly.
+
+**Historical PDF path (superseded November 4, 2026):** PDF uses a sanitized,
+self-contained print view and the browser's native print
+dialog; the user selects Save as PDF. The print view uses a temporary same-tab
+iframe so it does not depend on popup permission after the extension-frame gesture.
+During printing, both the iframe and Patreon tab temporarily use the sanitized
+post title so Chrome suggests it as the PDF filename; the original tab title is
+restored immediately afterward. EPUB and Markdown downloads use the same
+sanitized title stem with their respective extensions.
+Its `@page` margin is zero to remove Chrome's automatic date/title and
+URL/page-number regions; an inner document wrapper restores 18 mm content margins.
+At the top of the document, above the post title, it lists Creator, Download time,
+and Source in that order. Creator
+prefers scoped byline/post-detail text and falls back to the Patreon document-title
+pattern. Source removes query and fragment data. Downloaded uses the user's local
+date, time, and timezone.
+EPUB is an uncompressed EPUB 3 ZIP containing
+XHTML, navigation, CSS, package metadata, and image files. Its visible XHTML has
+the same Creator, Download time, and Source block above the title; creator and
+source are also recorded in OPF metadata. Markdown is a single `.md` file whose
+image destinations are embedded data URLs and whose top section shows the same
+three details before the title. Links are resolved to HTTP(S) URLs. The exporter
+does not bypass Patreon authentication or access
+content that was not rendered for the user.
+
+**Evidence:** Synthetic Playwright fixtures verify control placement, exclusion
+of comments/recommendations, embedded data and remote images, exact-origin
+permission requests, permission denial, EPUB container contents, rerender
+recovery, and route cleanup. An installed Brave test changes Reader font and
+color, then performs a real Markdown download through the packaged chooser and
+isolated content script. Reopening Download clears the previous chooser document
+before registering its new token, preventing a stale-button race. After each
+completed export, the content script loads a uniquely addressed fresh chooser
+instance so its controls are enabled for another format without closing the panel.
+The installed test performs consecutive Markdown and EPUB downloads in one open
+panel. These tests do not establish current live Patreon
+media hosts, browser permission-prompt presentation, print-dialog behavior in
+every browser, EPUB-reader interoperability, or export of non-text post types.
+No new Patreon markup observation is claimed by this feature as of October 29,
+2026; the original October 25 capture remains the live structural baseline.
+The chooser frame explicitly matches the surrounding white or `#232326` panel
+background so its rectangular canvas does not appear as a black strip in dark mode.
+The post dialog displays an indeterminate activity bar while registering its
+chooser and preparing post text and inline media. It hides the bar after the
+download or print handoff starts and on preparation errors, while the live status
+message retains the result.
+
+## Collection export boundary (unreleased)
+
+**November 3 automatic network retries:** A packaged `shared/retry.js` helper
+is loaded by content scripts and the media worker. Idempotent collection API and
+inline-image reads retry at most three times total, using 1s/2s exponential waits
+plus less than 250ms jitter, per-attempt 30s deadlines and abortable waits. Only
+fetch/read TypeErrors, attempt timeouts and HTTP 408/429/500/502/503/504 qualify.
+HTTP Retry-After seconds or dates increase the delay; waits over 60s stop for a
+manual retry rather than violating the requested wait. Header interpretation
+follows the [HTTP Retry-After reference](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Retry-After).
+
+Retries keep permission/origin checks, omitted media credentials, redirect rejection,
+byte limits and the two-request concurrency cap. A failed image stream is discarded
+and that image restarts from zero; the media slot releases between attempts. API
+response-body reads are retried only for transport errors, not JSON syntax or
+content validation failures. 401/403 access errors and exhausted/long-wait transient
+API reads surface instead of silently triggering DOM fallback. The private-API
+format/availability fallback still applies to other nontransient discovery errors.
+Permission denials, unsupported content, invalid or oversized media, archive
+storage errors and download/package mutations are not auto-retried.
+
+The existing 60x250ms page-readiness loop remains separate. Completed BUILD error
+responses are now terminal unless explicitly reporting an unfinished/incorrect
+page; this prevents multiplying three network attempts across repeated builds or
+an existing-tab fallback. Manual Retry failed posts/Retry packaging remains
+available and committed chapter entries are retained. The UI shows retry attempt
+and wait time; media progress messages retain owner/operation correlation, and
+post exports also show media retry waits. This introduces no new site selectors,
+permissions, storage keys, remote dependencies or access bypass.
+
+Synthetic unit cases verify delay growth, both Retry-After forms, bounded attempts,
+permanent errors, timeout/abort handling and interrupted-stream restart. Worker
+cases verify unchanged media request policy and cancellation during backoff, plus
+one build attempt for a completed chapter failure. Browser fixtures use a virtual
+clock to check recovery, cancellation, long waits, exhausted requests and denied
+access without fallback. Installed Brave recovers from a transient private-API
+failure before preparing cached exports. No live Patreon or permission-prompt
+verification is claimed by these fixtures.
+
+
+**November 3 incremental refresh:** Refresh collection now reconciles the existing
+owner/token namespace instead of cancelling it before discovery. API pagination
+is reread for fresh order/access. The request asks for the already observed
+`content_json_string`, `title` and `current_user_can_view` fields. A valid nonempty
+structured body plus boolean-true access yields a SHA-256 fingerprint over body,
+title, available post/embed/file/image/author references and returned related
+image/author attributes. Only the digest is sent/stored with prepared metadata;
+raw response content and signed URLs are not added to session storage. Publication
+time alone is not used as an edit detector. The public [Patreon Post API reference](https://docs.patreon.com/#post-v2)
+does not establish a reliable published-post edit timestamp for this private
+collection integration; fingerprint behavior is synthetic evidence, not a live
+API contract or proof of unchanged inaccessible fields.
+
+The worker accepts refresh only for the same owner, rejects concurrent prepare/
+build work, and preserves cached sources only for matching revisions. Reusing
+preparation requires a live source entry too; uncached/expired records are
+rechecked. Removed, changed, locked or unverifiable records are deleted before
+preparation. Retained encrypted records keep their original two-hour deadlines;
+reads and refreshes do not rewrite/renew them. The discovered order becomes the
+new post order. Generated retry checkpoints and reports reset on explicit refresh,
+including when all posts become locked/empty. Missing/invalid full-content or
+access evidence, private API failure and DOM fallback cause conservative full
+revalidation. Previously skipped posts are retried, not treated as cached successes.
+
+Synthetic worker/cache cases cover new/edited/removed/reordered posts, unchanged
+source hits after restart, independent-owner rejection, uncached/expired sources,
+fixed deadlines, and cancellation with late replies. Browser cases inspect
+fingerprint/order/token messages and access changes; installed Brave verifies
+unchanged-source refresh opens no post tabs after cached book/ZIP downloads.
+The native fixture waits for its initial API performance entry before asserting
+revisions; the first attempt lacked that discovery evidence. Earlier November 1/2
+statements below that Refresh deletes all source data are superseded by this
+behavior; their historical checkpoint observations are preserved. Changed generated
+output is still rebuilt, and the existing cache/disk/access bounds remain in place.
+
+
+**November 3 download reports:** The existing collection dialog now includes a
+collapsible Download report with per-post title/canonical link, status and reason,
+plus an explicit Save report action for a standalone plain-text file. Reports
+use text nodes and checked HTTPS Patreon post URLs only. Error URLs are omitted;
+worker preparation errors become fixed, limited explanations rather than raw
+messages. API-exposed membership locks produce individual skipped records even
+when the entire collection is locked. Preparation skips have individual records
+in prepared browser-session metadata and survive worker restart under the same
+owner/two-hour lifecycle. Older sessions with only aggregate skips show unknown
+rows and ask for refresh rather than invent titles or causes.
+
+Generation results distinguish Prepared, Failed, Cancelled and Download started.
+Only browser handoff marks prepared posts as included; packaging failure never
+claims a successful download. Retry rebuilds statuses from committed entries and
+replaces previous failures. The latest attempt survives reopening the dialog;
+new downloads replace it, explicit Refresh resets it, and page navigation/reload
+or a two-hour timer removes it. Cancel leaves the report for review. The report
+itself is page-local and is not added to CacheStorage or the generated archive.
+User-saved reports persist as ordinary downloads. The report does not monitor
+native download completion/interruption, and says so explicitly. No Patreon DOM
+selector, access rule, permission or EPUB/ZIP contents changed.
+
+Synthetic fixtures cover locked-only collections, skip/failure details, URL
+redaction, inert titles, packaging failure, successful retry, cancellation,
+reopening/refresh/navigation and expiry. Worker fixtures cover unsupported-only
+collections, per-post skips after restart and absent signed error URLs. Installed
+Brave verifies the report after native EPUB handoff. Desktop/light and narrow/dark
+screenshots were inspected using synthetic pages. No current live Patreon markup
+or native completion-tracking claim is established.
+
+
+**November 3 single-book writer:** A new packaged worker module assembles one
+EPUB from independently staged, encrypted chapter EPUBs. It decrypts/inflates a
+chapter as a stream, validates stored-resource sizes/CRCs and safe resource names,
+and writes a single outer EPUB with chapter-specific image directories. The
+first physical entry is the uncompressed `mimetype`, with no extra fields. The
+writer adds a collection title page, EPUB navigation document, OPF manifest/spine,
+creator/source/download-time metadata and shared styles. Only central-directory
+and publication metadata accumulate across chapters; file bodies/images are
+streamed. Staged chapter input stays bounded and validated against its recorded
+size/CRC. The existing archive budget, expiry, native handoff and cleanup apply to
+both `.zip` and `.epub` outputs. This follows the [EPUB ZIP container contract](https://www.w3.org/TR/epub-33/#sec-zip-container),
+without claiming third-party reader certification.
+
+Synthetic Node disk fixtures verify streaming assembly after worker restart,
+quota failure without partial plaintext output, rejected nested paths/invalid
+metadata, and owner closure while assembly is in progress. Earlier November 2
+separate-file ZIP observations below remain historical evidence for that mode.
+
+
+**November 3 single-book UI:** The collection chooser now groups Single EPUB
+under One book and the existing EPUB/Markdown buttons under Separate files (ZIP).
+The iframe is taller to fit both groups and retains the surrounding light/dark
+background. Single EPUB uses the same discovery/access checks and cached sources,
+with a separate retry checkpoint from the ZIP modes. Each chapter is rendered
+through the existing snapshot sanitizer and staged independently, with stable
+chapter paths for images/styles and previous/next/Contents links. A direct `.epub`
+download is named from the collection title; it has no outer ZIP of chapter books.
+The title page includes Creator, Download time and Source. Completion reports EPUB
+book download started; assembly, finalization and handoff progress use EPUB labels.
+The hidden downloader supplies the EPUB or ZIP MIME explicitly via a disk-backed
+Blob slice, so the browser uses the correct saved extension. The installed
+regression checks both native extensions after an initial ZIP-MIME mismatch was
+caught and corrected.
+Mode changes discard only generated retry files, while source caching remains
+available. Book preparation has the existing 100-post and temporary-storage limits.
+No Patreon DOM selectors, local-only data boundary or media permissions changed.
+
+**Intended behavior:** On a pathname matching `/collection/{identifier}`, a
+fixed extension-owned **Download Collection** control offers Single EPUB or
+separate EPUB/Markdown ZIP files.
+Its dialog shows an extension-owned progress bar from discovery through ZIP
+packaging. Discovery and packaging are indeterminate when no trustworthy total is
+available; preparation, generation, and page-side file receipt report completed
+post counts against the validated total. Completion and error states hide the bar
+while retaining the live status message.
+The extension-owned Cancel action stays available during discovery, preparation,
+generation, chunk receipt, and packaging. It aborts extension API discovery,
+stops further Load more polling/clicks, cancels pending worker requests and tagged
+media fetches, closes only the extension's worker, and removes prepared/transfer
+state. The UI shows Cancelling until cleanup acknowledges, then Cancelled and
+Start again. Completed discovery can be reused, while incomplete discovery is
+retried from the start. Late replies, cancelled transfer IDs, and late worker
+creation cannot restart work or save a ZIP. Existing user-opened post tabs are
+preserved. Cancel is hidden after ZIP handoff and does not undo a browser download
+or abort a Patreon-owned Load more request already started by its native button.
+
+The separate-file option creates one ZIP named from the collection heading. It
+first finds the current page's observed same-origin `/api/posts` request for the
+route's collection ID, removes its cursor, and follows validated next links or
+cursors until none remains. It accepts numeric post resources in API order and
+requires their unique count to match the stable reported total. Request URLs are
+kept only in memory. If no usable API template is available or the private response
+changes, discovery falls back to activating the collection-scoped Load more
+control and reading direct `/posts/{numeric-id}` grid-card links. A temporarily
+disabled control is treated as in-progress; a stalled control produces an error
+instead of silently preparing a partial set. Both paths remove duplicates while
+preserving collection order and create numbered title-based files.
+API discovery explicitly requests `current_user_can_view` on every page and
+excludes posts only when its value is boolean `false`. Unique totals and the
+100-post bound count all discovered posts, including locked ones. Locked posts
+never reach the preparation worker and are reported separately from generic
+unavailable/unsupported failures. Missing or nonboolean flags retain normal
+preparation checks. An all-locked result stops before worker preparation with a
+membership message; it does not fall back to visiting locked pages. The DOM-only
+fallback has no new inferred lock selector and retains generic skipping behavior.
+The outer collection archive uses `application/zip`, valid DOS timestamps, and
+ZIP method-8 actual DEFLATE compression for compatibility with macOS archive detection;
+individual EPUB payloads retain `application/epub+zip` and their required stored
+`mimetype` entry.
+**November 1 investigation:** The previous stored-block implementation did not
+achieve compatibility for large nested EPUBs. Stored DEFLATE blocks leave the nested EPUB MIME
+marker visible to macOS's early format scan, causing generic-data classification
+and the reported Archive Utility rejection. Actual compression passes the
+synthetic detection and Archive Utility extraction control. The writer now uses
+the browser's compression stream and strips the zlib wrapper to produce the raw
+DEFLATE required by ZIP. Individual EPUB containers retain their original bytes.
+See [current
+diagnostic evidence](../TESTING.md#automated-checks).
+**Historical collection limitation (superseded November 4, 2026):** PDF was
+deliberately deferred: the previous post PDF path used Chrome's interactive
+Save as PDF UI and cannot package generated PDF bytes into a ZIP.
+
+The worker prepares each linked post through its normal rendered post page. Post
+content scripts register their own tab URL with the worker, allowing an already
+open matching tab to be reused without the broad `tabs` permission. Otherwise the
+worker creates one inactive temporary Patreon tab and navigates that same tab
+through unopened posts in sequence. Since the November 1 focus fix, readiness
+checks retry in the background for up to 60 attempts at 250 ms intervals without
+activating either the worker or collection tab. The previous brief worker/owner
+activation fallback was removed because it repeatedly interrupted other tabs.
+The tab
+must finish loading the requested post before answering preflight/build requests:
+the content script compares the requested numeric post ID with its immutable
+initial document identity and current URL, and requires `readyState=complete`.
+The background validates the returned ID before accepting successful metadata,
+retrying stale replies during navigation. A registered open tab that no longer
+qualifies falls back to a freshly navigated worker. The worker
+closes immediately when preflight finishes. As of November 2, file generation
+requests one chapter at a time and closes its worker after receiving that chapter
+in the background. Cancellation,
+failure, expiry detection, and collection-tab closure also clean up any active worker.
+The preflight gathers only exact remote-image origins before the packaged chooser
+enables its direct user-gesture permission request. After approval, each post uses
+the same sanitized extraction and embedded-media path as individual export.
+As of November 2, generation transfers a versioned, format-independent source
+snapshot: title, creator, canonical source URL, language, an inert content tree,
+and one data URL per distinct image. The collection page renders its selected
+format from that snapshot. Hydration creates only allowlisted inert elements,
+validates post identity, and does not insert the source tree into the live page.
+Download time is generated at rendering time, not retained in the source.
+The background's `post-cache.js` stores snapshots in extension-origin CacheStorage,
+keyed by collection token and post ID. Synthetic HTTPS cache keys never cause
+network requests. Entries expire two hours after insertion and share a 512 MiB
+budget with oldest-entry eviction; failures or eviction fall back to fetching.
+Only one chapter is loaded into memory for conversion at a time. The initial
+source-cache change retained generated-file retry/ZIP buffers proportional to
+archive size. The subsequent November 2 streaming-ZIP change below replaces them
+with private disk files and bounded byte streams.
+Refresh, Cancel, and owner-tab closure delete the collection's sources. Worker
+startup prunes expired and orphaned entries against restored session metadata;
+expiry deletion is lazy, so disk records may remain while the browser is closed,
+but are not reused in a new browser session. Cancelled pending writes are removed
+after storage completes. Corrupt records are treated as misses. Source snapshots
+are not added to `storage.session`, do not contain signed image request URLs, and
+are never exposed as web-accessible resources. Closing the panel, successful ZIP
+handoff, and format changes preserve source reuse within the prepared session.
+Generated file metadata crosses first; file contents are then pulled in at most
+1 MiB character chunks from the post tab to the background and from the background
+to the collection page. Completed source chunks are released, the final ZIP is
+assembled locally on the collection page. As of November 2, generation/transfer
+failures preserve prepared metadata and completed page-side chapter files.
+This avoids the browser's 64 MiB per-message limit without changing embedded-media
+behavior.
+
+Unavailable or unsupported post pages are skipped during preflight and their count
+is shown. As of November 2, a failure after preflight no longer discards completed
+chapters: generation/transfer continues through the remaining posts, then offers
+Retry failed posts for missing files. The ZIP is withheld until every prepared
+chapter succeeds. Retry packaging reuses the completed entries after a compression
+failure. Checkpoint metadata stays in collection-page memory and generated files
+now stay on private disk as described below; they survive panel closure and
+metadata-only worker restarts, and are cleared by reload/navigation, Cancel,
+Refresh collection, switching formats, or successful ZIP handoff. Expired/missing
+prepared metadata is rebuilt from cached discovery before retry; retained entries
+are reused only when the prepared URL sequence is unchanged. This does not retry
+preflight skips. Synthetic tests cover these recovery paths; authenticated live
+recovery is not yet confirmed. The current implementation
+accepts at most 100 unique post links per collection request. As of November 1,
+collection discovery (links and locked counts) is retained in page memory for
+two hours; prepared metadata is saved in `storage.session` for two hours after
+preparation or generation. It is restored before collection requests are handled
+when the background worker wakes after suspension. Stored records contain only
+owner IDs, post URLs/titles, image origins, skipped counts, expiry, and a schema
+version; post bodies, generated files, and signed media URLs are not saved.
+Closing the panel preserves those caches without retaining a
+worker tab. Successful finalization releases all generated transfer files and
+retains only the prepared metadata for another format. Reopening or finishing a
+download checks the existing session before deciding whether preflight is needed.
+Missing/expired saved state repeats preparation using cached links when the panel
+is reopened; routine worker suspension restores metadata without preflight. Expired page
+discovery is fetched again on the next opening. Refresh collection explicitly
+discards both caches and refetches. Navigation/reload clears page state, and
+navigation/cancellation/tab closure discards the background session. Stored
+records are removed on cancellation, owner-tab closure, or expiration; browser
+session storage ends with the browser session. Post content and media are
+rendered anew for each format from the bounded source cache described above;
+they are not included in this metadata cache. Cache misses fetch them normally.
+
+Chooser errors are sent directly to the owning panel through `postMessage`,
+because the failed session cannot be relied on to relay them. The panel checks
+extension origin, current chooser window, active token, and error-message type
+before displaying the error. This path handles both initial chooser setup failure
+and a later failed click without silently swallowing the message. Existing direct
+user-gesture media permission requests remain in the packaged chooser.
+
+Synthetic cache verification covers repeat format actions, panel reopening,
+refresh, discovery expiry, lost background state, route invalidation, transferred
+data release, repeated build worker cleanup, metadata restoration after real
+Brave worker-target termination, and visible missing-session errors. Live authenticated cache behavior
+remains pending confirmation. Cached chooser reuse avoids an intermediate
+`about:blank` navigation, which caused a navigation race in repeat-download tests.
+
+**Evidence and limits:** The original October 25 post capture contains a collection
+link/card but not the collection page itself. The later October 31 screenshot and
+sanitized structure establish the collection route, main boundary, grid-card link
+suffix, direct numeric post routes, initial 20-card batch, Load more container, and
+displayed 74-post total described above. They are user-supplied rendered evidence,
+not an automated authenticated session. The supplied pagination response establishes
+the internal cursor shape but not a public compatibility contract. Chrome fixtures
+verify route scoping, two-page API traversal without clicking Load more, fallback
+expansion, URL filtering/deduplication, direct post routing, order, ZIP filenames/
+content, and cleanup.
+The unpacked-Brave test verifies real extension messaging and download using two
+already-open intercepted synthetic posts; Playwright cannot intercept navigation
+initiated by an extension-created tab, so that creation path remains a manual/live
+check. A full post export using the new cursor path remains pending user
+confirmation. The private endpoint can change without notice; Load more remains
+the compatibility fallback. Collections over 100 posts, alternate list markup,
+remote images, and current live collection ordering remain unverified. November 1
+inspection verifies live API access flags and the updated discovery filter;
+locked-page DOM variants and membership changes during generation remain unverified.
+Subsequent November 1 archive inspection additionally confirms repeated content:
+74 numbered files in each available archive contain one unique title, source,
+and post body. At the diagnostic checkpoint the worker sent export requests
+immediately after `tabs.update` and accepted success without validating the
+destination post identity. The subsequent identity guards are verified by a
+delayed-navigation background test that returns successful old-document replies
+before each destination, plus a browser test rejecting stale document requests.
+The full authenticated collection still needs live post-fix confirmation.
 
 ## Verification and change history
+
+**November 2 export retention update (intended behavior, synthetic evidence):**
+`background/retention.js` coordinates export-only cleanup services. It schedules
+one alarm for the next source/metadata/idle-job deadline, serializes maintenance
+against new collection requests, and disarms when no deadline remains. Source
+entries keep their fixed two-hour insertion expiry; cached reads do not extend it.
+Prepared metadata and idle retry files are actively swept instead of waiting for
+another export or worker restart. Expired archive GET requests now delete/reject
+the job rather than renewing expired files. Active worker tasks are allowed to
+finish; files already backing a native download are protected until completion
+or interruption. Page discovery and individual-post memory caches have expiry
+timers too. An idle collection panel receives expiry notifications and offers
+Start again, or discards its expired retry checkpoint.
+
+Closing the last accessible normal/popup browser window clears export caches and
+blocks late requests until a window opens. Browser startup clears leftover export
+data; ordinary worker suspension/restart preserves unexpired session caches.
+Maintenance never clears `storage.local` or Reader customisations. Orphan cleanup
+on worker startup remains as a fallback. This supersedes the earlier lazy-expiry
+and post-expiry archive-renewal behavior recorded below. The new alarms permission
+supports worker wakeups. Browser sleep/scheduling can delay alarm delivery, and
+crashes or forced termination can prevent shutdown deletion; on-disk leftovers
+may remain until the next startup. This is cache housekeeping, not a guaranteed
+shutdown-time secure-erasure mechanism. See Chrome's [alarm timing](https://developer.chrome.com/docs/extensions/reference/api/alarms)
+and [asynchronous shutdown limits](https://developer.chrome.com/docs/extensions/reference/api/runtime/#event-onSuspend).
+
+Evidence: mocked lifecycle events verify last-window/startup cleanup and preference
+preservation separately from worker restarts. Real worker sweeps delete expired
+source records and OPFS retry files without a follow-up export, and reject expired
+renewal. The installed Brave test advances its worker clock and fires a native
+alarm, verifies that source images, session metadata, and an unfinished disk entry
+are removed, and compares saved customisations before/after. These synthetic checks
+do not establish guaranteed cleanup during a real OS crash or forced browser quit.
+
+**November 2 detailed collection progress update (intended behavior):** The
+extension-owned panel now has separate current-post/file, counts, byte-detail,
+and elapsed-time lines. Existing final ready/success/error status text remains.
+Discovery reports found counts; preflight reports checked counts and the current
+index, adding a title when available. Download work shows the prepared post title,
+receiving or cached-source reading, formatting, compression/saving, ZIP copying,
+finalization, and browser handoff as distinct stages. Completed-post counts stay
+separate from per-stage percentages. Compression reports processed input and
+written compressed bytes, stays below 100% while flushing/committing, and reaches
+100% only after the disk entry is persisted. ZIP copy progress measures compressed
+payload bytes, excluding its small headers/directory; finalization is explicit.
+
+Elapsed time uses a monotonic clock, updates once per second and on progress/
+visibility changes, and freezes on completion, failure, cancellation, or removal.
+Retries start a new elapsed clock and attempt-specific cache/failure counters,
+while retaining completed disk-entry counts. The clock measures extension work
+through handoff, not the browser's later download duration. Timer text is outside
+the live status region. Long untrusted titles use plain text and are clamped;
+the panel scrolls within the viewport. Byte progress is throttled between updates,
+with immediate stage/file boundaries. No timing/title telemetry is added to storage.
+
+Preparation/build messages and ZIP copy/handoff messages carry an ephemeral
+attempt ID. The panel verifies that ID together with the current token/archive
+ID and active operation, ignoring old or malformed updates after cancellation,
+completion, or retry. Cache-hit flags and post titles come from existing worker
+metadata, without additional page visits. The source-cache lifetime and disk ZIP
+pipeline remain as recorded below. Evidence is synthetic: focused browser tests
+cover monotonic elapsed timing, cancellation freeze, safe title rendering, stale
+IDs, byte/percentage stages, cache/failure counts, and retry resets. Background
+tests verify correlated cache-hit titles and monotonic copy bytes. The unpacked
+Brave regression verifies real handoff with correlated progress IDs. Live
+authenticated Patreon progress remains pending confirmation.
+
+**November 2 streaming collection ZIP update (intended behavior, synthetic evidence):**
+`content/archive-stream.js` consumes one generated chapter's Blob stream, computes
+CRC-32 incrementally, compresses it, strips the zlib framing with a four-byte tail,
+and awaits bounded chunk writes to `background/archives.js`. Completed entries
+are raw-DEFLATE files in extension-origin OPFS, not retained chapter byte arrays.
+The page's retry entries contain only names, sizes, checksums, and archive IDs.
+Session storage retains the same small archive metadata with owner IDs and expiry;
+no archive/file chunks are put there. Metadata restoration preserves completed
+chapters after worker suspension. Missing or expired jobs rebuild their files from
+available source snapshots. An open checkpoint can renew existing retry metadata.
+
+The background streams each compressed file into a temporary `archive.zip`, then
+writes its small central directory. ZIP headers/CRC primitives are shared with
+post export through `shared/zip.js`; UTF-8 names, actual DEFLATE, and valid DOS
+timestamps are preserved. The writer rejects missing files, out-of-order chunks,
+and 32-bit size/offset overflow before download. ZIP64 remains unsupported; the
+finished archive must fit below 4 GiB. Temporary disk quota failures are visible
+and retain completed chapters for retry. There is no whole-archive RAM fallback.
+Source extraction and individual EPUB/Markdown rendering still hold one chapter
+in memory, so this is streaming archive construction, not fully streamed rendering.
+
+Before download, the background obtains an explicit handoff acknowledgement from
+the active collection operation, closing the Cancel race. The required offscreen
+permission provides a hidden first-party extension document that gets the OPFS
+File and creates its Blob URL without reading the whole file. The required
+downloads permission starts that ZIP and checks only its own download IDs.
+Completion/interruption revokes the URL, deletes temporary files/metadata, and
+closes the hidden document when no other archive download needs it. No download
+tab is opened or focused. Owner closure, Cancel, Refresh, and format changes
+discard unfinished archives; files already handed to the browser stay until
+completion/interruption. Expired and orphaned directories are pruned at subsequent
+worker startup. These files are separate from the reusable two-hour source cache.
+
+Evidence: Chrome/Brave fixtures use the real archive controller with a test download
+handoff; a random-data archive forbids whole-file `arrayBuffer()` reads and is
+checked with independent ZIP inflation, `unzip`, and macOS `ditto`. New cases cancel
+disk writes and packaging, verify disk-error reporting without partial downloads,
+and restore staged files across worker restart. The unpacked Brave test uses real
+OPFS, the hidden document, and browser downloads in an isolated output directory;
+it checks cleanup of both files and the hidden document. These are synthetic pages,
+not live authenticated Patreon verification or a measured cross-browser peak-RAM
+benchmark. Required APIs target current Chromium/Brave; Firefox/Safari export
+compatibility is not established.
 
 Original feature verification (1.3.9): 27 Chrome fixture tests and 28
 Brave tests, including one actual unpacked-extension test; syntax and whitespace
@@ -793,6 +1443,53 @@ Next-style chunked CSS URLs. These are implementation artifacts, not evidence
 of a stable backend API contract. Do not build runtime dependencies on captured
 chunk filenames, authentication state, signed media links, or serialized payloads.
 
+### Drift record — October 29, 2026 generated class prefixes
+
+Observation date / browser / OS / extension version / commit: October 29, 2026;
+Chrome reported by the user, exact browser version and OS not newly supplied;
+local unreleased post-export checkout based on 1.1.1; commit not established.
+
+Page type / login-access state / theme / viewport / Reader settings: text/image
+post URL; other state was not supplied and is not inferred.
+
+Component and owning surface: main post RichText body within
+`single-column-post-wrapper`; related generated classes were reported for
+`singleColumnPost`, `postContent`, and `additionalStylesPostContentWrapper`.
+
+Evidence source: user-provided sanitized console probe containing only tag names,
+classes, `data-testid`, and `data-image-container`; no text, URLs, or account data.
+
+Previous hook/structure/style -> new hook/structure/style: historical classes
+included readable `PostBodies-module__HASH__postContent` and
+`RichText-module__HASH__additionalStylesPostContentWrapper` components. The live
+probe reported `JRIMpq_postContent` and
+`_5kju5G_additionalStylesPostContentWrapper`, plus
+`JRIMpq_singleColumnPost`. Semantic suffixes and
+`data-testid="single-column-post-wrapper"` remained present. Outer-wrapper
+classes were not included in the probe and are not claimed as a live observation.
+
+Native behavior versus Reader regression: Patreon rendered the post, and the
+extension mounted Download from title/action discovery, but export failed with
+“This post does not expose a supported text body” because body discovery required
+the removed readable prefixes. Reader body targeting was affected by the same
+selector.
+
+Minimal failing reproduction and affected source/tests: a synthetic card now
+uses the supplied generated-prefix structure. It fails the former selector and
+is covered in `tests/detection.spec.js`. `patreon-dom.js` and the corresponding
+surface CSS now use confirmed semantic suffixes while retaining card scoping and
+outer-before-inner selection.
+
+Fix and reset/cleanup/out-of-scope verification: targeted and complete browser
+verification covers body discovery, Download generation, Reader typography,
+surface selection, recommendations/comments exclusion, rerenders, and route
+cleanup. No native handlers or content are changed.
+
+Live confirmation and remaining unknowns: the pre-fix live failure and structural
+difference are confirmed. Post-fix export on the affected page is pending user
+retest. Full current outer-wrapper classes, other post types, responsive variants,
+and computed styling remain unestablished.
+
 ## Captured hook inventory
 
 This is the complete `data-tag`/`data-testid` value inventory from the original
@@ -903,3 +1600,434 @@ never become fixed runtime expectations based on this inventory.
 
 No extra capture is required to use this text-and-image baseline. Extend its
 evidence when the next feature or post variation actually needs it.
+
+
+**November 3 large collection batches:** Discovery and prepared session metadata
+now accept up to 1,000 collection posts, superseding the earlier 100-post discovery
+bound recorded above. API and DOM discoveries exceeding that
+bound fail visibly rather than falling back to a potentially partial collection.
+The output writer retains its 100-chapter limit: the content controller processes
+ordered batches and automatically hands each completed part to the browser before
+starting the next. Larger collections show a numbered-parts warning in the dialog.
+Markdown/EPUB separate files produce numbered ZIPs; Single EPUB produces numbered
+books. Collections with at most 100 prepared posts keep the existing filenames.
+ZIP chapter filenames retain global collection numbering; each book has local
+chapter paths, spine, TOC and previous/next links confined to that part.
+
+The current checkpoint identifies the total collection, offset and current part.
+Retry resumes that part's failed chapters or packaging without rebuilding earlier
+handed-off parts. Choosing a different format restarts at the first chapter.
+Reports preserve earlier included rows; cancellation marks only remaining posts
+cancelled and explicitly preserves earlier handoffs. Progress includes the part
+and global chapter positions. Source cache ownership, two-hour expiry, sequential
+inactive worker, encrypted retry files and disk-backed native handoff are unchanged.
+No new DOM selector, access rule or permission is introduced.
+
+Splitting is by chapter count, not adaptive byte estimates. The existing 512 MiB
+source-cache and shared 1 GiB archive disk budgets remain enforced; image-heavy
+parts or overlapping native downloads can still exhaust temporary space and need
+manual retry after space becomes available. This does not guarantee a RAM ceiling.
+Synthetic fixtures cover 101 chapters across all three formats, ordered independent
+parts, later-part retry/cancellation, format changes and the discovery bound.
+Worker fixtures cover metadata restore at 1,000 posts and the final indexed build.
+Installed Brave regression coverage uses its smaller native-download fixture;
+no live Patreon collection of more than 100 posts was inspected in this task.
+
+
+**November 4 collection download results:** The report now tracks native download
+completion/interruption per generated archive, superseding the earlier handoff-only
+report limit above. Each numbered part is registered with its archive ID and post
+URLs before packaging, so results arriving before the PACKAGE reply are retained.
+Reports show In progress for handed-off files and update affected rows to Completed
+or Interrupted when the worker reports a native result. Missing browser history
+on worker restoration shows Status unavailable with unconfirmed rows. Per-file
+results and row statuses are included in saved text reports. Included totals count
+all handed-off posts; completed/interrupted totals are listed separately.
+
+The worker notifies only the owning tab before deleting temporary archive files.
+It reconciles native state after the download call and when restoring a pending
+archive after restart, as well as handling downloads.onChanged events. Interruption
+reasons use fixed explanations; raw browser errors, local paths and URLs are not
+forwarded. Terminal results are deduplicated. The content listener accepts only
+messages from the extension background context for IDs in the current report.
+New attempts/Refresh/navigation/expiry discard those IDs, preventing stale events
+from changing a later report. Closed dialogs retain updates while their page and
+two-hour report remain alive; no new durable report storage is introduced.
+Cancellation/retry of remaining parts preserves earlier terminal outcomes.
+
+Synthetic worker fixtures cover both terminal states, cleanup, unrelated events,
+restart/search reconciliation, missing history and private-error redaction.
+Browser fixtures cover early completion, closed/reopened reports, saved results,
+independent parts, stale sender/attempt rejection and expiry. Installed Brave
+confirms Completed after a real native EPUB download; interruption/restart cases
+are synthetic. No live Patreon markup, new selector, access rule or permission
+was established. Browser completion confirms saving, not archive validity.
+
+
+**November 4 collection chooser layout:** A supplied dark-theme screenshot showed
+an internally scrolled/clipped collection chooser, plus the final checked chapter
+and elapsed preparation time crowding the ready state. Current source used a
+136px permission frame for a multi-section chooser. The screenshot's older ZIP-only
+intro differs from the current source's book-or-ZIP copy; this is observed version
+drift, not evidence of a new Patreon selector or access boundary.
+
+The collection menu now presents three full-width actions with descriptions:
+Single EPUB, individual EPUBs in a ZIP, and individual Markdown files in a ZIP.
+ZIP badges and download icons distinguish their outputs. The existing permission
+frame is retained; a ResizeObserver reports measured content height to the owning
+panel. The panel accepts bounded integer heights only from its current frame,
+extension origin and token, then acknowledges settled layout before the chooser
+enables its buttons. The original direct user-gesture permission request remains
+in the chooser's click handler. Escape from that frame closes the idle panel and
+returns focus to the trigger. No new permissions, Patreon selectors or data reads
+are introduced.
+
+The panel has a wider desktop layout and fits narrow viewports. Preparation and
+finished progress details collapse; active progress opens them. Report totals move
+inside the expandable report, leaving a concise result on its summary. Refresh is
+a secondary footer action. Choices remain dimmed in place during generation to
+avoid repeated frame disappearance/repositioning. Initial preparation keeps the
+blank frame hidden. The outer panel remains scrollable on short viewports; this
+change removes clipping/scrolling inside the chooser, not every scrollbar in a
+long expanded download report.
+
+Synthetic layout cases load actual chooser assets and inspect light/dark desktop,
+dark narrow layout, enlarged text, message guards, keyboard download and Escape.
+Screenshots were inspected in two batches. The mechanical scan's small ZIP text
+finding was corrected from 10px to 11px. Native Brave verifies repeated real EPUB,
+EPUB-book and Markdown downloads. These checks do not establish live signed-in
+Patreon verification or an exhaustive browser/zoom/localization matrix.
+
+
+**November 4 independent UI critique (open findings):** Two isolated reviewers
+inspected sanitised fixtures, not live account markup. In a 375×667 busy collection
+panel, Cancel began below the visible scroll viewport while Close was disabled
+and Escape kept the busy panel open; scrolling or tabbing remained a workaround.
+Opening an expanded error report could similarly push Retry below the viewport.
+Both reviewers reproduced collection focus remaining on the external trigger and
+Tab reaching underlying links despite aria-modal=true. Reader's existing Tab
+containment differs. These are extension-owned UI observations, not new Patreon
+selector evidence or repaired behaviour. A measured disclosure text colour also
+falls below ordinary-text contrast in both themes. The archived critique linked
+from TESTING.md records priorities and limits. Runtime, CSP and permissions remain
+unchanged; implementation work requires a subsequent user request.
+
+
+**November 4 P1 critique remediation:** The collection tool is now explicitly a
+nonmodal labelled dialog. Opening focuses the panel; dismissal restores its
+trigger. Close/Escape can dismiss during work without cancelling; reopening uses
+the same active operation. Cancel remains the explicit stop action. A dedicated
+scrollable body leaves the action footer visible, and unavailable format choices
+compact during busy work while the permission frame remains mounted. Synthetic
+375×667 cases now verify Cancel and expanded-report Retry geometry. These changes
+supersede the two P1 observations above; they introduce no Patreon DOM selector,
+permission or cache-lifecycle change and have not yet been checked on a live page.
+
+
+**November 4 P2 critique remediation and five-fix verification:** Post choices now
+have associated descriptions for browser print/save PDF, ebook reading and editable
+text; the post frame is 144px tall to show them. Collection descriptions include
+ZIP packaging for separate files and ebook/editor use. Their button names and
+format values remain unchanged. Disclosure text uses readable light/dark muted
+colours; measured contrast is 6.20:1 and 7.97:1. Popup secondary copy is 12.5px.
+
+Both original independent reviewers marked all five approved findings resolved
+within their inspected fixtures, including the earlier P1 layout/nonmodal fixes.
+The installed extension fixture also verifies native completion while the panel
+is dismissed. This supersedes the five open critique findings' implementation
+status, not the original dated score or evidence limits. The source remains a
+Patreon-integrated extension with unchanged access, origin and cache policy; no
+new live Patreon DOM evidence or full accessibility certification is implied.
+
+
+**November 4 saved media access UI removal:** The toolbar popup now contains only
+its two preference toggles and page-connection status. The saved-origin count and
+Forget media access action, including their popup handlers/styles, are removed.
+This supersedes the November 2 popup permission-management behavior above.
+Download-triggered exact-origin permission requests, saved browser grants and
+external image fetching are retained. No grant is revoked by opening the popup.
+No Patreon markup, selector or Reader boundary changes are introduced. Syntax
+and a Node VM popup smoke check pass; browser verification is blocked by Chrome
+aborting at launch, including an elevated retry. No live Patreon check was made.
+
+
+**November 4 direct PDF generation (development implementation; browser verification pending):**
+PDF now generates bytes locally through packaged pdfmake 0.3.13 and bundled
+Roboto fonts in a disposable worker owned by the extension's offscreen document.
+The previous print iframe, native print call and temporary Patreon-title mutation
+are removed. A post downloads directly as `.pdf`; collections offer Single PDF
+and individual PDF files in a ZIP. Collection order, 100-post numbered parts,
+1,000-post discovery bounds, source-cache reuse, encrypted retry staging and
+native completion/interruption reports retain their existing contracts.
+
+Single PDF stages validated inert chapter JSON in encrypted retry files, checks
+size/CRC while inflating it, then generates a combined document with linked
+contents, chapter page breaks and page numbers. It uses bounded renderer buffers;
+it does not inherit EPUB's fully streamed assembly or promise a total RAM cap.
+PDF ZIP renders chapters sequentially. Documents use a light A4 layout with 51pt
+margins and keep creator/download-time/source metadata and embedded images.
+No new Patreon selector, access rule or permission is introduced; offscreen
+leases coordinate archive Blob URLs and active PDF workers. Cancellation stops
+its worker and rejects late file handoffs. Rendering code/fonts are local and
+library URL requests are disabled.
+
+Limits: 24 MiB serialized input per PDF, 32 MiB PDF output, 8,192 pixels per image
+side, 16 million pixels per image, 32 million raster pixels per document, and a
+120-second rendering deadline. PNG inflation is separately bounded from declared
+dimensions in a reproducible vendor patch, avoiding library-created Blob workers.
+GIF/WebP/AVIF conversion uses browser decoding and static PNG output; SVG remains
+sanitized/restricted vector content. Font coverage is the intersection of the four
+bundled Roboto faces; Latin/Greek/Cyrillic fixtures pass, while unsupported glyphs
+produce an explicit error rather than silently disappearing. Decoding support is
+browser dependent and is not established for every image format by Node tests.
+
+Evidence: real packaged-worker PDFs are parsed independently with PDF.js, and a
+rendered sample page was visually inspected. Synthetic DOM tests drive the real
+post/collection controllers through extraction, rendering, encrypted staging,
+ZIP or direct-PDF handoff, failed-post retry and 101-post parts. Tooling covers
+packaging retry, cancellation, restoration, owner validation, image embedding,
+PNG inflation limits and shared offscreen leases. These are synthetic results,
+not live Patreon or installed-extension verification. Chrome and Brave test
+launches abort in the current environment before any page assertion; native
+messaging/CSP, browser conversion and chooser layout still require browser QA.
+The collection chooser adds two existing-style choices and raises its accepted
+measured height bound from 600 to 2,048px, retaining the outer panel's scrolling
+and fixed recovery controls. No rendered browser layout pass is claimed.
+
+
+**November 4 Single Markdown collections:** The existing collection chooser now
+offers both Single Markdown (`.md`) and Markdown ZIP, alongside its two EPUB
+choices. The combined file has collection Creator/Download time/Source metadata,
+a collection title and linked contents list, ordered level-two chapter titles,
+per-post metadata and embedded inline images. Generated chapter anchors use local
+part numbering; body headings nest under their chapter. Standalone post and
+separate-file Markdown output keep their original document structure.
+
+The controller stages each generated chapter independently and requests a validated
+Markdown document mode on the existing archive job. A dedicated worker module
+streams authenticated/decompressed UTF-8 chapters into disk output, checking raw
+size and CRC. It uses text/markdown;charset=utf-8 for native delivery and shares
+existing retry, cancellation, ownership, expiry, quota and completion cleanup.
+Metadata mode/filename mismatches are rejected at creation and restoration. No
+new permission, data source or Patreon DOM selector was introduced. Prepared
+sources are reused; larger collections retain 100-chapter numbered parts.
+
+Four choices at initial doubled text can exceed the previous 600px frame limit.
+A failing synthetic case and independent review established this; the finite
+allowance is now 1,000px while the parent scroll body remains viewport bounded.
+Initial enlarged choices were rechecked at narrow and desktop sizes. Native Brave
+verifies actual combined Markdown saving, embedded images and confirmed completion.
+The explicit extension package allowlist includes the new writer. These are fixture
+and installed-extension observations, not new live Patreon evidence.
+
+
+**November 4 on-demand collection downloads:** Opening/reopening Download
+Collection now displays all four format choices without collection API discovery,
+Load more clicks, post descriptions or worker-tab visits. A format choice starts
+URL discovery and registers metadata only (`deferred` session mode); there is no
+separate all-post preflight pass. Each uncached chapter describes and exports the
+same loaded document. Completed source snapshots still support other formats and
+retries without network reads. Existing open matching tabs are reused. Refresh
+invalidates discovery/output state; rereading starts with the next format choice.
+
+Image hosts are discovered per chapter during that selected download. Existing
+browser grants proceed automatically. Missing exact HTTPS-host grants pause for
+an extension-frame Allow images and continue click while retaining the loaded
+post. The frame reads required origins from the worker session; the worker checks
+actual grants again before build. Token, frame origin/source, request ID and
+operation checks guard the exchange. Cancel/navigation resolve pending waits and
+close owned workers; dismissal/reopen retains the waiting operation. Denial stops
+the attempt rather than repeatedly requesting the same host on later chapters.
+No broad HTTPS grant, manifest permission or Patreon selector was added.
+
+Unavailable/unsupported descriptions are reported as skipped during generation,
+matching the previous preflight exclusion boundary. Persistent archive skip
+markers distinguish them from retryable missing chapters. All output modes omit
+skipped slots while preserving discovered numbering; sparse book paths/Markdown
+anchors can have gaps. Single EPUB assembly repairs previous/next links and TOC,
+manifest and spine for included chapters. Only a skipped-part EPUB's chapter XHTML
+is buffered for navigation repair; image resources remain streamed. An entirely
+skipped part produces no empty native file. Build/image/formatting failures retain
+the existing retry requirement, and skipped posts are excluded from native result
+membership.
+
+Synthetic Node regressions cover no-visit registration, same-document approval,
+denial/cancellation, cache hits, worker restart and skip-aware ZIP/EPUB/Markdown
+assembly/navigation. Updated browser fixtures cover delayed discovery, permission
+wait guards/reopen/cancel, skips, refresh, retries, batching and installed output.
+Browser execution is blocked by Chrome/Brave launch aborts (SIGABRT/EPERM), even
+with elevation. No rendered/native-permission or live Patreon confirmation is
+claimed for this change; see TESTING.md for exact commands/results.
+
+
+**November 5 export integration:** The Markdown/on-demand collection changes and
+PDF changes are combined. The chooser has six options (Single EPUB/Markdown/PDF,
+and individual EPUB/Markdown/PDF ZIPs), plus the existing per-chapter image
+permission section. Opening still performs no discovery or post visits. PDF modes
+use the deferred source pipeline and omit its persisted skipped-post slots;
+collections entirely skipped in a part do not create empty downloads. Combined
+PDFs include only supported chapters in order; ZIP numbering keeps discovered
+positions. The finite measured chooser height bound is 2,048px, superseding the
+separate four-choice 1,000px bound while preserving source/origin/token guards and
+outer scrolling. No new Patreon selectors, access permissions or cache boundaries
+are introduced. Synthetic tooling and independent integration review pass; the
+current browser launch blocker still prevents native/layout/live confirmation.
+
+
+**November 5 collection selectors:** The extension-owned collection frame now
+separates Format (EPUB, PDF, Markdown) and Packaging (Single file, Separate files
+(ZIP)) into labelled native radio groups, with one Download action. Its name and
+accessible description update for the selected pair; changing either selection
+performs no collection reads. EPUB / Single file is the initial choice. The six
+existing format values and output limits are retained. The parent message
+allowlist now includes both PDF values, fixing an integration omission which
+otherwise disabled the chooser without starting PDF generation.
+
+Changing the selected description can resize the bottom-anchored panel. The action
+uses aria-disabled until the existing bounded frame/source/origin/token layout
+acknowledgement for the current layout revision settles, preventing rapid pointer clicks from missing the moved
+button while keeping it in keyboard tab order. Native radio focus stays intact.
+Exporting disables all controls and retains the original image permission button
+and explicit user gesture. Recovery controls remain outside the scroll body.
+These observations concern synthetic extension UI, not new Patreon markup or
+access rules. Existing cache, output part, origin and membership boundaries remain.
+
+Refresh now hides an obsolete Retry action when its checkpoint has been dropped;
+a failing existing browser regression established this stale extension UI state.
+Fixture updates align completion reports, error injection, clock advancement and
+incremental refresh checks with deferred registration. They do not alter source
+fetching or cache lifetime. Native tests reuse registered synthetic post tabs and
+observe actual downloads API completion; the PDF-specific fixtures use ordinary
+chapter text instead of the shared 70,000-character unbroken Markdown stress word.
+CDP-managed Brave output names may differ from requested names; synthetic controller
+tests retain filename assertions, while installed PDF checks inspect saved bytes.
+No new live Patreon inspection or real media permission-prompt coverage is claimed.
+
+
+**November 5 collection selector wrapping follow-up:** A supplied screenshot shows
+Markdown splitting across two lines inside the equal-width format row, while the
+longer Markdown ZIP description adds a line and triggers additional outer scrolling.
+Synthetic reproduction at 1280/800px widths with 16px format text found split words;
+a 360px reproduction found a 19.5px selection-dependent frame height change.
+
+Format labels now use content-sized, wrapping flex items with unbroken names. They
+share a row when space permits and move whole controls to another row when needed.
+Shorter descriptions preserve output meaning and remove the Markdown ZIP height
+increase in all six tested combinations. The existing responsive outer scroll body
+still handles short windows and enlarged text; this does not promise a scrollbar-free
+panel at every zoom or height. Native radio controls, layout acknowledgement guards,
+download modes, permissions and recovery behavior are unchanged. This is supplied
+screenshot and synthetic layout evidence, not a new live Patreon selector capture.
+
+
+**November 5 download-driven cache workflow:** At the user's request, the manual
+Refresh Collection action and its page-side override state/branches were removed.
+Opening the chooser and changing selectors still perform no discovery. Download
+reuses valid prepared/discovery data and shared source snapshots; missing or expired
+data is fetched on that selected download. The two-hour expiry, 512 MiB source-cache
+budget, worker restart persistence, membership checks and cleanup rules are unchanged.
+New collection metadata/access/order is picked up on the next discovery after expiry,
+not eagerly while the panel is open. Backend revision/cache support is retained.
+
+The footer is hidden when Cancel, Retry and Start again are all unavailable, so
+removing Refresh leaves no empty divider or space. It reappears for active/recovery
+controls. Report/error copy no longer directs users to the removed action. The
+former manual-refresh browser cases were replaced by cache-reuse and lazy-expiry
+cases; the synthetic session fixture now models the worker's fixed two-hour metadata
+expiry. A pre-fix failing UI case and post-fix screenshots distinguish removed UI
+from preserved recovery behavior. No new Patreon selector, permission or live-page
+inspection was introduced. This supersedes earlier manual-refresh UI observations.
+
+
+**November 5 oldest-first collection downloads:** The user reports reverse reading
+order and chooses oldest-to-newest independently of the collection page's selected
+sort. Investigation found that API discovery and DOM discovery retained encounter
+order; all writers preserved those indexes rather than reversing files themselves.
+This supersedes the earlier API/display/creator-order export policy above.
+
+API discovery now requests the already observed `published_at` field alongside
+access/body/title fields, collects all validated pages, then sorts accessible posts
+by publication timestamp ascending when every accessible post has a valid date.
+Numeric post IDs break timestamp ties. If dates are incomplete/invalid, the entire
+accessible list uses numeric ID order as a deterministic oldest-first approximation;
+DOM-only discovery uses the same fallback. ID comparison uses decimal length and
+lexical comparison, avoiding floating-point precision loss for large IDs. One
+policy applies to each list, avoiding inconsistent pairwise mixed-date sorting.
+Locked posts are excluded before ordering the accessible list. Revisions stay
+associated with their URL, and reports retain the established skipped-post boundary.
+
+Sorting occurs before preparation, source reuse, file numbering and 100-post parts.
+The six writers therefore share the same sequence for ZIP entries, chapter contents,
+TOCs and navigation. Cached metadata preserves that sequence across repeat formats;
+source-cache lifetime, permissions, origin guards and membership checks are unchanged.
+No extra post visits are required for ordering, and publication dates are not added
+to persisted source payloads by this change. Missing dates cannot establish exact
+publication chronology; numeric fallback is explicitly approximate.
+
+Synthetic fixtures reproduce newest-first multi-page data with duplicates and locks,
+publication order differing from ID order, all six actual output modes, cached
+repeats, invalid/missing dates, timezone-equivalent ties, large numeric IDs and 101
+posts across parts. No new live Patreon payload or DOM layout was inspected; the
+new policy is user-directed behavior verified against sanitized fixtures.
+
+
+**November 5 larger PDF test allowance:** After a reported 75-post Single PDF hit
+the 24 MiB input guard, the user requested a higher limit for collection testing.
+Serialized PDF input is now capped at 48 MiB (previously 24), with PDF output capped
+at 40 MiB (previously 32). Input, collection aggregation and renderer errors derive
+reported limits from the shared constants. The existing runtime transport passes
+input JSON and base64 output, so these allowances leave headroom below its message
+ceiling instead of equating the 512 MiB local disk cache with renderable input/RAM.
+
+The two-minute rendering deadline, two-active-job bound, image side/pixel budgets,
+100-chapter parts, cancellation, origin policy and cache/storage cleanup are retained.
+This is a larger functional allowance, not a measured RAM ceiling. The user's
+private collection has not been fetched or validated in this task.
+
+A deterministic 75-chapter image fixture contains 33,635,356 serialized input bytes
+and generates a 21,851,024-byte, 78-page PDF. Independent PDF.js inspection confirms
+all 75 chapter bodies in order; the contents spans additional pages. Real installed
+Brave passes this same >24 MiB input through background/offscreen runtime messaging
+and returns PDF bytes, with offscreen cleanup verified. Separate transport fixtures
+accept a 33 MiB synthetic response and reject >40 MiB output; those fixtures test
+size handling, not PDF validity. New boundary tests accept >24 MiB input and reject
+49 MiB ASCII and >48 MiB UTF-8 input. No new Patreon DOM evidence is implied.
+
+
+**November 5 extended Latin PDF font correction:** The user reports U+1E2A (Ḫ)
+stopping a retained 75-post collection during PDF generation. All four previous
+Roboto faces lack this glyph (and its lowercase/combining-mark forms), so this was
+an actual font-coverage limitation rather than the larger byte budget or a false
+validator rejection. The primary PDF family is now bundled Noto Sans, with regular,
+bold, italic and bold-italic faces from an immutable upstream commit. Coverage is
+regenerated from their intersection. Unsupported characters remain explicit errors;
+source text and diacritics are preserved rather than transliterated or stripped.
+
+Roboto assets remain in the VFS for compatibility. New font inputs, OFL license,
+provenance hashes and offline regeneration are maintained in scripts/pdf-fonts;
+the runtime package adds the font data and license without remote font requests.
+This changes PDF typography only; Reader customisations and post extraction are
+unaffected. Exact accented text is independently extracted from generated PDFs
+in Node/browser fixtures and real installed Brave post/Single PDF/PDF ZIP downloads.
+The larger 75-chapter fixture also continues to render. Input/output limits, image
+budgets, membership/origin rules and cache lifecycle retain their existing contracts.
+No private post text or new live Patreon markup was captured. This supersedes the
+earlier Roboto-primary coverage statements, not the original dated observations.
+
+
+**November 5 Cuneiform PDF fallback:** A subsequent retained-collection failure
+at U+1202D (𒀭) identifies a script outside the primary Noto Sans family. Document
+text now uses per-run font selection with a bundled, hash-pinned Noto Sans
+Cuneiform face. Latin/diacritics retain their primary font and styling, while the
+single Cuneiform regular face serves all style aliases. Metadata text, contents
+entries and clickable links preserve their characters. Fallback expansion is
+bounded to 100,000 runs per PDF; unsupported characters still fail explicitly.
+SVG text keeps primary-font validation because it is not rewritten with document
+fallback. Font data stays local and the shared upstream OFL notice is packaged.
+
+Synthetic real-renderer tests, browser workers and installed Brave post/Single
+PDF/PDF ZIP downloads independently extract mixed Latin/Ḫ/𒀭 text and links. A
+rasterized sample confirms visible glyphs; the larger 75-chapter fixture also
+contains mixed-script text. These checks establish export behavior, not new live
+Patreon markup or verification of the user's private collection. Reader surfaces,
+extraction, access rules, cache lifecycle and PDF resource budgets are unchanged.

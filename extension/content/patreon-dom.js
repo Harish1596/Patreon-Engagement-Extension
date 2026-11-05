@@ -1,7 +1,9 @@
 /* Patreon-specific DOM hooks and discovery; no settings or panel state. */
 (() => {
   const TITLE = '[data-tag="post-title"]';
-  const BODY = '[class*="PostBodies-module__"][class*="__postContent"] [class*="RichText-module__"][class*="additionalStylesPostContentWrapper"]';
+  // Patreon previously included readable CSS-module names here. Current live
+  // classes retain only generated prefixes plus these semantic suffixes.
+  const BODY = '[class*="_postContent"] [class*="_additionalStylesPostContentWrapper"]';
   const CARD = '[data-tag="post-card"]';
   const EXCLUDE = '[data-tag="floating-engagement-sheet"], [data-tag="comment"], [data-tag="comments"], [data-tag="comment-row"], [data-tag="comment-actions"], [data-tag="content-card-comment-thread-container"]';
 
@@ -38,8 +40,8 @@
 
   function surfaceFor(like, scope) {
     // Prefer the outer wrapper before its shared-prefix inner column.
-    return like.closest('[class*="PostBodies-module__"][class*="__singleColumnContentWrapper"]')
-      ?? like.closest('[class*="PostBodies-module__"][class*="__singleColumnContent"]')
+    return like.closest('[class*="_singleColumnContentWrapper"]')
+      ?? like.closest('[class*="_singleColumnContent"]')
       ?? like.closest('[data-testid="single-column-post-wrapper"]') ?? like.closest(CARD) ?? scope;
   }
 

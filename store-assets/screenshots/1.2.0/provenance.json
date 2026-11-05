@@ -1,0 +1,24 @@
+{
+  "version": "1.2.0",
+  "packageSha256": "db58176679054ebca53bb2291bab42dec18298b4282cd57393f3268d61d260be",
+  "browser": "155.0.8059.80",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "source": "Actual installed release ZIP on labelled synthetic pages. No live Patreon/account content. No compositing or UI modification.",
+  "captures": [
+    {
+      "file": "01-reading-appearance.png",
+      "sha256": "a7f3b04c990155e0552c283dd2abb1dd596baf3778cff5ac8cfb4ed81f32da60"
+    },
+    {
+      "file": "02-post-downloads.png",
+      "sha256": "7f2cde113f52850240853adb841efd53cf12f300ed77b50d61a45ca99ead71f3"
+    },
+    {
+      "file": "03-collection-downloads.png",
+      "sha256": "a9733f2a0f3cba67280b584fa04660a037795156885b211be1ca3cfa0435fd5a"
+    }
+  ]
+}

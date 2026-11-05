@@ -4,21 +4,216 @@ const extensionRoot = path.resolve(__dirname, "../../extension");
 const fixture = fs.readFileSync(path.join(__dirname, "../fixtures/text-image-post.html"), "utf8").trimEnd();
 const contentScripts = JSON.parse(fs.readFileSync(path.join(extensionRoot, "manifest.json"), "utf8")).content_scripts[0];
 
-async function setup(page, { stored = {}, namespace = "chrome", content = fixture } = {}) {
+async function setup(page, { stored = {}, namespace = "chrome", content = fixture,
+  url = "https://www.patreon.com/example/posts/test-123" } = {}) {
   await page.route("https://www.patreon.com/**", (route) => route.fulfill({ contentType: "text/html", body: content }));
-  await page.goto("https://www.patreon.com/example/posts/test-123");
+  await page.route("https://fixture-extension.invalid/export/chooser.html**", (route) => route.fulfill({
+    contentType: "text/html",
+    body: fs.readFileSync(path.join(extensionRoot, "export/chooser.html"), "utf8")
+      .replace('<link rel="stylesheet" href="chooser.css" />', `<style>${fs.readFileSync(path.join(extensionRoot, "export/chooser.css"), "utf8")}</style>`)
+      .replace('<script src="chooser.js"></script>', `<script>
+      const token = location.hash.slice(1);
+      for (const button of document.querySelectorAll("button")) button.onclick = () => parent.postMessage({
+        source: "patreon-reader-export", token,
+        ...(sessionStorage.getItem("deny-export") === "1" ? { error: "Media access was not granted, so an offline export cannot be created." }
+          : { format: button.dataset.format, granted: true })
+      }, "https://www.patreon.com");
+      // Match the real chooser's asynchronous readiness after its frame/layout settles.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        for (const button of document.querySelectorAll("button")) button.disabled = false;
+      }));
+      </script>`)
+  }));
+  await page.route("https://fixture-extension.invalid/export/collection-chooser.html**", route => route.fulfill({
+    contentType: "text/html", body: fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.html"), "utf8")
+  }));
+  await page.route("https://fixture-extension.invalid/export/collection-chooser.css", route => route.fulfill({
+    contentType: "text/css", body: fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.css"), "utf8")
+  }));
+  await page.route("https://fixture-extension.invalid/export/collection-chooser.js", route => route.fulfill({
+    contentType: "text/javascript", body: `
+      window.browser = { permissions: { request: async () => true }, runtime: { sendMessage: async message => {
+        if (message.type === "GET_COLLECTION_EXPORT_REQUEST") {
+          return { origins: [] };
+        }
+        parent.postMessage({ source: "patreon-reader-collection-export", token: message.token, format: message.format }, "https://www.patreon.com");
+        return { started: true };
+      } } };
+    ` + fs.readFileSync(path.join(extensionRoot, "export/collection-chooser.js"), "utf8")
+  }));
+  await page.goto(url);
+  await require("./pdf").pdfWorkerFixture(page);
   await page.evaluate(({ stored, namespace }) => {
+    delete globalThis.browser;
+    delete globalThis.chrome;
     localStorage.setItem("test-storage", JSON.stringify(stored));
     const listeners = [];
     const messages = [];
+    const collectionSessions = new Map();
+    const session = {};
+    globalThis.collectionPrepareCount = 0;
+    globalThis.forgetCollectionSessions = () => collectionSessions.clear();
+    const deliver = async (message, sender = { id: "fixture-extension", tab: { id: 1, url: location.href } }) => {
+      for (const listener of messages) {
+        const result = await new Promise((resolve) => {
+          let responded = false;
+          const respond = (value) => { responded = true; resolve(value); };
+          const returned = listener(message, sender, respond);
+          if (returned !== true && !responded) resolve(returned);
+        });
+        if (result !== undefined) return result;
+      }
+      return undefined;
+    };
     const changes = (old, next) => {
       const result = {};
       for (const key of Object.keys(next)) if (JSON.stringify(old[key]) !== JSON.stringify(next[key])) result[key] = { oldValue: old[key], newValue: next[key] };
       for (const listener of listeners) listener(result, "local");
     };
+    globalThis.deliverExtensionMessage = deliver;
+    globalThis.deliverBackgroundMessage = message => deliver(message, { id: "fixture-extension" });
     const api = {
-      runtime: { id: "fixture-extension", onMessage: { addListener: (fn) => messages.push(fn) } },
+      runtime: {
+        id: "fixture-extension",
+        getURL: (name) => `https://fixture-extension.invalid/${name.replace(/^\//, "")}`,
+        onMessage: { addListener: (fn) => messages.push(fn) },
+        sendMessage: async (message) => {
+          if (globalThis.collectionMessageHolds?.includes(message.type)) {
+            globalThis.collectionHeldType = message.type;
+            globalThis.collectionHeldMessage = message;
+            await new Promise(resolve => { globalThis.releaseCollectionMessage = resolve; });
+            globalThis.collectionLateReplyReleased = true;
+          }
+          if (message.type === "PDF_RENDER") {
+            try {
+              const bytes = await pdfFixtureRender(message.chapters, message.book);
+              let binary = ""; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+              return { data: btoa(binary) };
+            } catch (error) { return { error: error.message }; }
+          }
+          if (message.type === "PDF_CANCEL") return { cancelled: true };
+          if (message.type.startsWith("COLLECTION_ARCHIVE_")) {
+            if (message.type === "COLLECTION_ARCHIVE_CHUNK") {
+              globalThis.archiveChunkSizes ||= [];
+              globalThis.archiveChunkSizes.push(message.data.length);
+            }
+            if (message.type === "COLLECTION_ARCHIVE_PACKAGE" && globalThis.failArchivePackaging) return { error: "Synthetic packaging failure." };
+            return deliver(message);
+          }
+          if (message.type === "REGISTER_POST_EXPORT") {
+            globalThis.requestedExportOrigins = message.origins;
+            return { registered: true };
+          }
+          if (message.type === "DELIVER_POST_EXPORT") {
+            return deliver({
+              type: "POST_EXPORT_CHOICE",
+              token: message.token,
+              ...(message.error ? { error: message.error } : { format: message.format })
+            });
+          }
+          if (message.type === "PREPARE_COLLECTION_EXPORT") {
+            globalThis.collectionPrepareRequests ||= [];
+            globalThis.collectionPrepareRequests.push(structuredClone(message));
+            globalThis.requestedCollectionUrls = message.urls;
+            globalThis.collectionPrepareCount++;
+            const titles = message.urls.map((url, index) => globalThis.collectionBuildResult?.files?.[index]?.title || ["First post", "Second post", "Third post"][index]);
+            const result = { registered: true, expires: Date.now() + 2 * 60 * 60_000, count: message.urls.length, postUrls: message.urls, postTitles: titles, skipped: 0, origins: [], ...(globalThis.collectionPreparationOverrides || {}) };
+            collectionSessions.set(message.token, result);
+            return result;
+          }
+          if (message.type === "GET_COLLECTION_EXPORT_REQUEST") {
+            const prepared = collectionSessions.get(message.token);
+            if (prepared && prepared.expires > Date.now()) return prepared;
+            collectionSessions.delete(message.token);
+            return { error: "Synthetic session expired." };
+          }
+          if (message.type === "DELIVER_COLLECTION_EXPORT") {
+            return deliver({
+              type: "COLLECTION_EXPORT_CHOICE", token: message.token,
+              ...(message.error ? { error: message.error } : { format: message.format })
+            });
+          }
+          if (message.type === "BUILD_COLLECTION_EXPORT") {
+            globalThis.collectionBuildIndices ||= [];
+            globalThis.collectionBuildIndices.push(message.index);
+            if (globalThis.collectionSkippedIndices?.includes(message.index)) return { skippedPost: {
+              url: collectionSessions.get(message.token).postUrls[message.index], reason: "No supported text body was available." } };
+            if (globalThis.collectionFailedIndices?.includes(message.index)) return { error: "Synthetic chapter failure." };
+            const result = globalThis.collectionBuildResult || {
+              files: [
+                { title: "First post", extension: "md", encoding: "text", data: `# First post\n${"x".repeat(70_000)}` },
+                { title: "Second post", extension: "md", encoding: "text", data: "# Second post" },
+                { title: "Third post", extension: "md", encoding: "text", data: "# Third post" }
+              ],
+              skipped: 0
+            };
+            if (result.error) return result;
+            const files = result.files.map((file, index) => {
+              if (message.format !== "snapshot" || file.extension === "snapshot") return file;
+              let text = file.data;
+              if (file.extension === "epub") {
+                const binary = Uint8Array.from(atob(file.data), char => char.charCodeAt(0));
+                const view = new DataView(binary.buffer);
+                for (let offset = 0; view.getUint32(offset, true) === 0x04034b50;) {
+                  const size = view.getUint32(offset + 18, true);
+                  const nameLength = view.getUint16(offset + 26, true);
+                  const start = offset + 30 + nameLength + view.getUint16(offset + 28, true);
+                  const name = new TextDecoder().decode(binary.subarray(offset + 30, offset + 30 + nameLength));
+                  if (name === "EPUB/post.xhtml") {
+                    text = new DOMParser().parseFromString(new TextDecoder().decode(binary.subarray(start, start + size)), "text/html").body.textContent;
+                    break;
+                  }
+                  offset = start + size;
+                }
+              }
+              const url = collectionSessions.get(message.token).postUrls[index] || `https://www.patreon.com/posts/${101 + index}`;
+              return { title: file.title, extension: "snapshot", encoding: "text", data: JSON.stringify({
+                version: 1, postId: new URL(url).pathname.split("/").pop(), title: file.title,
+                author: "Fixture Creator", sourceUrl: url, language: "en", assets: [],
+                body: { tag: "p", children: [text] }
+              }) };
+            });
+            globalThis.collectionTransferFiles = files;
+            globalThis.collectionChunkSizes = [];
+            return {
+              files: (message.index === undefined ? files : [files[message.index]])
+                .map(({ data, ...file }) => ({ ...file, length: data.length, cached: globalThis.collectionCachedIndices?.includes(message.index) || false })),
+              skipped: result.skipped
+            };
+          }
+          if (message.type === "GET_COLLECTION_EXPORT_CHUNK") {
+            if (globalThis.collectionFailedChunkIndices?.includes(message.index)) return { error: "Synthetic transfer failure." };
+            const file = globalThis.collectionTransferFiles?.[message.index];
+            if (!file) return { error: "Missing synthetic collection file." };
+            const data = file.data.slice(message.offset, message.offset + 1024 * 1024);
+            globalThis.collectionChunkSizes.push(data.length);
+            return { data, done: message.offset + data.length === file.data.length };
+          }
+          if (message.type === "FINISH_COLLECTION_EXPORT") {
+            globalThis.collectionTransferFiles = null;
+            return { finished: true };
+          }
+          if (message.type === "CANCEL_COLLECTION_EXPORT") {
+            collectionSessions.delete(message.token);
+            globalThis.collectionExportCancelled = true;
+            return { cancelled: true };
+          }
+          if (message.type !== "FETCH_POST_EXPORT_IMAGE") return null;
+          if (globalThis.exportImageError) return { error: globalThis.exportImageError };
+          const response = await fetch(message.url);
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          let binary = "";
+          for (const byte of bytes) binary += String.fromCharCode(byte);
+          const type = response.headers.get("content-type")?.split(";")[0] || "image/png";
+          return { dataUrl: `data:${type};base64,${btoa(binary)}`, type };
+        }
+      },
       storage: {
+        session: {
+          get: async () => structuredClone(session),
+          set: async values => Object.assign(session, structuredClone(values)),
+          remove: async keys => { for (const key of Array.isArray(keys) ? keys : [keys]) delete session[key]; }
+        },
         local: {
           get: async () => JSON.parse(localStorage.getItem("test-storage")),
           set: async (next) => {
@@ -32,7 +227,8 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
       },
       tabs: {
         query: async () => [{ id: 1 }],
-        sendMessage: async () => {
+        sendMessage: async (tabId, message) => {
+          if (message?.type?.startsWith("COLLECTION_ARCHIVE_")) return deliver(message);
           if (globalThis.failMessage) throw new Error("Receiving end does not exist");
           return globalThis.pageReply ?? { isPostPage: true };
         }
@@ -40,6 +236,16 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
     };
     globalThis.setStored = api.storage.local.set;
     globalThis.readStored = api.storage.local.get;
+    addEventListener("message", (event) => {
+      if (event.origin === "https://fixture-extension.invalid"
+        && event.data?.source === "patreon-reader-export") {
+        deliver({
+          type: event.data.source === "patreon-reader-export" ? "POST_EXPORT_CHOICE" : "COLLECTION_EXPORT_CHOICE",
+          token: event.data.token,
+          ...(event.data.error ? { error: event.data.error } : { format: event.data.format })
+        });
+      }
+    });
     window.addEventListener("storage", (event) => {
       if (event.key === "test-storage") changes(JSON.parse(event.oldValue || "{}"), JSON.parse(event.newValue || "{}"));
     });
@@ -57,12 +263,30 @@ async function setup(page, { stored = {}, namespace = "chrome", content = fixtur
         };
       };
       wrap(api.storage.local, "get"); wrap(api.storage.local, "set");
+      wrap(api.storage.session, "get"); wrap(api.storage.session, "set"); wrap(api.storage.session, "remove");
       wrap(api.tabs, "query"); wrap(api.tabs, "sendMessage");
+      wrap(api.runtime, "sendMessage");
       globalThis.chrome = api;
     }
   }, { stored, namespace });
   for (const name of contentScripts.css) await page.addStyleTag({ path: path.join(extensionRoot, name) });
   for (const name of contentScripts.js) await page.addScriptTag({ path: path.join(extensionRoot, name) });
+  await page.addScriptTag({ path: path.join(extensionRoot, "background/disk-crypto.js") });
+  await page.evaluate(() => { globalThis.PatreonDiskCrypto = PatreonExportCrypto.create(); });
+  await page.addScriptTag({ path: path.join(extensionRoot, "background/epub-book.js") });
+  await page.addScriptTag({ path: path.join(extensionRoot, "background/markdown-book.js") });
+  await page.addScriptTag({ path: path.join(extensionRoot, "background/pdf-book.js") });
+  await page.addScriptTag({ path: path.join(extensionRoot, "background/archives.js") });
+  await page.evaluate(() => {
+    globalThis.PatreonPdfRenderService = { render: pdfFixtureRender };
+    globalThis.archiveTestBackend = PatreonArchives.install({ download: async (job, file) => {
+      globalThis.collectionArchiveHandoffs ||= [];
+      globalThis.collectionArchiveHandoffs.push({ id: job.id, filename: job.filename });
+      if (globalThis.collectionEarlyCompletion) await globalThis.deliverBackgroundMessage({ type: "COLLECTION_ARCHIVE_RESULT", id: job.id, state: "complete" });
+      PatreonExporter.saveBlob(file, job.filename);
+      return { started: true };
+    } });
+  });
 }
 
 const button = (page) => page.getByRole("button", { name: "Customize reading appearance", exact: true });

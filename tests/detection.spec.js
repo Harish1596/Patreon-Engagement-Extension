@@ -24,7 +24,8 @@ for (const namespace of ["chrome", "browser"]) {
     await expect(page.locator('[data-tag="floating-engagement-sheet"]')).toBeHidden();
     await enable(page);
     await expect(button(page)).toHaveCount(1);
-    await expect(page.locator("#post .actions > :first-child")).toHaveAttribute("data-patreon-reader-button", "");
+    await expect(page.locator("#post .actions > :first-child")).toHaveAttribute("data-patreon-download-button", "");
+    await expect(page.locator("#post .actions > :nth-child(2)")).toHaveAttribute("data-patreon-reader-button", "");
     await expect(page.locator('[data-tag="post-card"] [data-patreon-reader-button]')).toHaveCount(0);
     await expect(page.locator('[data-tag="floating-engagement-sheet"] [data-patreon-reader-button]')).toHaveCount(0);
   });
@@ -43,7 +44,8 @@ test("main post-card is supported while comment actions and recommended cards ar
     .replace('</main>', '<div data-tag="content-card-comment-thread-container"><div data-tag="comment-row"><p id="nested-comment">Nested comment</p><div data-tag="comment-actions"><button data-tag="like-button">Comment like</button></div></div></div></main>');
   await setup(page, { content, stored: { readerEnabled: true, readerPreferences: { textSize: 24 } } });
   await expect(button(page)).toHaveCount(1);
-  await expect(page.locator('[data-tag="top-engagement"] > :first-child')).toHaveAttribute("data-patreon-reader-button", "");
+  await expect(page.locator('[data-tag="top-engagement"] > :first-child')).toHaveAttribute("data-patreon-download-button", "");
+  await expect(page.locator('[data-tag="top-engagement"] > :nth-child(2)')).toHaveAttribute("data-patreon-reader-button", "");
   await expect(page.locator("#post p").first()).toHaveCSS("font-size", "24px");
   await expect(page.locator("#nested-comment")).toHaveCSS("font-size", "16px");
   await expect(page.locator('[data-tag="comment-actions"] [data-patreon-reader-button]')).toHaveCount(0);
@@ -66,4 +68,28 @@ test("responsive duplicate titles do not prevent detection or style the wrong po
   await expect(page.locator(".mobile [data-patreon-reader-button]")).toBeVisible();
   await expect(page.locator('[data-tag="post-card"] > [data-patreon-reader-title]')).toHaveCount(0);
   await expect(page.locator('[data-tag="post-card"] h2[data-tag="post-title"]')).toHaveCSS("font-size", "24px");
+});
+
+test("current generated class prefixes retain body and surface discovery", async ({ page }) => {
+  const content = fixture
+    .replace("A sample post", "Generated-prefix post")
+    .replace('class="PostBodies-module__newHash__postContent"', 'class="JRIMpq_postContent"')
+    .replace('class="RichText-module__newHash__root RichText-module__newHash__additionalStylesPostContentWrapper"',
+      'class="_5kju5G_root _5kju5G_additionalStylesPostContentWrapper"')
+    .replace('<main id="post">', '<main id="post" data-tag="post-card"><div id="live-surface" class="JRIMpq_singleColumnContentWrapper"><div class="JRIMpq_singleColumnContent"><div class="JRIMpq_singleColumnPost" data-testid="single-column-post-wrapper">')
+    .replace('</main>', '</div></div></div></main>');
+  await setup(page, { content, stored: { readerEnabled: true, readerPreferences: { textSize: 23 } } });
+  await expect(page.locator("[data-patreon-download-button]")).toBeVisible();
+  await expect(page.locator("[data-patreon-reader-body]")).toHaveCSS("font-size", "23px");
+  await expect(page.locator("#live-surface")).toHaveAttribute("data-patreon-reader-surface", "");
+  expect(await page.evaluate(() => document.querySelectorAll(PatreonDOM.BODY).length)).toBe(1);
+});
+
+test("direct numeric Patreon post paths support Reader and export", async ({ page }) => {
+  await setup(page, {
+    url: "https://www.patreon.com/posts/173307122?collection=1581433",
+    stored: { readerEnabled: true }
+  });
+  await expect(page.getByRole("button", { name: "Download post", exact: true })).toBeVisible();
+  await expect(button(page)).toBeVisible();
 });
