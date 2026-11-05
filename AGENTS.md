@@ -1,30 +1,5 @@
 # Patreon page reference
 
-## Automatic worktree isolation
-
-Before editing files, installing dependencies, or running commands that generate
-files, ensure this session has its own linked Git worktree and task branch.
-Read-only investigation may happen before creating a worktree.
-
-- If this session already has an assigned linked worktree, continue there. If it
-  has a detached HEAD, create a unique task branch before making changes.
-- Otherwise, automatically create a unique linked worktree from the current
-  committed HEAD. No user confirmation is required. Prefer native managed
-  worktree tools when available; otherwise use
-  `../patreon_ext-worktrees/<unique-task-name>` outside the primary checkout.
-- Never reuse another active session's worktree or branch.
-- Perform all task edits, installs, tests, and commits in the assigned worktree.
-  Explicitly set the working directory for every command.
-- Preserve existing uncommitted changes. Do not stash, reset, clean, or copy
-  them into the new worktree automatically.
-- Report the worktree path and branch when starting implementation.
-- If worktree creation fails, report the blocker instead of modifying the
-  primary checkout.
-- Commit all task changes before reporting completion, then report the branch
-  and commit IDs.
-- Leave the worktree and branch available for review. Do not merge into the
-  primary checkout or remove worktrees unless requested.
-
 ## Commit discipline
 
 Commit every repository change made during a task before reporting the task as
