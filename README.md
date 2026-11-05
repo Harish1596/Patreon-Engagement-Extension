@@ -457,6 +457,17 @@ release unless you supply `--force`. See [release packaging](docs/release-packag
 for validation details. Tests, dependencies, docs, store assets, and Git data are
 excluded; packaging does not publish anything.
 
+## Configure community links
+
+Edit `extension/popup/links.js` and fill in `discord` and `github` with your public
+HTTPS URLs, then reload the extension. The popup shows **Join Discord** and
+**View on GitHub** below Reader Customization; both open a new tab. Empty or
+invalid values leave the corresponding button disabled.
+
+This file is committed and included directly in packaged ZIPs. No `.env` or
+configuration generation step is needed. These URLs are public and visible to
+extension users.
+
 ## Reporting Issues
 
 If the extension is not working as expected, first refresh the Patreon page and

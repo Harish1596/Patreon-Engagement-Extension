@@ -61,6 +61,21 @@ This adds tested Cuneiform coverage, not universal Unicode support. Existing PDF
 byte/image/time budgets and cache/access rules are retained. No private collection
 or new live Patreon DOM was inspected; the user's collection needs live confirmation.
 
+## November 5, 2026 — Checked-in popup link configuration
+
+Replaced environment-based generation with tracked `extension/popup/links.js`.
+Both URL fields are intentionally empty for the maintainer to fill in. Edit the
+public HTTPS URLs and reload the extension; packaging includes this file directly.
+The generation script, npm command and generation-specific tests were removed.
+Local `.env` files are untouched and are no longer read for community links.
+
+Checks: `node --test tests/tooling/package.test.cjs` passes **11 tests**, including
+an edited-config snapshot with an ignored dotenv value. `npm run check` passes
+for **90 JavaScript files**; `npm run package -- --force` validates the ZIP;
+`git diff --check` passes. Popup behavior and layout code did not change in this
+follow-up. Browser tests were not rerun; the preceding Chrome launch blocker and
+unverified rendered/new-tab behavior still apply.
+
 ## November 5, 2026 — Extended Latin PDF font coverage
 
 A reported Single PDF failed at U+1E2A (Ḫ). Inspection with fontkit confirmed that

@@ -94,3 +94,41 @@ test("popup leaves saved media grants to the download flow", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Forget media access" })).toHaveCount(0);
   expect(await page.evaluate(() => permissionCalls)).toEqual([]);
 });
+
+test("community links open configured destinations below Reader in light and dark modes", async ({ page }) => {
+  const fs = require("node:fs");
+  const html = fs.readFileSync(path.join(extensionRoot, "popup/popup.html"), "utf8")
+    .replace(/<script[^>]*><\/script>/g, "").replace('<link rel="stylesheet" href="popup.css" />', "");
+  await setup(page, { content: html });
+  await page.addStyleTag({ path: path.join(extensionRoot, "popup/popup.css") });
+  await page.evaluate(() => {
+    globalThis.PatreonLinks = {
+      discord: "https://discord.gg/example", github: "https://github.com/example/repo"
+    };
+  });
+  await page.addScriptTag({ path: path.join(extensionRoot, "popup/popup.js") });
+  const links = page.getByRole("navigation", { name: "Community and source code" });
+  for (const colorScheme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme });
+    await expect(links).toBeVisible();
+    const bounds = await links.boundingBox();
+    const readerBounds = await page.locator('label[for="reader-toggle"]').boundingBox();
+    expect(bounds.y).toBeGreaterThanOrEqual(readerBounds.y + readerBounds.height);
+    for (const [name, url] of [["Join Discord", "https://discord.gg/example"],
+      ["View on GitHub", "https://github.com/example/repo"]]) {
+      const link = page.getByRole("link", { name, exact: true });
+      await expect(link).toHaveAttribute("href", url);
+      await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      await link.focus();
+      await expect(link).toBeFocused();
+      const rect = await link.boundingBox();
+      expect(rect.x).toBeGreaterThanOrEqual(0);
+      expect(rect.x + rect.width).toBeLessThanOrEqual(320);
+      await page.context().route(url, route => route.fulfill({ body: "Synthetic destination" }));
+      const [opened] = await Promise.all([page.waitForEvent("popup"), link.press("Enter")]);
+      await opened.waitForLoadState();
+      expect(opened.url()).toBe(url);
+      await opened.close();
+    }
+  }
+});
