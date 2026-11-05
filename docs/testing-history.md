@@ -4,6 +4,19 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 5, 2026 — Reading-first manifest copy
+
+The 125-character manifest description now names font, colour and spacing
+customisation before accessible post/collection downloads in PDF, EPUB and
+Markdown. Engagement-bar hiding is omitted from the short description. Only
+metadata changed; the version remains 1.2.0 and permissions are unchanged.
+Packaging validation and the extracted-ZIP capture/Markdown smoke check passed.
+Demo capture provenance was refreshed; user-prepared final artwork is unaffected.
+`git diff --check` is clean. Full suites were not repeated for this copy edit.
+
+Current candidate SHA-256: `c328e3b5466b971483f1541cf7601598e355f632dbd3ba9f7df13d20628cbe70`.
+This supersedes the preceding local candidate checksum.
+
 ## November 5, 2026 — Final manifest description
 
 The 1.2.0 manifest description now includes accessible post and collection
