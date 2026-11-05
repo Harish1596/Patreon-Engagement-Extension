@@ -84,52 +84,19 @@ h2 {
   line-height: 1.25;
 }
 
-.tagline,
-.download-hint {
+.tagline {
   color: var(--muted);
   font-size: 12.5px;
   line-height: 1.45;
 }
 
 .tagline { margin-top: 4px; }
-.download-hint { margin-top: 8px; }
 
-.page-status {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-}
-
-#status {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  color: var(--muted);
+#preferences-error {
+  margin-top: 12px;
+  color: var(--error);
   font-size: 12.5px;
-  line-height: 1.35;
-}
-
-#status::before {
-  margin-top: 5px;
-  width: 6px;
-  height: 6px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--inactive);
-  content: "";
-}
-
-#status[data-tone="success"]::before {
-  background: var(--success);
-}
-
-#status[data-tone="visible"]::before,
-#status[data-tone="loading"]::before {
-  background: var(--accent);
-}
-
-#status[data-tone="error"]::before {
-  background: var(--error);
+  line-height: 1.45;
 }
 
 .setting {

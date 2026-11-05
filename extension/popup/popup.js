@@ -21,7 +21,7 @@ if (version) {
 }
 const toggle = document.querySelector("#hidden-toggle");
 const readerToggle = document.querySelector("#reader-toggle");
-const status = document.querySelector("#status");
+const errorMessage = document.querySelector("#preferences-error");
 let saving = false;
 let preferences = { isHidden: true, readerEnabled: false };
 
@@ -31,48 +31,20 @@ function render() {
   toggle.disabled = readerToggle.disabled = saving;
 }
 
-async function showPageStatus() {
-  let tab;
-  try {
-    [tab] = await call(api.tabs, "query", { active: true, currentWindow: true });
-    const state = tab?.id === undefined ? null
-      : await call(api.tabs, "sendMessage", tab.id, { type: "GET_STATE" });
-    if (typeof state?.isPostPage !== "boolean") throw new Error("No page response");
-    if (state.collectionDownloadMounted) {
-      status.textContent = "Collection downloads are available on this page";
-      status.dataset.tone = "success";
-    } else if (!state.isPostPage) {
-      status.textContent = "Open a Patreon post or collection to get started.";
-      status.dataset.tone = "inactive";
-    } else if (state.readerEnabled && state.readerMounted === false) {
-      status.textContent = "Reader controls not found on this post";
-      status.dataset.tone = "inactive";
-    } else {
-      status.textContent = "Preferences apply to all posts";
-      status.dataset.tone = "success";
-    }
-  } catch (_) {
-    let onPatreon = false;
-    try {
-      const url = new URL(tab?.url);
-      onPatreon = url.protocol === "https:" && (url.hostname === "patreon.com" || url.hostname.endsWith(".patreon.com"));
-    } catch (_) { /* The browser may not expose the active tab URL. */ }
-    status.textContent = onPatreon ? "Refresh this page to enable Patreon Reader."
-      : "Open a Patreon post or collection to get started.";
-    status.dataset.tone = "inactive";
-  }
+function showError(message = "") {
+  errorMessage.textContent = message;
+  errorMessage.hidden = !message;
 }
 
 async function save(key, value) {
   saving = true;
+  showError();
   render();
   try {
     await call(api.storage.local, "set", { [key]: value });
     preferences[key] = value;
-    await showPageStatus();
   } catch (_) {
-    status.textContent = "Unable to save. Please try again.";
-    status.dataset.tone = "error";
+    showError("Unable to save. Please try again.");
   } finally {
     saving = false;
     render();
@@ -92,8 +64,6 @@ toggle.disabled = readerToggle.disabled = true;
 call(api.storage.local, "get", ["isHidden", "readerEnabled"]).then((stored) => {
   preferences = { isHidden: stored.isHidden !== false, readerEnabled: stored.readerEnabled === true };
   render();
-  return showPageStatus();
 }).catch(() => {
-  status.textContent = "Unable to load preferences. Reopen to retry.";
-  status.dataset.tone = "error";
+  showError("Unable to load preferences. Reopen to retry.");
 });

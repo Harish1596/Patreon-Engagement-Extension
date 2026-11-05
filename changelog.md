@@ -29,7 +29,8 @@ This version is prepared locally; Chrome Web Store publication is not yet confir
 - Enforce PDF input/output, image and render-time limits; show explicit errors for
   unsupported characters or conversions rather than silently losing content.
 - Identify the popup as Patreon Reader with a manifest-derived version badge,
-  reading preferences, page status and Discord/GitHub community links.
+  reading preferences and Discord/GitHub community links. Show preference errors
+  only when needed, without a permanent page-status section.
 - Preserve the existing Reader customisations and engagement-bar fixes.
 
 ## 1.1.1

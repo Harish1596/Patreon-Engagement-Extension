@@ -1,6 +1,6 @@
 {
   "version": "1.2.0",
-  "packageSha256": "c328e3b5466b971483f1541cf7601598e355f632dbd3ba9f7df13d20628cbe70",
+  "packageSha256": "db58176679054ebca53bb2291bab42dec18298b4282cd57393f3268d61d260be",
   "browser": "155.0.8059.80",
   "viewport": {
     "width": 1280,
@@ -14,7 +14,7 @@
     },
     {
       "file": "02-post-downloads.png",
-      "sha256": "269e62f559663a15d74a3ba53ca6f08ce96336ea9775cc5a237111c03564f37a"
+      "sha256": "7f2cde113f52850240853adb841efd53cf12f300ed77b50d61a45ca99ead71f3"
     },
     {
       "file": "03-collection-downloads.png",

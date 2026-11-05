@@ -44,6 +44,38 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 5, 2026 — Compact popup without page status
+
+Removed the permanent Page status heading, connection/success messages and download
+hint. Popup preferences no longer query or message the active tab. A hidden
+`role="alert"` appears only when preferences fail to load or save. Failed saves
+restore the previous toggle value; a successful retry clears the alert. Load
+failures leave switches disabled and explain reopening to retry. Product identity,
+manifest version, tagline and community links remain.
+
+The callback/promise API regressions first failed against the previous Page status
+UI. Final checks passed:
+
+- `npm test -- tests/popup.spec.js tests/ui-readability.spec.js --workers=2 --output=/tmp/popup-remove-status-chrome-results`: **13 passed**.
+- `npm run test:brave -- tests/popup.spec.js tests/ui-readability.spec.js tests/installed.spec.js --workers=2 --output=/tmp/popup-remove-status-brave-results`: **14 passed**, including native storage/content-script synchronisation.
+- `npm run check`: **91 JavaScript files**; `git diff --check`: clean.
+- Package rebuild/validation and installed-ZIP screenshot/Markdown smoke checks pass.
+  The package checksum and committed demo capture provenance were refreshed.
+- Separate installed-popup checks show settled light/dark layouts at **320×370px**,
+  no horizontal overflow, failed-save feedback clearing after a successful retry,
+  no page errors and fitting 200% zoom. Theme-transition frames were excluded from
+  the final visual inspection using reduced motion. Preview/error images are under
+  `/tmp/popup-compact-*`, outside the repository. Browser plugin not available;
+  Playwright used Brave's native installed-extension support.
+
+Current local ZIP SHA-256: `db58176679054ebca53bb2291bab42dec18298b4282cd57393f3268d61d260be`.
+This supersedes earlier candidate hashes. Full browser suites were not repeated
+for this popup-only refinement; earlier full-release results remain dated above
+or below. The user's earlier live-build confirmation predates this change. Their
+separately prepared artwork is not overwritten; any final image showing the old
+popup can be refreshed to reflect this compact layout. No Patreon DOM hooks,
+export processing, permissions or cache rules changed.
+
 ## November 5, 2026 — Reading-first manifest copy
 
 The 125-character manifest description now names font, colour and spacing

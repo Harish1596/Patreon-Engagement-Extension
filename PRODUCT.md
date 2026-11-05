@@ -45,7 +45,9 @@ This is the product's mechanism and scope, not a claim of competitive uniqueness
 
 - Users visit Patreon in their own browser profile, signed in when needed.
 - The extension toolbar popup controls engagement-bar hiding and Reader
-  customisation. Reader settings are adjusted from the supported post's Aa control.
+  customisation, with an error message only if preferences fail to load or save.
+  The popup does not query the active tab. Reader settings are adjusted from the
+  supported post's Aa control.
 - A supported post offers PDF, EPUB and Markdown downloads. PDF uses a
   local, bundled renderer; all three formats are generated as downloadable files
   without a print dialog.

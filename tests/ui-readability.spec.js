@@ -48,7 +48,7 @@ test("popup supporting text is at least 12px and fits the existing narrow layout
   await page.addStyleTag({ path: path.join(extensionRoot, "popup/popup.css") });
   for (const theme of ["light", "dark"]) {
     await page.emulateMedia({ colorScheme: theme });
-    const geometry = await page.locator(".setting-description, #status").evaluateAll(nodes => nodes.map(node => ({ size: parseFloat(getComputedStyle(node).fontSize), overflows: node.scrollWidth > node.clientWidth })));
+    const geometry = await page.locator(".setting-description, .tagline").evaluateAll(nodes => nodes.map(node => ({ size: parseFloat(getComputedStyle(node).fontSize), overflows: node.scrollWidth > node.clientWidth })));
     expect(geometry.every(node => node.size >= 12 && !node.overflows)).toBe(true);
   }
 });

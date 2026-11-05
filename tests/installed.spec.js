@@ -111,8 +111,8 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await expect(reader).toBeVisible();
     await expect(second.getByRole("button", { name: "Customize reading appearance", exact: true })).toBeVisible();
     await first.bringToFront();
-    await popup.evaluate(() => showPageStatus());
-    await expect(popup.locator("#status")).toHaveText("Preferences apply to all posts");
+    await expect(popup.locator("#preferences-error")).toHaveCount(1);
+    await expect(popup.locator("#preferences-error")).toBeHidden();
     await reader.click();
     await first.getByLabel("Font family", { exact: true }).selectOption("georgia");
     await expect(first.locator("#body")).toHaveCSS("font-family", 'Georgia, "Times New Roman", serif');
