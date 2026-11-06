@@ -90,7 +90,8 @@ test('browser PDF uses cuneiform fallback in mixed text, contents and links', as
   expect(doc.metadata.info.Title).toBe('Collection𒀭');
   expect(doc.pages[0].text).toMatch(/Chapter Ḫ\s*𒀭/);
   expect(doc.pages[0].annotations.some(item => item.dest)).toBe(true);
-  for (const pattern of [/Creator\s*𒀭/, /Before\s*𒀭\s*after Ḫ/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/]) expect(doc.pages[1].text).toMatch(pattern);
+  for (const pattern of [/Before\s*𒀭\s*after Ḫ/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/]) expect(doc.pages[1].text).toMatch(pattern);
+  expect(doc.pages[1].text).not.toContain('Creator:');
   expect(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cuneiform')).toBe(true);
 });
 
@@ -118,6 +119,7 @@ test('CJK fallback loads only for needed text and preserves mixed-script PDF sty
   expect(doc.metadata.info.Title).toBe('Collection 天');
   expect(doc.pages[0].text.replace(/\s/g, '')).toContain('Chapter天Ḫ𒀭');
   expect(doc.pages[0].annotations.some(item => item.dest)).toBe(true);
-  for (const expected of ['Creator天', 'Regular天地玄黃中文简体繁體Ḫ𒀭', 'Bold天地', 'Italic天地', 'Both天地', 'Link天地']) expect(doc.pages[1].text.replace(/\s/g, '')).toContain(expected);
+  for (const expected of ['Regular天地玄黃中文简体繁體Ḫ𒀭', 'Bold天地', 'Italic天地', 'Both天地', 'Link天地']) expect(doc.pages[1].text.replace(/\s/g, '')).toContain(expected);
+  expect(doc.pages[1].text).not.toContain('Creator:');
   expect(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cjk')).toBe(true);
 });
