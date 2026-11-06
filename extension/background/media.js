@@ -86,13 +86,28 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
     } catch { return false; }
   }
 
+  function collectionUrl(value) {
+    try {
+      const url = new URL(value);
+      return url.origin === "https://www.patreon.com" && /^\/collection\/\d+\/?$/.test(url.pathname)
+        ? `${url.origin}${url.pathname.replace(/\/$/, "")}` : "";
+    } catch { return ""; }
+  }
+
+  function collectionDetails(session) {
+    return { origins: [...new Set(session.posts.flatMap(post => post.origins))],
+      count: session.posts.length, postUrls: session.posts.map(post => post.url),
+      postTitles: session.posts.map(post => post.title), skipped: session.skipped,
+      skippedPosts: session.skippedPosts || [] };
+  }
+
   async function persistCollection(token, session) {
     checkCancelled(session);
     // Session storage survives worker suspension, but is cleared with the browser
     // session. Never put post bodies, file transfers, or media URLs here.
-    const { ownerTabId, ownerWindowId, posts, skipped, skippedPosts = [], expires, deferred = false } = session;
+    const { ownerTabId, ownerWindowId, posts, skipped, skippedPosts = [], expires, deferred = false, collectionUrl = "" } = session;
     await call(api.storage.session, "set", {
-      [COLLECTION_SESSION_PREFIX + token]: { version: 1, ownerTabId, ownerWindowId, posts, skipped, skippedPosts, expires, deferred }
+      [COLLECTION_SESSION_PREFIX + token]: { version: 1, ownerTabId, ownerWindowId, posts, skipped, skippedPosts, expires, deferred, collectionUrl }
     });
     if (session.controller?.signal.aborted) await call(api.storage.session, "remove", COLLECTION_SESSION_PREFIX + token);
     checkCancelled(session);
@@ -118,7 +133,7 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
       }
       const skippedPosts = Array.isArray(value.skippedPosts) ? value.skippedPosts.filter(post => validPostUrl(post?.url)
         && typeof post.title === "string" && typeof post.reason === "string").slice(0, 1000) : [];
-      collections.set(token, { ...value, skippedPosts, workerTabId: null });
+      collections.set(token, { ...value, collectionUrl: collectionUrl(value.collectionUrl), skippedPosts, workerTabId: null });
     }
     if (expired.length) await call(api.storage.session, "remove", expired);
     await sourceCache.prune(new Set(collections.keys()));
@@ -393,6 +408,7 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
     const session = {
       ownerTabId: sender.tab.id,
       ownerWindowId: sender.tab.windowId,
+      collectionUrl: collectionUrl(sender.tab.url),
       workerTabId: null,
       posts: [],
       skipped: 0,
@@ -507,7 +523,7 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
     if (senderHost !== "www.patreon.com") {
       if (["REGISTER_POST_EXPORT", "GET_POST_EXPORT_REQUEST", "DELIVER_POST_EXPORT", "FETCH_POST_EXPORT_IMAGE",
         "REGISTER_EXPORTABLE_POST_TAB", "UNREGISTER_EXPORTABLE_POST_TAB",
-        "PREPARE_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_REQUEST", "DELIVER_COLLECTION_EXPORT",
+        "PREPARE_COLLECTION_EXPORT", "RESUME_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_REQUEST", "DELIVER_COLLECTION_EXPORT",
         "BUILD_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_CHUNK", "FINISH_COLLECTION_EXPORT",
         "CANCEL_COLLECTION_EXPORT"].includes(message.type)) {
         respond({ error: "Post export requests must come from Patreon." });
@@ -584,16 +600,20 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
       return true;
     }
 
+    if (message.type === "RESUME_COLLECTION_EXPORT") {
+      const url = collectionUrl(sender.tab.url);
+      const match = url && [...collections.entries()].filter(([, session]) =>
+        session.ownerTabId === sender.tab.id && session.ownerWindowId === sender.tab.windowId
+        && session.collectionUrl === url && session.expires > Date.now() && session.posts.length
+        && !session.preparing && !session.building && !session.controller?.signal.aborted)
+        .sort((a, b) => b[1].expires - a[1].expires)[0];
+      respond(match ? { token: match[0], ...collectionDetails(match[1]) } : {});
+      return;
+    }
+
     if (message.type === "GET_COLLECTION_EXPORT_REQUEST") {
       const session = collectionFor(message, sender);
-      respond(session ? {
-        origins: [...new Set(session.posts.flatMap(post => post.origins))],
-        count: session.posts.length,
-        postUrls: session.posts.map(post => post.url),
-        postTitles: session.posts.map(post => post.title),
-        skipped: session.skipped,
-        skippedPosts: session.skippedPosts || []
-      } : { error: "The collection export request expired. Reopen Download." });
+      respond(session ? collectionDetails(session) : { error: "The collection export request expired. Reopen Download." });
       return;
     }
 
@@ -799,7 +819,7 @@ globalThis.PatreonArchiveService = globalThis.PatreonArchives.install();
   }
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
-    if (["PREPARE_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_REQUEST", "DELIVER_COLLECTION_EXPORT",
+    if (["PREPARE_COLLECTION_EXPORT", "RESUME_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_REQUEST", "DELIVER_COLLECTION_EXPORT",
       "BUILD_COLLECTION_EXPORT", "GET_COLLECTION_EXPORT_CHUNK", "FINISH_COLLECTION_EXPORT",
       "CANCEL_COLLECTION_EXPORT"].includes(message?.type)) {
       collectionsReady.then(() => retention.wait()).then(() => {

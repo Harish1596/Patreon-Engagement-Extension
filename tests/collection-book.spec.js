@@ -66,6 +66,10 @@ test("Single EPUB contains ordered chapters, a title page, TOC, navigation and o
   expect(documents["EPUB/title.xhtml"]).toContain("Creator &amp; Co");
   expect(documents["EPUB/title.xhtml"]).toContain("Download time");
   expect(documents["EPUB/title.xhtml"]).toContain("https://www.patreon.com/collection/500");
+  for (const name of ["EPUB/chapters/001/post.xhtml", "EPUB/chapters/002/post.xhtml"]) {
+    expect(documents[name]).not.toContain('<dl class="metadata">');
+    expect(documents[name]).not.toContain("https://www.patreon.com/posts/");
+  }
   expect(documents["EPUB/chapters/002/post.xhtml"]).toContain('../001/post.xhtml');
   expect(entries.filter(entry => entry.name.endsWith(".svg")).every(entry => !entry.data.toString().includes("<script"))).toBe(true);
   await expect(frames(page).locator("#download-collection")).toBeEnabled();

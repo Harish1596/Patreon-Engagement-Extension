@@ -46,7 +46,7 @@ async function render(chapters, book) {
     return await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Renderer timed out')), 20_000);
       worker.on('error', error => { clearTimeout(timeout); reject(error); });
-      worker.on('message', result => { clearTimeout(timeout); result.error ? reject(new Error(result.error)) : resolve(result.bytes); });
+      worker.on('message', result => { clearTimeout(timeout); result.error ? reject(Object.assign(new Error(result.error), { pdfFailures: result.pdfFailures })) : resolve(result.bytes); });
       worker.postMessage({ chapters, book });
     });
   } finally { await worker.terminate(); }
@@ -127,8 +127,10 @@ test('PDF preserves extended Latin diacritics in metadata and all four text face
   const { inspectPdf } = require('../helpers/pdf');
   const doc = await inspectPdf(bytes);
   assert.equal(doc.metadata.info.Title, 'Collection Ḫ');
+  const standalone = await inspectPdf(await render([adapter().chapter(source)]));
+  assert.ok(standalone.pages[0].text.normalize('NFC').includes('Creator ḫ'));
   const text = doc.pages.map(page => page.text).join(' ').normalize('NFC');
-  for (const expected of ['Chapter Ḫ', 'Creator ḫ', 'Regular Ḫ ḫ Ṭ ṭ Ḥ ḥ Ā ā', 'Bold Ḫ', 'Italic Ḫ', 'Both Ḫ', 'Decomposed Ḫ']) assert.ok(text.includes(expected), expected + '\n' + text);
+  for (const expected of ['Chapter Ḫ', 'Regular Ḫ ḫ Ṭ ṭ Ḥ ḥ Ā ā', 'Bold Ḫ', 'Italic Ḫ', 'Both Ḫ', 'Decomposed Ḫ']) assert.ok(text.includes(expected), expected + '\n' + text);
 });
 
 test('PDF font fallback preserves mixed Latin and cuneiform in styled text, metadata, contents and links', async () => {
@@ -147,8 +149,10 @@ test('PDF font fallback preserves mixed Latin and cuneiform in styled text, meta
   assert.equal(doc.metadata.info.Title, 'Collection𒀭');
   assert.match(doc.pages[0].text, /Collection\s*𒀭/); assert.match(doc.pages[0].text, /Chapter Ḫ\s*𒀭/);
   assert.ok(doc.pages[0].annotations.some(item => item.dest), 'Mixed-font contents entry remains linked');
+  const standalone = await inspectPdf(await render([adapter().chapter(input)]));
+  assert.match(standalone.pages[0].text, /Creator\s*𒀭/);
   const text = doc.pages[1].text.normalize('NFC');
-  for (const pattern of [/Creator\s*𒀭/, /Before\s*𒀭\s*after Ḫ/, /Heading\s*𒀭/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/, /List\s*𒀭/, /Code\s*𒀭/]) assert.match(text, pattern);
+  for (const pattern of [/Before\s*𒀭\s*after Ḫ/, /Heading\s*𒀭/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/, /List\s*𒀭/, /Code\s*𒀭/]) assert.match(text, pattern);
   assert.ok(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cuneiform'));
 });
 
@@ -161,4 +165,71 @@ test('font fallback bounds alternating-script fragment expansion before layout',
 test('SVG text keeps its primary-font guard instead of silently dropping fallback-only glyphs', async () => {
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><text x="0" y="20">𒀭</text></svg>';
   await assert.rejects(render([adapter().chapter({ ...snapshot, assets: [{ dataUrl: 'data:image/svg+xml,' + encodeURIComponent(svg) }], body: { tag: 'img', image: 0 } })]), /SVG font.*U\+1202D/);
+});
+
+test('PDF preserves CJK ideographs alongside Latin and cuneiform across styles, metadata and links', async () => {
+  const input = { ...snapshot, title: 'Chapter 天 Ḫ𒀭', author: 'Creator 天', body: { tag: 'div', children: [
+    { tag: 'p', children: ['Regular 天地玄黃 中文 简体 繁體 Ḫ𒀭'] },
+    { tag: 'p', children: [{ tag: 'strong', children: ['Bold 天地'] }] },
+    { tag: 'p', children: [{ tag: 'em', children: ['Italic 天地'] }] },
+    { tag: 'p', children: [{ tag: 'strong', children: [{ tag: 'em', children: ['Both 天地'] }] }] },
+    { tag: 'p', children: [{ tag: 'a', href: 'https://example.com/cjk', children: ['Link 天地'] }] }
+  ] } };
+  const bytes = await render([adapter().chapter(input)], { title: 'Collection 天', source: 'https://www.patreon.com/collection/500', downloadedAt: 'Today' });
+  const { inspectPdf } = require('../helpers/pdf'); const doc = await inspectPdf(bytes);
+  assert.equal(doc.metadata.info.Title, 'Collection 天');
+  assert.ok(doc.pages[0].text.replace(/\s/g, '').includes('Chapter天Ḫ𒀭'));
+  assert.ok(doc.pages[0].annotations.some(item => item.dest), 'Mixed-font contents entry remains linked');
+  const standalone = await inspectPdf(await render([adapter().chapter(input)]));
+  assert.ok(standalone.pages[0].text.replace(/\s/g, '').includes('Creator天'));
+  const text = doc.pages[1].text.replace(/\s/g, '');
+  for (const expected of ['Regular天地玄黃中文简体繁體Ḫ𒀭', 'Bold天地', 'Italic天地', 'Both天地', 'Link天地']) assert.ok(text.includes(expected), expected + '\n' + text);
+  assert.ok(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cjk'));
+});
+
+test('PDF validation identifies every affected chapter without including post contents or source queries', async () => {
+  const pdf = adapter();
+  const chapters = ['Supported text', 'Private sample 😀', 'Still supported', 'Another sample א'].map((text, index) => pdf.chapter({
+    ...snapshot, title: `Chapter ${index + 1}`, sourceUrl: `https://www.patreon.com/posts/${201 + index}?secret=private`, body: { tag: 'p', children: [text] }
+  }));
+  await assert.rejects(render(chapters), error => {
+    assert.deepEqual(error.pdfFailures?.map(item => item.index), [1, 3]);
+    assert.match(error.pdfFailures[0].message, /U\+1F600/);
+    assert.match(error.pdfFailures[1].message, /U\+5D0/);
+    assert.ok(!JSON.stringify(error.pdfFailures).includes('Private sample'));
+    assert.ok(!JSON.stringify(error.pdfFailures).includes('secret='));
+    return true;
+  });
+});
+
+test('PDF failure metadata is bounded, redacted and restricted to actual chapter indices', () => {
+  const pdf = adapter();
+  const details = pdf.failureDetails([{ index: 0, message: 'Image failed https://media.example/image?secret=private\nRetry' },
+    { index: 0, message: 'Duplicate' }, { index: -1, message: 'Negative' }, { index: 1, message: 'Outside chapter list' },
+    { index: 0.5, message: 'Fraction' }, { index: 0, message: 'x'.repeat(1201) }], 1);
+  assert.equal(details.length, 1); assert.equal(details[0].index, 0);
+  assert.equal(details[0].message, 'Image failed [URL omitted] Retry');
+  assert.equal(pdf.failureDetails(Array.from({ length: 101 }, () => ({ index: 0, message: 'Too many' }))).length, 0);
+});
+
+test('rendered PDF contents use visible link color while chapter headings keep their text color', async () => {
+  const pdf = adapter();
+  const data = await render([pdf.chapter({ ...snapshot, title: 'First chapter' }), pdf.chapter({ ...snapshot, title: 'Second chapter' })],
+    { title: 'Link styling collection', source: 'https://www.patreon.com/collection/500', downloadedAt: 'Today' });
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const document = await pdfjs.getDocument({ data: new Uint8Array(data), useSystemFonts: false, isEvalSupported: false }).promise;
+  try {
+    const contents = await document.getPage(1), chapter = await document.getPage(2);
+    const colors = async page => {
+      const ops = await page.getOperatorList();
+      return ops.fnArray.flatMap((op, index) => op === pdfjs.OPS.setFillRGBColor ? ops.argsArray[index] : []);
+    };
+    assert.ok((await colors(contents)).includes('#1a0dab'), 'Contents chapter links must have visible blue styling');
+    assert.ok(!(await colors(chapter)).includes('#1a0dab'), 'Chapter text must retain its original styling');
+    const destinations = [...new Set((await contents.getAnnotations()).filter(link => link.dest).map(link => link.dest))];
+    assert.equal(destinations.length, 2);
+    const pages = [];
+    for (const destination of destinations) pages.push(await document.getPageIndex((await document.getDestination(destination))[0]));
+    assert.deepEqual(pages.sort(), [1, 2]);
+  } finally { await document.destroy(); }
 });

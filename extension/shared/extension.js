@@ -1,15 +1,27 @@
 /* Shared by the popup and the isolated content-script world. */
 (() => {
   const api = globalThis.browser?.runtime ? globalThis.browser : globalThis.chrome;
-  function call(target, method, ...args) {
-    if (globalThis.browser?.runtime) return target[method](...args);
-    return new Promise((resolve, reject) => {
-      target[method](...args, (result) => {
-        const error = api.runtime.lastError;
-        if (error) reject(new Error(error.message));
-        else resolve(result);
+  async function call(target, method, ...args) {
+    try {
+      // Invoke immediately: permissions.request must retain the caller's user gesture.
+      if (globalThis.browser?.runtime) return await target[method](...args);
+      return await new Promise((resolve, reject) => {
+        target[method](...args, (result) => {
+          try {
+            const error = api.runtime.lastError;
+            if (error) reject(new Error(error.message));
+            else resolve(result);
+          } catch (error) { reject(error); }
+        });
       });
-    });
+    } catch (error) {
+      // Old content scripts can outlive an extension update/reload. Existing
+      // callers can catch this rejection; only a page refresh reconnects them.
+      if (/extension context invalidated/i.test(error?.message || "")) {
+        throw new Error("The extension was updated or reloaded. Refresh this Patreon page and try again.");
+      }
+      throw error;
+    }
   }
   const fonts = Object.freeze({
     default: { label: "Patreon default", value: null },

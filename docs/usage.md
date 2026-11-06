@@ -1,6 +1,6 @@
 # Reading and downloads
 
-Detailed behaviour for the 1.2.0 reading and offline-download features. For
+Detailed behaviour for the 1.2.1 reading and offline-download features. For
 installation and a quick overview, start with the [README](../README.md).
 See the [privacy policy](../PRIVACY.md) for data processing and retention and
 [TESTING.md](../TESTING.md) for validation evidence and limits.
@@ -110,9 +110,14 @@ Fetching starts only when Download is pressed:
 - **Single Markdown**: downloads one editable `.md` with collection metadata,
   linked contents and ordered chapters, with embedded inline images.
 - **Single PDF**: downloads one `.pdf` with a linked contents page and each
-  accessible post starting on a new page, oldest first.
+  accessible post starting on a new page, oldest first. Contents links are blue
+  and underlined; front matter includes collection title, Download time and Source.
 - **Separate files (ZIP)** with EPUB, PDF or Markdown: downloads one numbered
   file per accessible text post inside a ZIP archive.
+
+Combined chapters omit repeated Creator, Download time and Source blocks;
+collection-level front matter remains. Separate chapter files retain their own
+metadata just like standalone post downloads.
 
 All options download posts **oldest to newest** and reuse the same cached
 sources. Complete publication dates determine reading order, independently of
@@ -125,24 +130,39 @@ be retried before the complete book or ZIP is saved; completed encrypted chapter
 are retained for retry. Switching between book and separate-file modes reuses
 source text/images but rebuilds the format-specific files.
 
-Expand **Download report** in the collection dialog to see each post's result.
-It lists ready/prepared chapters, skipped posts (including membership locks),
-failed chapters with reasons, cancellations, and posts included in a download
-that has started. **Open post** links help identify missing chapters. Where
-Patreon exposes no title or precise cause, the report uses its post URL and an
-explicitly limited explanation rather than guessing whether it is locked.
+If the extension is reloaded while a Patreon tab stays open, opening Download
+Collection checks the old script connection. An invalid connection replaces the
+chooser with a refresh message and **Refresh page** button. The page reloads only
+when that button is clicked; this loads the current extension scripts. Existing
+tabs opened before this guard was installed need an initial manual page refresh.
 
-Choose **Save report** to download `<collection> - Download Report.txt`. Reports
-are available once a selected download discovers its posts, including after
-export failures, not just successful
-downloads. A packaging failure leaves chapters marked Prepared; a successful
-retry replaces failed outcomes. “Download started” means the collection file was
-handed to the browser. Reports update to Completed or Interrupted when the browser
-confirms the outcome; missing download records are labelled Status unavailable.
-Completed confirms the browser save, not that a reader validated the file. Reports are not
-inserted into generated files and are saved only when requested. They contain post
-links/titles, status and reasons, not post bodies or media URLs; URLs in failure
-messages are omitted. The latest report stays in this page's memory for up to
+During collection preparation and packaging, the dialog shows progress details.
+When work stops, **Download report** appears at the bottom, below the format
+choices. It says **All N posts downloaded** only when the browser confirms every
+post's file completed. Otherwise it shows the completed count out of the total,
+plus nonzero failed, skipped, cancelled, saving or unconfirmed counts.
+
+Failed posts are listed with their title, reason and **Open post** link. A browser
+interruption counts the posts in that file as failed and lists them too. Skipped
+posts, including membership locks and unsupported chapters, are counted separately
+from failures. An unavailable browser download record stays unconfirmed. A
+packaging failure without an identifiable culprit does not invent failed posts.
+Successful post rows, per-file inventories and the Save report action are omitted.
+Reports are available after cancellation and export failure as well as success.
+Retry updates the summary using retained chapters where available. Completion
+confirms the browser save, not that a reader validated the file. Reports contain
+no post bodies or media URLs; URLs in failure messages are omitted. They remain
+in page memory and are not downloaded or inserted into generated files.
+
+If a combined PDF fails a per-post font check, the error identifies affected post
+numbers and titles. All detected font-failing posts are marked Failed in the
+report with their Unicode error and an Open post link, including when other posts
+were skipped. Their staged chapter data stays retained for Retry packaging. The
+short error shows up to three titles; the failed-post list shows every
+identified post. Collection-wide limits or unassignable renderer errors do not
+invent a responsible post.
+
+The latest report stays in this page's memory for up to
 two hours, survives closing/reopening the dialog, and clears on
 navigation/reload or expiry. Cancel updates it so it can be reviewed.
 New downloads replace the previous report. Saved report files remain yours.
@@ -158,19 +178,25 @@ Posts without an access flag are checked when their chapter is generated. A coll
 only locked posts shows a message without opening worker tabs.
 
 Discovered links, access flags, and download session metadata are cached for
-two hours on the current collection page. Reopening the panel, changing a selector,
+two hours for the current collection tab. Reopening the panel, changing a selector,
 or downloading another format reuses valid cached data. There is no manual Refresh
 Collection step. Collection discovery and post retrieval start only when Download
 is pressed; expired or missing data is fetched as needed by that download.
 New chapters, publication-date changes and access changes are picked up when discovery
 is fetched again after expiry. Opening the chooser does not eagerly refresh it.
 
-The download progress reports cached chapters as they are reused. Navigating away
-or reloading clears the page's discovery cache. Prepared metadata
-uses browser session storage so idle background-worker restarts do not invalidate
-the format buttons; it is removed on cancellation, owner-tab closure, or expiry,
+The download progress reports cached chapters as they are reused. Reloading clears
+the page's in-memory discovery list and report, but the next Download can reconnect
+to an idle, unexpired session for the same collection in the same tab and browser
+window. Its post list and cached chapter sources can then be reused without fresh
+discovery. Recovery alone does not extend expiry. A busy, missing, expired or
+legacy session without a collection URL binding falls back to normal discovery.
+Prepared metadata uses browser session storage so idle background-worker restarts
+do not invalidate the format buttons; it is removed on cancellation, owner-tab
+closure, or expiry,
 and browser-session storage clears when the browser session ends. Missing or
-expired sessions produce a visible panel error. Generated file bytes are
+expired sessions are rediscovered on the next download when possible. Generated
+file bytes are
 released after each download. Fetched chapter text and distinct inline images
 are cached once in extension-owned local disk storage for two hours. PDF, EPUB and
 Markdown are generated from that shared source, one chapter at a time, so another
@@ -319,11 +345,18 @@ and Cyrillic text, including bold and italic faces. A bundled Noto Sans Cuneifor
 fallback renders cuneiform signs such as U+1202D alongside Latin text, using font
 runs that retain metadata, contents and links. The Cuneiform regular face serves
 all style aliases. Document text uses fallback; SVG text keeps primary-font coverage.
+Version 1.2.1 adds a bundled Noto Sans SC regular fallback for common CJK ideographs,
+including U+5929 (天), while preserving Latin and Cuneiform text. Its local font
+asset loads only when needed; it is not downloaded from a font service. The font
+uses SC-locale glyph designs and its regular face serves all style aliases. This
+is not complete CJK, Korean or universal Unicode coverage.
 Unsupported characters (including many emoji and scripts
 outside that coverage) produce an explicit error suggesting EPUB or Markdown.
 GIF/WebP/AVIF images are converted to static PNGs when the browser can decode
 them; SVGs use the existing sanitizer and a restricted vector path. PDF files
-use a light A4 reading layout independent of Reader appearance settings.
+use a light A4 reading layout independent of Reader appearance settings. Combined
+PDF contents show chapter names as blue, underlined links to their chapter pages;
+page numbers and chapter headings retain the normal text style.
 
 Source snapshots and staged chapter data cross extension boundaries in bounded
 chunks; the background assembles disk-backed ZIP/EPUB output locally. PDF renderer messages are separate and carry bounded document data and output;

@@ -1,5 +1,11 @@
 # Local release packaging
 
+Current source version: **1.2.1**. The next generated artifact is
+`dist/patreon-reader-1.2.1.zip`. See the [1.2.1 release record](releases/1.2.1.md)
+for prepared changes, validation evidence and outstanding submission checks.
+The user confirmed 1.2.0 publication; its local ZIP and screenshots are historical
+artifacts, not packages of the current checkout.
+
 From the repository root, run `npm run package`. This uses Node.js plus the
 `zip` and `unzip` commands on PATH. It requires no new npm dependencies, makes no
 network requests, and does not publish to a store. On systems without those

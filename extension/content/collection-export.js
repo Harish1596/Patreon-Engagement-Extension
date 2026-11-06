@@ -20,6 +20,8 @@
   let permissionWait = null;
   let downloadReport = null;
   let reportTimer;
+  let contextLost = false;
+  const RELOAD_MESSAGE = "The extension was reloaded. Refresh this Patreon page to continue.";
   const cleanReportText = value => String(value || "").replace(/https?:\/\/[^\s<>"']+/gi, "[URL omitted]")
     .replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 1200);
   function reportUrl(value) {
@@ -32,10 +34,6 @@
     renderDownloadReport();
   }
   const handedOff = post => ["download-started", "completed", "interrupted", "unconfirmed"].includes(post.status);
-  function partResults() {
-    return [...(downloadReport?.parts?.values() || [])].filter(part => part.started).map(part =>
-      `${part.filename}: ${part.state === "complete" ? "Completed" : part.state === "interrupted" ? `Interrupted · ${part.reason}` : part.state === "unavailable" ? "Status unavailable · Completion could not be confirmed." : "In progress · The browser is saving the file."}`).join("\n");
-  }
   function applyPartResult(part) {
     if (!downloadReport) return;
     const status = part.state === "complete" ? "completed" : part.state === "interrupted" ? "interrupted" : part.state === "unavailable" ? "unconfirmed" : "download-started";
@@ -48,33 +46,43 @@
   function renderDownloadReport() {
     const view = shadow?.querySelector(".download-report");
     if (!view) return;
-    view.hidden = !downloadReport;
-    if (!downloadReport) return;
-    const summary = view.querySelector("summary");
+    view.hidden = contextLost || busy || !downloadReport;
+    if (view.hidden) return;
     const totals = Object.fromEntries(["ready", "prepared", "download-started", "completed", "interrupted", "unconfirmed", "skipped", "failed", "cancelled"].map(status =>
       [status, downloadReport.posts.filter(post => post.status === status).length]));
-    const result = totals.interrupted ? `${totals.interrupted} interrupted` : totals.failed ? `${totals.failed} failed`
-      : totals["download-started"] ? `${totals["download-started"]} in progress` : totals.completed ? `${totals.completed} completed`
-      : totals.skipped ? `${totals.skipped} skipped` : "";
-    summary.textContent = `Download report${result ? ` · ${result}` : ""}`;
-    view.querySelector(".report-totals").textContent = `${totals["download-started"] + totals.completed + totals.interrupted + totals.unconfirmed} included · ${totals.skipped} skipped · ${totals.failed} failed · ${totals.completed} completed · ${totals.interrupted} interrupted`;
-    view.querySelector(".report-state").textContent = downloadReport.state;
-    view.querySelector(".download-parts").textContent = partResults();
+    const labels = { ready: "Ready", prepared: "Prepared", "download-started": "Saving", completed: "Completed", interrupted: "Interrupted", unconfirmed: "Status unavailable", skipped: "Skipped", failed: "Failed", cancelled: "Cancelled" };
+    const total = downloadReport.posts.length;
+    const failed = totals.failed + totals.interrupted;
+    const allDownloaded = total > 0 && totals.completed === total;
+    const counts = [[failed, "failed"], [totals.skipped, "skipped"], [totals.cancelled, "cancelled"],
+      [totals["download-started"], "saving"], [totals.unconfirmed, "unconfirmed"]]
+      .filter(([count]) => count).map(([count, label]) => `${count} ${label}`);
+    const summary = view.querySelector(".report-totals");
+    summary.textContent = allDownloaded ? `All ${total} posts downloaded.`
+      : `${totals.completed} of ${total} posts downloaded.${counts.length ? ` ${counts.join(" · ")}.` : ""}`;
+    summary.dataset.tone = failed ? "error" : allDownloaded ? "success" : "";
+    const state = view.querySelector(".report-state");
+    state.textContent = totals.cancelled ? downloadReport.state
+      : totals["download-started"] ? "The browser is saving the file."
+      : totals.unconfirmed ? "Download completion could not be confirmed."
+      : totals.interrupted ? "The browser interrupted the download." : downloadReport.state;
+    state.hidden = allDownloaded || (totals.completed > 0 && !failed && !totals.cancelled
+      && !totals.ready && !totals.prepared && !totals["download-started"] && !totals.unconfirmed);
     const list = view.querySelector("ol"); list.replaceChildren();
-    const labels = { ready: "Ready", prepared: "Prepared", "download-started": "Download started", completed: "Completed", interrupted: "Interrupted", unconfirmed: "Status unavailable", skipped: "Skipped", failed: "Failed", cancelled: "Cancelled" };
-    for (const post of downloadReport.posts) {
+    // Only failed posts need individual rows; other outcomes stay in the summary.
+    for (const post of downloadReport.posts.filter(post => ["failed", "interrupted"].includes(post.status))) {
       const row = element("li");
       row.append(element("strong", {}, post.title || post.url || "Post"), element("p", {}, `${labels[post.status]}${post.reason ? ` · ${post.reason}` : ""}`));
       if (post.url) row.append(element("a", { href: post.url, target: "_blank", rel: "noopener noreferrer" }, "Open post"));
       list.append(row);
     }
-    view.querySelector("button").disabled = busy;
+    list.hidden = !list.childElementCount;
+    view.querySelector(".report-issues-heading").hidden = list.hidden;
   }
   function prepareDownloadReport(prepared, discovered) {
     if (downloadReport?.format) return; // Preserve the last attempt while its chooser is refreshed.
     if (!downloadReport) {
-      downloadReport = { title: cleanReportText(collectionTitle()), source: `${location.origin}${location.pathname}`,
-        createdAt: new Date().toISOString(), format: "", state: "Collection discovered. Nothing downloaded yet.", posts: [], parts: new Map() };
+      downloadReport = { format: "", state: "Collection discovered. Nothing downloaded yet.", posts: [], parts: new Map() };
       reportTimer = setTimeout(resetDownloadReport, COLLECTION_CACHE_MS);
     }
     const posts = new Map();
@@ -97,14 +105,6 @@
   }
   function reportState(state) {
     if (downloadReport) { downloadReport.state = state; renderDownloadReport(); }
-  }
-  function saveDownloadReport() {
-    if (!downloadReport || busy) return;
-    const lines = [downloadReport.title, `Source: ${downloadReport.source}`, `Report time: ${downloadReport.createdAt}`,
-      `Format: ${downloadReport.format || "Not selected"}`, `Status: ${downloadReport.state}`, partResults(), "",
-      "Download started means the file was handed to the browser, not that it finished saving.", ""];
-    for (const post of downloadReport.posts) lines.push(`${post.status.toUpperCase()}: ${post.title || post.url || "Post"}`, post.url, post.reason, "");
-    globalThis.PatreonExporter.saveBlob(new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" }), `${fileStem(downloadReport.title)} - Download Report.txt`);
   }
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const observedApiRequests = [];
@@ -231,7 +231,7 @@
         failed ||= !result?.cancelled;
       } catch { failed = true; }
     }
-    if (host !== ownerHost || !host?.isConnected || activeOperation) return;
+    if (contextLost || host !== ownerHost || !host?.isConnected || activeOperation) return;
     report(failed ? "Cancellation could not be confirmed. Close this collection tab to stop its worker."
       : "Cancelled. You can start again.", failed ? "error" : "");
     setProgress();
@@ -487,12 +487,50 @@
     throw new Error("This collection has too many pages to prepare safely.");
   }
 
+  function showRefreshRequired() {
+    contextLost = true;
+    // The old runtime cannot receive cleanup messages. Stop local work and leave
+    // browser/background teardown to own its resources; refresh is user initiated.
+    permissionWait = null;
+    activeOperation?.controller.abort();
+    finishOperation();
+    busy = false;
+    requestToken = "";
+    checkpoint = null;
+    clearDiscovery();
+    resetDownloadReport();
+    if (!shadow) return;
+    chooser.hidden = true;
+    chooser.src = "about:blank";
+    shadow.querySelector(".format-options").hidden = true;
+    shadow.querySelector(".progress-details").hidden = true;
+    for (const name of ["cancel", "restart", "retry"]) shadow.querySelector(`.${name}`).hidden = true;
+    const refresh = shadow.querySelector(".refresh-page");
+    refresh.hidden = false;
+    setProgress();
+    report(RELOAD_MESSAGE, "error");
+    if (open && shadow.activeElement) refresh.focus();
+  }
+
+  function extensionOrigin() {
+    if (contextLost) { showRefreshRequired(); return null; }
+    try {
+      if (!api.runtime.id) throw new Error("Extension context invalidated.");
+      return api.runtime.getURL("").replace(/\/$/, "");
+    } catch {
+      showRefreshRequired();
+      return null;
+    }
+  }
+
   function report(message, tone = "") {
+    if (contextLost) { message = RELOAD_MESSAGE; tone = "error"; }
     const status = shadow?.querySelector("#collection-export-status");
     if (status) { status.textContent = message; status.dataset.tone = tone; }
   }
 
   function setProgress(label = "", current, total) {
+    if (contextLost) label = "";
     const progress = shadow?.querySelector("#collection-export-progress");
     if (!progress) return;
     if (!label) {
@@ -513,13 +551,15 @@
   }
 
   function setBusy(value) {
+    if (contextLost) return;
     busy = value;
     if (chooser) {
       chooser.hidden = !requestToken || chooser.src === "about:blank";
       chooser.style.pointerEvents = value ? "none" : "";
       chooser.style.opacity = value ? ".5" : "1";
     }
-    if (!value) { const details = shadow?.querySelector(".progress-details"); if (details) details.open = false; }
+    const details = shadow?.querySelector(".progress-details");
+    if (details) { details.hidden = !value; if (!value) details.open = false; }
     const close = shadow?.querySelector(".close");
     if (close) close.disabled = false;
     const cancel = shadow?.querySelector(".cancel");
@@ -535,7 +575,7 @@
     finishOperation();
     setBusy(false);
     setProgress();
-    loadChooser();
+    if (!loadChooser()) return;
     report(message);
     if (checkpoint) showRetry();
     else shadow.querySelector(".retry").hidden = true;
@@ -543,18 +583,23 @@
 
   function showImagePermission() {
     if (!permissionWait || !open) return;
+    const origin = extensionOrigin();
+    if (!origin) return;
     chooser.hidden = false;
     chooser.style.pointerEvents = "";
     chooser.style.opacity = "1";
     shadow.querySelector(".format-options").setAttribute("aria-hidden", "false");
     shadow.querySelector(".intro").textContent = "Your download is waiting for image access.";
     chooser.contentWindow?.postMessage({ source: "patreon-reader-collection-permission", token: requestToken,
-      requestId: permissionWait.id }, api.runtime.getURL("").replace(/\/$/, ""));
+      requestId: permissionWait.id }, origin);
   }
 
   function loadChooser() {
+    const origin = extensionOrigin();
+    if (!origin) return false;
     chooser.hidden = false;
-    chooser.src = `${api.runtime.getURL("export/collection-chooser.html")}?instance=${crypto.randomUUID()}#${requestToken}`;
+    chooser.src = `${origin}/export/collection-chooser.html?instance=${crypto.randomUUID()}#${requestToken}`;
+    return true;
   }
 
   async function discardPreparation(clearCheckpoint = true) {
@@ -577,6 +622,18 @@
       clearDiscovery(); resetDownloadReport();
       await discardPreparation(true);
       checkOperation(operation);
+    }
+    // A refresh loses this document's token, not the background's disk sources.
+    // Ask only after Download, and let the background bind recovery to this tab/URL.
+    if (!discoveryCache) {
+      const restored = await waitFor(call(api.runtime, "sendMessage", { type: "RESUME_COLLECTION_EXPORT" }), signal);
+      checkOperation(operation);
+      if (restored?.error) throw new Error(restored.error);
+      if (/^[0-9a-f-]{36}$/i.test(restored?.token || "") && Number.isSafeInteger(restored.count) && restored.count > 0) {
+        requestToken = restored.token;
+        loadChooser();
+        return restored;
+      }
     }
     let discovered = discoveryCache?.discovered;
     if (!discovered) {
@@ -700,6 +757,7 @@
   }
 
   async function run(format, start = checkpoint?.offset || 0, continuation = false) {
+    if (contextLost) { showRefreshRequired(); return; }
     if (busy) return;
     if (checkpoint && checkpoint.format !== format) start = 0;
     const book = format === "epub-book";
@@ -716,8 +774,9 @@
     setBusy(true);
     setProgress(single ? `Building ${documentLabel}` : `Building ${label} files`);
     report(single ? `Building ${documentLabel}…` : `Building ${label} files…`);
+    let prepared;
     try {
-      let prepared = await waitFor(call(api.runtime, "sendMessage", {
+      prepared = await waitFor(call(api.runtime, "sendMessage", {
         type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
       }), signal);
       if (!Number.isSafeInteger(prepared?.count)) {
@@ -846,7 +905,7 @@
       // Register before PACKAGE: a small native download can finish before its
       // request reply arrives. Keep results attached to this attempt and part.
       const partResult = { urls: prepared.postUrls.slice(offset, offset + checkpoint.count).filter((url, index) => !checkpoint.entries[index].skipped),
-        filename: `${fileStem(collectionTitle())}${suffix}.${extension}`, state: "pending", started: false };
+        state: "pending", started: false };
       downloadReport?.parts.set(checkpoint.id, partResult);
       const packaged = await archive.request("PACKAGE", { id: checkpoint.id, operationId: operation.id }, signal);
       checkOperation(operation);
@@ -874,13 +933,28 @@
 
     } catch (error) {
       if (signal.aborted || activeOperation !== operation) return;
-      reportState(`Collection download failed: ${cleanReportText(error.message || "Export failed.")} Chapters marked Prepared are retained for retry.`);
-      report(error.message || "The collection could not be exported.", "error");
+      let message = error.message || "The collection could not be exported.";
+      const affected = [];
+      if (checkpoint && Array.isArray(prepared?.postUrls)) {
+        for (const issue of globalThis.PatreonPdf.failureDetails(error.pdfFailures, checkpoint.count)) {
+          const entry = checkpoint.entries[issue.index];
+          if (!entry || entry.skipped) continue;
+          const postIndex = (checkpoint.offset || 0) + issue.index, url = prepared.postUrls[postIndex];
+          const post = downloadReport?.posts.find(post => post.url === url);
+          const title = cleanReportText(entry.title || post?.title || `Post ${postIndex + 1}`);
+          if (post) post.title = title;
+          updateReportPost(url, "failed", `${issue.message} Chapter data is retained for retry.`);
+          affected.push(`Post ${postIndex + 1} — ${title.slice(0, 160)}`);
+        }
+      }
+      if (affected.length) message += ` Affected posts: ${affected.slice(0, 3).join("; ")}${affected.length > 3 ? `; and ${affected.length - 3} more` : ""}. See Download report for details.`;
+      reportState(checkpoint ? "Packaging failed. Prepared chapter data is retained for retry." : "Download failed. Try again.");
+      report(message, "error");
       setProgress();
       setBusy(false);
       finishOperation(operation);
       loadChooser();
-      if (checkpoint) { checkpoint.error = error.message; showRetry(); }
+      if (checkpoint) { checkpoint.error = message; showRetry(); }
     }
   }
 
@@ -958,14 +1032,15 @@
     restart.addEventListener("click", () => showOptions());
     const retry = element("button", { type: "button", class: "close retry", hidden: "" }, "Retry failed posts");
     retry.addEventListener("click", () => { if (checkpoint) run(checkpoint.format); });
-    const reportView = element("details", { class: "download-report", hidden: "" });
-    reportView.append(element("summary", {}, "Download report"), element("p", { class: "report-totals" }), element("p", { class: "report-state" }), element("p", { class: "download-parts", style: "white-space:pre-line" }),
-      element("ol", { "aria-label": "Post download results" }));
-    const saveReport = element("button", { type: "button", class: "close" }, "Save report");
-    saveReport.addEventListener("click", saveDownloadReport); reportView.append(saveReport);
-    style.textContent += ".download-report{margin-top:14px;border-top:1px solid #dedee3;padding-top:10px}.download-report summary{cursor:pointer;font-weight:650;font-size:13px}.download-report ol{max-height:220px;overflow:auto;padding-left:22px;margin:8px 0;font-size:12px}.download-report li{margin:10px 0;overflow-wrap:anywhere}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline}.download-report strong{font-size:12px}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}}";
+    const reportView = element("div", { class: "download-report", role: "region", "aria-label": "Download report", hidden: "" });
+    reportView.append(element("h3", {}, "Download report"), element("p", { class: "report-totals", "aria-live": "polite" }), element("p", { class: "report-state" }),
+      element("h4", { class: "report-issues-heading" }, "Failed posts"), element("ol", { class: "report-issues", "aria-label": "Failed posts" }));
+    style.textContent += `.download-report{margin-top:16px;border-top:1px solid #dedee3;padding-top:16px;overflow-wrap:anywhere}.download-report h3{margin:0 0 8px;font-size:15px;font-weight:650}.download-report h4{margin:16px 0 8px;font-size:13px;font-weight:650}.report-totals{font-size:13px;font-variant-numeric:tabular-nums;color:inherit}.download-report .report-issues{padding-left:20px;margin:8px 0;font-size:13px}.report-issues li{margin:12px 0}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline;text-underline-offset:3px}.download-report strong{font-size:13px}.download-report [hidden]{display:none!important}#collection-export-status{overflow-wrap:anywhere}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}}`;
     body.append(reportView);
-    controls.append(cancel, restart, retry);
+
+    const refresh = element("button", { type: "button", class: "close refresh-page", hidden: "" }, "Refresh page");
+    refresh.addEventListener("click", () => location.reload());
+    controls.append(cancel, restart, retry, refresh);
     dialog.append(header, body, controls);
     style.textContent += `@media(prefers-color-scheme:dark){.progress-details summary{color:#b8b8c3}}section{display:flex;flex-direction:column;overflow:hidden}header,.controls{flex:none}.collection-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.controls{border-top:1px solid #dedee3;padding-top:12px}.format-options[aria-hidden=true]{height:0;overflow:hidden;visibility:hidden}.retry{font-weight:650}@media(prefers-color-scheme:dark){.controls{border-color:#48484e}}`;
     trigger.addEventListener("click", () => {
@@ -974,6 +1049,7 @@
       dialog.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
       dialog.focus();
+      if (!extensionOrigin()) return;
       if (busy) { showImagePermission(); return; }
       showOptions();
     });
@@ -1003,8 +1079,9 @@
   }
 
   window.addEventListener("message", event => {
-    if (!open || event.origin !== api.runtime.getURL("").replace(/\/$/, "")
-      || event.source !== chooser?.contentWindow || event.data?.token !== requestToken) return;
+    if (!open || contextLost || event.source !== chooser?.contentWindow || event.data?.token !== requestToken) return;
+    const origin = extensionOrigin();
+    if (!origin || event.origin !== origin) return;
     if (event.data.source === "patreon-reader-collection-export") {
       if (!busy && ["epub", "pdf", "markdown", "epub-book", "pdf-book", "markdown-book"].includes(event.data.format)) run(event.data.format);
       return;
@@ -1043,7 +1120,7 @@
   });
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
-    if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
+    if (contextLost || sender.id !== api.runtime.id || !message || typeof message !== "object") return;
     if (message.type === "COLLECTION_MEDIA_PERMISSION") {
       if (sender.tab || !busy || !activeOperation || message.token !== requestToken
         || message.operationId !== activeOperation.id || activeOperation.controller.signal.aborted || permissionWait) {

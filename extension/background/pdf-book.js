@@ -40,7 +40,12 @@
     }
     check(job);
     await progress(included.at(-1), copied, total, 'render');
-    const bytes = await globalThis.PatreonPdfRenderService.render(chapters, job.book, job.controller.signal);
+    let bytes;
+    try { bytes = await globalThis.PatreonPdfRenderService.render(chapters, job.book, job.controller.signal); }
+    catch (error) {
+      error.pdfFailures = PatreonPdf.failureDetails(error.pdfFailures, chapters.length).map(item => ({ ...item, index: included[item.index] }));
+      throw error;
+    }
     check(job);
     for (let offset = 0; offset < bytes.length; offset += 64 * 1024) { check(job); await output(bytes.subarray(offset, offset + 64 * 1024)); }
     await progress(included.at(-1), copied, total, 'finalize');

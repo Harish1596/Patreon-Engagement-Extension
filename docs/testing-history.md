@@ -4,6 +4,53 @@ Dated verification records for the Patreon extension. These are historical
 results, not claims that every browser or live-site variant is currently verified.
 Use [TESTING.md](../TESTING.md) for current commands and the release checklist.
 
+## November 6, 2026 — CJK PDF fallback for U+5929
+
+The reported retained-collection packaging failure at U+5929 (天) reproduced in
+the real renderer before the change. Neither existing primary Noto Sans nor the
+Cuneiform fallback had that glyph. A pinned, unmodified static Noto Sans SC OTF
+now supplies supported document-text runs, retaining Latin/Cuneiform text, contents
+links, metadata and external links. The SC regular face serves every style alias;
+its glyph designs are SC-localised, not a promise of all regional typography or
+all CJK/Korean/Unicode coverage. Unsupported characters still fail explicitly and
+SVG text retains its existing primary-font guard.
+
+The 8,331,336-byte upstream font and original OFL input are hash-verified during
+rebuilds. Its generated local `vfs_cjk.js` is separate from the unchanged base VFS;
+workers load it only when structured text selects NotoSansSC. The browser regression
+observes zero CJK asset loads for a Latin/Greek/Cyrillic PDF and one for the mixed
+CJK document. No fonts are retrieved remotely, and CSP/permissions are unchanged.
+The packaged font license includes its embedded Adobe copyright notice.
+
+Validation:
+
+- `npm test -- --workers=2 --output=/tmp/pdf-cjk-chrome-results`:
+  **158 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- tests/pdf.spec.js tests/collection-pdf.spec.js tests/installed-pdf.spec.js --output=/tmp/pdf-cjk-native-final-results`:
+  **13 passed**. Actual installed post PDFs, combined collections and every PDF
+  ZIP entry independently extract 天地玄黃 alongside Latin diacritics/Cuneiform.
+- `npm run test:tooling`: **141 passed**; `npm run check`: **92 JavaScript files**.
+  The focused real-renderer suite passed **14 tests**.
+- A first sandboxed Chrome launch was blocked before app code; rerunning outside
+  that process sandbox passed. An initial installed Brave case timed out once;
+  an isolated diagnostic rerun passed every stage in 9.1 seconds and the final
+  13-test suite passed in 21.9 seconds. Diagnostic checkpoint logs were removed;
+  no production workaround was introduced for the transient timeout.
+- The 75-chapter mixed-script/image fixture passes the native runtime bridge:
+  33,635,369 input bytes and 21,885,651 PDF bytes. Independent Node extraction
+  checks all chapters across its 78 pages. Existing 48/40 MiB PDF limits remain.
+- Offline vendor regeneration reproduces all seven generated artifacts exactly.
+  A temporary package validates all **54 allowlisted files**, including the lazy
+  font asset and license, at **10,708,661 ZIP bytes**. The previous release ZIP in
+  dist was not overwritten; version metadata remains 1.2.0 until release preparation.
+- An independently rasterised mixed-script sample visibly renders the CJK glyphs
+  alongside existing scripts (`/tmp/pdf-cjk-sample.png`). `git diff --check` is clean.
+
+This is an unreleased source correction following the user's confirmation that
+1.2.0 was published. The private 75-post Patreon collection was not fetched or
+inspected. Membership/origin guards, cache lifecycle and file budgets are retained;
+the font/package-size increase is not a RAM-limit guarantee.
+
 ## November 5, 2026 — README and user guide refresh
 
 Reorganised the 1.2.0 README around reading customisation, post/collection download
@@ -2146,3 +2193,184 @@ Patreon DOM selector was introduced.
 Final local evidence: 98 tooling tests pass; 61 JavaScript files pass syntax checks;
 whitespace checks pass; Playwright collects 129 cases across 23 files. Browser
 execution remains blocked as described above, so no browser success is implied.
+
+
+## November 6, 2026 — Collection PDF failure attribution
+
+Synthetic real-renderer fixtures identify two unsupported-text posts around a
+skipped entry, preserve original post numbering, populate failed report rows with
+source links and character codes, and save those details without chapter bodies.
+Retry packaging reuses retained source data. Native Brave verifies the full
+worker/offscreen/service/archive/content message path and still renders the
+75-chapter mixed-script fixture. Initial cold-tab fixture timing was resolved by
+using the ready-source-tab setup already used by the installed-download test;
+no production timing workaround was introduced.
+
+Final results: 143 tooling tests pass; 159 Chrome tests pass and two Brave-only
+cases skip; 14 targeted Brave PDF tests pass; 92 JavaScript files pass syntax
+checks. A temporary 54-file ZIP validates at 10,709,695 bytes. No published archive
+was replaced and no version bump, merge, push or live private-page inspection is
+claimed. Detailed commands and attribution limits are in TESTING.md.
+
+
+## November 6, 2026 — Compact collection report UI
+
+The supplied screenshot showed completed progress and an expanded 75-chapter
+report competing for space. Progress now gives way to a summary above the format
+choices when work stops. Successful chapters share file outcomes; failed/skipped
+chapters retain reasons and source links; Save report retains all individual
+records. Native completion, interruption and unavailable-history states remain
+separate. Reopening, retry, cancellation and expiry keep their existing lifecycle.
+
+RED fixtures reproduced overlap at 360px and 1280px. Final Chrome: 161 pass, two
+Brave-only cases skip. Targeted Brave: 20 pass, including both installed-extension
+specs. Tooling: 143 pass. Syntax: 92 JavaScript files pass. Batched visual checks
+at 360×740/dark and 1280×900/light confirm progress/summary transitions and compact
+results (147.5px for the completed 75-post summary), with no page errors. Browser
+plugin was unavailable, so existing Playwright tooling was used. A readiness race
+in a description-only checkbox test was stabilized with the existing keyboard
+pattern; production menu behavior was unchanged. Commands, test-adjustment details
+and evidence limits are recorded in TESTING.md. No live private page was inspected
+and no store package, release version or publication was changed.
+
+
+## November 6, 2026 — Invalidated extension context in shared calls
+
+The user supplied the exact `Uncaught Error: Extension context invalidated.`
+message after reporting a collection-page stack at shared/extension.js:5. The
+promise-style branch could throw synchronously before content route-observer
+callers attached `.catch()`. Node regressions reproduced the escape; the helper
+now always returns a promise and supplies refresh-page guidance for invalidation,
+while preserving ordinary failures and immediate permission API invocation.
+
+Final validation: six focused helper tests pass, 149 total tooling tests pass,
+37 targeted Chrome tests pass, four targeted Brave tests pass (including both
+installed-extension specs), and 94 JavaScript files pass syntax checks. Synthetic
+collection mutations generate repeated synchronous invalidation errors without
+escaping existing observer rejection handlers. The native download tests verify
+normal operation, not actual extension reload/update invalidation. The triggering
+user action remains unknown; refreshing the page is still required to reconnect.
+No private page, cache lifecycle, permission, manifest version or store archive
+changed. Current commands and limitations are in TESTING.md.
+
+
+## November 6, 2026 — Make PDF chapter links recognizable
+
+The supplied screenshot shows clickable PDF contents entries rendered as ordinary
+text. Contents titles now use blue underlined styling; page numbers, chapter
+headings and destinations retain their previous behavior. A failing real-PDF
+regression passed after the style change, checking link color, distinct chapter
+destinations and body-page styling. A rasterized four-page synthetic sample also
+confirms Latin/CJK link styling. Validation: 150 tooling tests, 14 targeted Brave
+PDF tests (including installed-extension output), and syntax checks for 94
+JavaScript files pass. No live private page or universal viewer coverage is
+claimed. Existing PDF files require regeneration; this remains an unreleased
+source change without a version bump or replacement store archive.
+
+
+## November 6, 2026 — Recover collection cache sessions after page reload
+
+The user observed that refresh caused a cold download despite the two-hour disk
+cache. The page lost its token, so the next session could not address existing
+source entries. A background-only lookup now restores an unexpired session for
+the same collection, tab and window when Download is pressed. Persisted metadata
+includes the canonical collection URL, and lookup does not extend expiry. Busy,
+legacy, cancelled, expired and mismatched sessions are not attached. Existing
+source encryption, resource bounds, access rules and cleanup remain in force.
+
+Validation: 153 tooling tests pass; 163 Chrome tests pass with two Brave-only
+skips; 94 JavaScript files pass syntax checks. The installed Brave PDF scenario
+passes download → refresh → download with both chapters cached, no additional
+collection discovery and no uncaught CDP exceptions. Existing native ZIP and
+large-PDF checks still pass. This is synthetic fixture evidence, not a live
+private-page check or proof that session loss caused the earlier invalidation
+error. Concurrent unrelated book-metadata changes were committed separately as
+`5f5b23d`; the 153-test tooling suite, 94-file syntax check and installed Brave
+scenario passed again on the integrated checkout. The full Chrome result predates
+that separate commit. Detailed commands and limitations are in TESTING.md.
+
+
+## November 6, 2026 — Remove repeated metadata from combined collection chapters
+
+The supplied screenshot showed Creator, Download time and Source under each
+chapter title. Single PDF, EPUB and Markdown now omit these chapter blocks while
+keeping collection front matter and separate-file metadata. Real generated-file
+checks cover all six collection formats. Seven focused controller tests and all
+153 tooling tests pass; syntax checks pass for 94 JavaScript files. Font tests
+retain metadata coverage using standalone PDFs and combined body/contents output.
+The full browser suite has 163 launch failures and two skips; both targeted Brave
+cases also abort at launch. These are SIGABRT environment failures before page
+assertions, so no browser or live Patreon verification is claimed. Commands and
+limits are in TESTING.md. No version or store package changed.
+
+
+## November 6, 2026 — Bottom summary without a report download
+
+The user requested Download report below the format choices and removed the Save
+report action. The panel now shows a completion sentence and only failed-post
+rows, retaining reasons and source links. Browser interruptions count affected
+posts as failed, while skipped/cancelled/saving/unconfirmed outcomes stay separate.
+The full report-file generator and per-file inventory were removed. Native result
+tracking, retry, cache/session lifecycle and progress visibility are unchanged.
+
+Final validation: 164 Chrome tests pass with two Brave-only skips; 153 tooling
+tests pass; 15 targeted Brave tests pass, including both installed-extension
+specs; syntax checks pass for 94 JavaScript files. A 75-post synthetic summary
+measures 67px at 360×740/dark and 1280×900/light, without page errors. The first
+full run exposed a cancelled later-part explanation hidden by saving copy and
+two stale combined-PDF creator expectations. The cancellation summary was fixed;
+PDF assertions were aligned in separate commit `a531d24`. The final full run
+passed. No live private collection or new release archive/version is claimed.
+Commands and limits are recorded in TESTING.md. Earlier saved-report and
+above-chooser notes remain historical evidence superseded by this behavior.
+
+
+## November 6, 2026 — Recover blank collection controls after extension reload
+
+The user supplied the stale outer collection dialog with an empty format frame
+after reloading the extension while leaving Patreon open. Collection runtime URL
+calls now fail into a compact recovery message and Refresh page action. Stale
+local operations stop, old progress/report UI is hidden and late callbacks cannot
+restore normal choices. Origin/frame/token validation and user-driven navigation
+remain intact. Pages loaded before this fix need an initial manual refresh.
+
+Final evidence: 169 Chrome tests pass, three Brave-only specs skip; 153 tooling
+tests pass; 95 JavaScript files pass syntax checks. The final targeted Brave run
+passes 21 tests, including an actual extension-manager reload, recovery from the
+old page control, user-triggered new-document navigation and functioning format
+choices afterward. CDP reports no uncaught exception in that flow. Synthetic
+360×740/dark and 1280×900/light recovery panels measure 205px/213px and contain no
+blank chooser space or page errors. Screenshots remain outside the repository.
+
+Native fixture investigation found Developer mode had to be enabled in the
+disposable profile: CLI loading bypassed that requirement initially, but Brave
+disabled the unpacked extension on reload without it. Explicit DOM-ready
+navigation checking verifies the new document after the refresh click. One native
+PDF timeout in the first combined run did not reproduce independently with tracing
+or in the final run. No production PDF or cache workaround was added. This is
+synthetic/isolated-profile evidence, not a live private-page check or a universal
+stale-context fix for every extension surface. Current commands and limits are
+recorded in TESTING.md; no permission, manifest version or store archive changed.
+
+
+## November 6, 2026 — Prepare version 1.2.1
+
+Updated the manifest and required package/lockfile version fields from 1.2.0 to
+1.2.1. Source-package validation passes, as do all 11 packaging tests. No new
+release archive, browser run or publication is claimed by this metadata change.
+
+
+## November 6, 2026 — Align current documentation with 1.2.1
+
+The changelog and new 1.2.1 release record cover the PDF/font, combined metadata,
+summary, cache-reconnection and reload-recovery changes. Current README, privacy,
+usage, product, packaging and artwork guidance now match that behavior. The
+1.2.0 record acknowledges user-confirmed publication while retaining its original
+candidate evidence and unverified uploaded-checksum boundary. Historical dated
+behavior records remain distinct from current feature guidance.
+
+Local Markdown file targets and all four 1.2.1 version fields validate. The source
+package contains 54 allowlisted files and all 11 packaging tests pass after the
+policy update. This documentation-only pass did not rerun browsers or generate a
+new release ZIP, screenshot set, tag or publication. Current 1.2.1 release checks
+are listed in docs/releases/1.2.1.md and TESTING.md.

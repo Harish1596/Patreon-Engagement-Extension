@@ -3,6 +3,7 @@
 <!-- impeccable:product-schema 1 -->
 
 Product: **Patreon Reader**. Context confirmed November 4, 2026.
+Current behavior documentation aligned to version 1.2.1 on November 6, 2026.
 
 ## Platform
 
@@ -54,9 +55,13 @@ This is the product's mechanism and scope, not a claim of competitive uniqueness
 - Collection pages offer a combined PDF, EPUB or Markdown file, or a ZIP of
   separate files in any of those formats. Discovery starts when Download is
   pressed; valid sources are reused for up to two hours. Collections download
-  oldest to newest, with numbered parts for larger collections.
-- Progress, cancellation, retry and download reports support lengthy
-  collection operations and repeated downloads.
+  oldest to newest, with numbered parts for larger collections. Unexpired source
+  sessions can reconnect after page refresh in the same tab, browser window and
+  collection. An invalid extension context shows a user-controlled page refresh.
+- Progress, cancellation, retry and a compact bottom-of-panel Download report
+  support lengthy collection operations. Reports show confirmed completion counts
+  and failed-post links, with skipped/cancelled/saving/unconfirmed counts separate.
+  Reports remain in page memory; there is no report-file download.
 - Users may switch tabs while work runs. Background fetching and saving must not
   repeatedly take focus away from the tab they choose to use.
 
@@ -74,7 +79,11 @@ This is the product's mechanism and scope, not a claim of competitive uniqueness
 - Export accessible supported content only. Skip and explain locked, unavailable
   or unsupported posts; never attempt to defeat access restrictions.
 - Embed inline post images for offline use. Preserve Creator, Download time and
-  Source metadata, using post or collection titles for safe filenames.
+  Source in individual posts/separate files, using post or collection titles for
+  safe filenames. Combined documents use collection front matter and omit repeated
+  per-chapter metadata; PDF front matter includes title, Download time and Source,
+  while EPUB/Markdown also include Creator. PDF contents links are blue and
+  underlined.
 - Keep collection work bounded, reuse valid cached sources, preserve completed
   work where retry is supported, and enforce storage and content limits. Current
   limits and lifecycle details are maintained in the linked technical references.

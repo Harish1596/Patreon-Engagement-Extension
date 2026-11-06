@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Patreon Reader",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Customize Patreon reading with fonts, colors and spacing. Download accessible posts and collections as PDF, EPUB or Markdown.",
   "permissions": ["storage", "downloads", "offscreen", "alarms"],
   "optional_host_permissions": ["https://*/*"],

@@ -76,3 +76,33 @@ test('101-post combined PDFs are delivered as ordered numbered parts', async ({ 
   await expect.poll(() => downloads.length, { timeout: 60_000 }).toBe(2);
   expect(downloads.map(x => x.suggestedFilename())).toEqual(['PDF collection - Part 001 of 002.pdf', 'PDF collection - Part 002 of 002.pdf']);
 });
+
+test('combined PDF errors name all affected posts, keep their data and link report rows across skips', async ({ page }) => {
+  await fixture(page, 4);
+  await page.evaluate(() => {
+    globalThis.collectionSkippedIndices = [1];
+    collectionBuildResult.files[0].title = 'Chapter Alpha';
+    collectionBuildResult.files[0].data = 'Unsupported sample 😀';
+    collectionBuildResult.files[2].title = 'Chapter Gamma';
+    collectionBuildResult.files[2].data = 'Unsupported sample א';
+  });
+  await startCollectionDownload(chooser(page), 'Single PDF');
+  await expect(page.getByRole('button', { name: 'Retry packaging', exact: true })).toBeVisible();
+  const status = page.getByRole('status');
+  await expect(status).toContainText('Post 1'); await expect(status).toContainText('Chapter Alpha');
+  await expect(status).toContainText('Post 3'); await expect(status).toContainText('Chapter Gamma');
+  const report = page.locator('.download-report');
+  for (const [title, url, code] of [['Chapter Alpha', 'https://www.patreon.com/posts/101', 'U+1F600'], ['Chapter Gamma', 'https://www.patreon.com/posts/103', 'U+5D0']]) {
+    const row = report.locator('li').filter({ has: page.getByText(title, { exact: true }) });
+    await expect(row).toContainText('Failed'); await expect(row).toContainText(code);
+    await expect(row.getByRole('link', { name: 'Open post', exact: true })).toHaveAttribute('href', url);
+  }
+  await expect(report).toContainText('Prepared chapter data is retained for retry.');
+  await expect(report).toContainText('2 failed');
+  await expect(report.getByRole('button', { name: 'Save report' })).toHaveCount(0);
+  await expect(report).not.toContainText('Unsupported sample');
+  const builds = await page.evaluate(() => collectionBuildIndices.slice());
+  await page.getByRole('button', { name: 'Retry packaging', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Retry packaging', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => collectionBuildIndices)).toEqual(builds);
+});

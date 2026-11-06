@@ -1,5 +1,13 @@
 # Patreon post-page reference: text posts with inline images
 
+**November 6 documentation alignment:** Current package metadata is 1.2.1,
+prepared locally. The user confirmed 1.2.0 store approval/publication. Earlier
+release/hotfix labels below retain their historical checkpoint meaning. The
+November 6 notes at the end describe current collection summaries, combined
+chapter metadata, CJK fallback, cache recovery and extension-reload handling.
+No Patreon markup or integration behavior changed in this documentation pass.
+Current release state is in [1.2.1 notes](releases/1.2.1.md).
+
 **November 5 release preparation:** The current package candidate is 1.2.0.
 The dated observations and earlier unreleased/hotfix labels below describe their
 original checkpoints. Post and collection exports are included in this candidate;
@@ -2031,3 +2039,125 @@ rasterized sample confirms visible glyphs; the larger 75-chapter fixture also
 contains mixed-script text. These checks establish export behavior, not new live
 Patreon markup or verification of the user's private collection. Reader surfaces,
 extraction, access rules, cache lifecycle and PDF resource budgets are unchanged.
+
+
+**November 6 CJK PDF fallback:** The user reports a retained collection failing
+on U+5929 (天). A synthetic real-renderer regression reproduces the missing glyph
+in both existing font families. A pinned Noto Sans SC static OTF now supplies
+supported CJK document text, with a separate local VFS loaded only for documents
+that select it. Latin/Cuneiform coverage and styling retain their prior fonts;
+the single CJK regular face serves all style aliases and uses SC-locale designs.
+This is not universal CJK, Korean or regional Japanese typography support. SVG
+text keeps primary-font validation because document fallback does not rewrite it.
+The font and original license are hash-pinned; the packaged license also retains
+the font's copyright notice. No remote font request, CSP relaxation or permission
+change is involved. Font data increases package size, not the 512 MiB source-cache
+allowance or PDF input/output limits.
+
+Node, browser and installed-Brave fixtures extract CJK/Latin/Cuneiform content
+from post, Single PDF and PDF ZIP downloads, including metadata and linked contents.
+A larger 75-chapter image fixture includes 天 and passes the real runtime bridge;
+a visual raster confirms the glyph shape. No live Patreon page or private post
+body was inspected. This is an unreleased export-boundary update; page selectors,
+Reader surfaces, access rules and cache retention are unchanged.
+
+
+**November 6 PDF error attribution:** Collection exports preserve validated
+chapter-index/error pairs through the local renderer and archive bridge. Font
+preflight identifies every affected chapter in the current part, including correct
+indices across skipped entries; the UI resolves titles and source links from its
+existing report context. The summary lists up to three titles and the report lists
+all identified failures. Global size/layout failures remain unattributed when a
+specific chapter cannot be established. Prepared chapter data remains retryable.
+Synthetic and installed-Brave fixtures verify these boundaries, not live Patreon
+markup. No selectors, Reader surfaces, access rules or cache lifecycle changed.
+
+
+**November 6 collection-report presentation:** The supplied screenshot shows
+completed progress details alongside a long expanded report repeating successful
+chapter rows. The local collection panel now shows progress details only while
+busy, then an always-visible summary above the format choices. Counts omit zero
+statuses except included; file rows carry native completion/interruption states;
+only failed/skipped chapters get individual rows and source links. Saved reports
+retain every chapter and its reason. The report has no disclosure or nested list
+scrollbar. Retry, cancellation, membership access, temporary caches and page
+selectors are unchanged. Synthetic 75-post and installed-extension checks are
+separate from the user's screenshot; no new live Patreon markup was inspected.
+
+
+**November 6 stale-extension-context handling:** The user supplied an
+`Uncaught Error: Extension context invalidated.` stack at the shared API helper's
+promise-style browser branch. That branch could throw before route-observer
+callers attached their rejection handlers. The helper now always returns a
+promise, catches synchronous API exceptions and reads Chrome lastError inside
+its callback, translating invalidation to refresh-page guidance. Permission API
+invocation remains synchronous to preserve user activation. Synthetic collection
+mutation tests establish that this reported call path no longer escapes existing
+handlers; they do not establish recovery of every stale-script entry point. A
+page refresh is still required to reconnect after an extension reload/update.
+No new Patreon markup, selectors, access rules or cache behavior is established.
+
+
+**November 6 PDF contents-link affordance:** The supplied PDF screenshot shows
+working chapter destinations styled as ordinary text. Combined PDF contents now
+use blue, underlined chapter names, matching the EPUB's underlined link affordance;
+page numbers and chapter headings keep normal text styling. A rendered synthetic
+PDF confirms the treatment for Latin and CJK titles, with existing destinations
+preserved. This is an export-style boundary, not new Patreon DOM evidence; page
+selectors, Reader styling, access and caches are unchanged.
+
+
+**November 6 combined collection chapter metadata:** The supplied download
+screenshot shows Creator, Download time and Source repeated below a chapter
+title. Combined Single PDF, Single EPUB and Single Markdown now omit those
+visible per-chapter blocks. Collection-level front matter is retained, as are
+chapter titles, body content, images, ordering and navigation. Standalone posts
+and separate files in collection ZIPs retain their metadata. This supersedes
+the earlier combined-document per-post metadata descriptions above. No Patreon
+markup, selector, Reader boundary or access rule changes. Synthetic export
+verification and browser-launch limits are recorded in TESTING.md; no live
+Patreon verification of this change is claimed.
+
+
+**November 6 collection session recovery after refresh:** Previously a page
+refresh lost its request token while disk sources remained keyed to that token.
+The next Download now asks the background for an idle, unexpired session bound to
+the same tab, browser window and canonical numeric collection URL. The URL strips
+query/fragment and is persisted with existing session metadata; recovery survives
+worker restart and does not extend expiry by itself. Legacy metadata without the
+binding, busy sessions and mismatched owners/collections are not attached. Opening
+the menu stays local. Page reports and generated-file retry UI are not restored;
+the selected output is built afresh from valid source entries. Existing access,
+expiry, cancellation and browser-close cleanup rules remain. Native synthetic
+PDF download → refresh → download confirms cached sources and no rediscovery or
+uncaught exception in that flow; this does not establish the root cause of the
+user's earlier context-invalidation error or new live Patreon DOM behavior.
+
+
+**November 6 minimal bottom download report:** The user supplied a screenshot
+and requested the report below the format choices, without Save report or a file
+inventory. The result is now a single completion summary with a failed-post list.
+Browser-confirmed completion is required for all-post success; interruptions count
+as failed posts, while skipped/cancelled/saving/unconfirmed outcomes remain
+separate. Only failed/interrupted posts receive title, reason and source-link
+rows. Page-memory report expiry and cache/session recovery are unchanged. This
+supersedes the earlier above-chooser and saved-report presentation. No Patreon
+markup, selector, Reader or access change is involved; verification uses synthetic
+and installed-extension fixtures rather than a new live private-page capture.
+
+
+**November 6 collection recovery after extension reload:** The supplied screenshot
+shows the old page-owned dialog with an empty extension-owned format iframe after
+reloading the extension without refreshing Patreon. The panel now checks runtime
+identity/URL availability before opening and before direct URL use in frame and
+permission handling. Context loss hides the chooser and stale report/progress,
+stops local work, and offers a user-initiated Refresh page action. Recovery is
+latched for that old script; late callbacks cannot overwrite its guidance or
+restart work. Existing frame-source, origin and token validation is preserved.
+A real isolated Brave extension reload confirms the old control reaches recovery,
+no automatic page navigation occurs, and clicking Refresh page creates a new
+document at the same URL/query with working format controls. Synthetic cases also
+cover a missing runtime ID and throwing URL API, including a late chooser resize.
+This is extension-UI lifecycle evidence, not new Patreon markup or a claim about
+all stale-runtime entry points elsewhere in the extension. No access, permission,
+cache/session retention or native download-state rules changed.

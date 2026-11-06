@@ -62,10 +62,21 @@ for (const mode of ['pdf', 'pdf-book']) test(`real collection controller downloa
   if (mode === 'pdf') {
     const entries = readZip(Buffer.from(h.output[0].bytes));
     assert.deepEqual(entries.map(x => x.name), ['001 - Post 1.pdf', '002 - Post 2.pdf']);
-    for (const entry of entries) assert.ok((await inspectPdf(entry.data)).pages[0].text.includes('Body'));
+    for (const entry of entries) {
+      const text = (await inspectPdf(entry.data)).pages[0].text;
+      assert.ok(text.includes('Body'));
+      for (const label of ['Creator:', 'Download time:', 'Source:']) assert.ok(text.includes(label));
+    }
   } else {
     const pdf = await inspectPdf(h.output[0].bytes);
     assert.equal(pdf.pages.length, 3); assert.ok(pdf.pages[1].text.includes('Post 1')); assert.ok(pdf.pages[2].text.includes('Post 2'));
+    assert.ok(pdf.pages[0].text.includes('Download time:'));
+    assert.ok(pdf.pages[0].text.replace(/\s/g, '').includes('https://www.patreon.com/collection/500'));
+    for (const page of pdf.pages.slice(1)) {
+      for (const label of ['Creator:', 'Download time:', 'Source:', 'https://www.patreon.com/posts/']) {
+        assert.ok(!page.text.includes(label), `Chapter must omit ${label}`);
+      }
+    }
   }
   await until(() => h.shadow().textContent.includes(mode === 'pdf' ? 'PDF ZIP download started.' : 'PDF book download started.'));
 });
@@ -98,6 +109,21 @@ test('opening the merged chooser does no discovery; all six format choices still
     if (extension === 'md') {
       const text = Buffer.from(h.output.at(-1).bytes).toString();
       assert.ok(text.includes('## Contents')); assert.ok(text.includes('## Post 1')); assert.ok(text.includes('## Post 2'));
+      for (const label of ['**Creator:**', '**Download time:**', '**Source:**']) assert.equal(text.split(label).length, 2);
+    }
+    if (extension === 'epub') {
+      const entries = readZip(Buffer.from(h.output.at(-1).bytes));
+      const chapters = entries.filter(entry => entry.name.endsWith('/post.xhtml'));
+      assert.equal(chapters.length, 2);
+      for (const entry of chapters) assert.ok(!entry.data.toString().includes('<dl class="metadata">'));
+      assert.ok(entries.find(entry => entry.name === 'EPUB/title.xhtml').data.toString().includes('Download time'));
+    }
+    if (mode === 'markdown' || mode === 'epub') {
+      const entries = readZip(Buffer.from(h.output.at(-1).bytes));
+      for (const entry of entries) {
+        const text = mode === 'markdown' ? entry.data.toString() : readZip(entry.data).find(file => file.name === 'EPUB/post.xhtml').data.toString();
+        for (const label of mode === 'markdown' ? ['**Creator:**', '**Download time:**', '**Source:**'] : ['<dt>Creator</dt>', '<dt>Download time</dt>', '<dt>Source</dt>']) assert.ok(text.includes(label));
+      }
     }
     await until(() => h.shadow().querySelector('.format-options').getAttribute('aria-hidden') === 'false');
   }

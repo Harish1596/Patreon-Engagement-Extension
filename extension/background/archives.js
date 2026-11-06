@@ -437,7 +437,10 @@
     api.runtime.onMessage.addListener((message, sender, respond) => {
       if (!message?.type?.startsWith("COLLECTION_ARCHIVE_") || ["COLLECTION_ARCHIVE_PROGRESS", "COLLECTION_ARCHIVE_HANDOFF", "COLLECTION_ARCHIVE_RESULT"].includes(message.type)) return;
       if (sender.id !== api.runtime.id || !sender.tab || !/^https:\/\/www\.patreon\.com\//.test(sender.tab.url || "")) { respond({ error: "Archive requests must come from Patreon." }); return; }
-      handle(message, sender).then(respond, error => respond({ error: error.message || "Temporary archive storage is unavailable." }));
+      handle(message, sender).then(respond, error => {
+        const pdfFailures = globalThis.PatreonPdf?.failureDetails?.(error.pdfFailures) || [];
+        respond({ error: error.message || "Temporary archive storage is unavailable.", ...(pdfFailures.length ? { pdfFailures } : {}) });
+      });
       return true;
     });
     api.tabs.onRemoved?.addListener(tabId => {

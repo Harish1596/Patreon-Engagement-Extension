@@ -44,6 +44,11 @@ Artwork regeneration does not upload or publish a store update.
 
 ## Release screenshots
 
+Current source version is 1.2.1. Its simplified result summary and reload-recovery
+UI postdate the 1.2.0 captures below. No 1.2.1 ZIP or refreshed screenshot set has
+been generated in this documentation pass. Package and validate the new build
+before regenerating captures; do not relabel old provenance as a new build.
+
 Version 1.2.0 screenshots are under `screenshots/1.2.0/`. They show the actual
 installed extension from the validated release ZIP on labelled synthetic pages,
 not private content or a signed-in account. They are captured at 1280×800 without
@@ -69,3 +74,6 @@ On November 5, 2026, the user confirmed completing the final screenshots and
 artwork for the store update. Those files were not supplied to this checkout;
 the demo assets and their provenance above are retained unchanged. Asset readiness
 does not establish that the store listing has been uploaded or published.
+
+The user subsequently confirmed approval and publication of 1.2.0. That
+confirmation does not establish publication or artwork validation for 1.2.1.

@@ -21,11 +21,19 @@ test('installed Brave exports a post, a combined PDF, and individual PDFs withou
       }
       throw new Error('Extension did not load');
     });
+    let discoveryRequests = 0;
     await context.route('https://www.patreon.com/**', route => {
       const pathname = new URL(route.request().url()).pathname;
-      if (pathname.startsWith('/collection/')) return route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<main><h1>Installed PDF collection</h1><a class="fixture_gridCard" href="/posts/201">First</a><a class="fixture_gridCard" href="/posts/202">Second</a></main>' });
-      if (pathname === '/api/posts') return route.fulfill({ status: 404, body: 'Synthetic DOM discovery' });
-      return route.fulfill({ contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.resolve(__dirname, 'fixtures/installed-post.html'), 'utf8').replace('Post content.', 'Post content. Ḫ ḫ Ṭ ṭ Ḥ ḥ. 𒀭') });
+      if (pathname.startsWith('/collection/')) {
+        const ids = pathname.endsWith('/501') ? [203, 204] : [201, 202];
+        return route.fulfill({ contentType: 'text/html; charset=utf-8', body: `<main><h1>Installed PDF collection</h1>${ids.map(id => `<a class="fixture_gridCard" href="/posts/${id}">Chapter ${id}</a>`).join('')}</main>` });
+      }
+      if (['/posts/203', '/posts/204'].includes(pathname)) return route.fulfill({ contentType: 'text/html; charset=utf-8',
+        body: fs.readFileSync(path.resolve(__dirname, 'fixtures/installed-post.html'), 'utf8')
+          .replace('Installed extension test', `Broken chapter ${pathname.split('/').pop()}`)
+          .replace('Post content.', pathname.endsWith('203') ? 'Unsupported sample 😀' : 'Unsupported sample א') });
+      if (pathname === '/api/posts') { discoveryRequests++; return route.fulfill({ status: 404, body: 'Synthetic DOM discovery' }); }
+      return route.fulfill({ contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.resolve(__dirname, 'fixtures/installed-post.html'), 'utf8').replace('Post content.', 'Post content. Ḫ ḫ Ṭ ṭ Ḥ ḥ. 𒀭 天地玄黃') });
     });
     const page = await context.newPage(); await page.goto('https://www.patreon.com/posts/201');
     const download = async action => {
@@ -37,7 +45,7 @@ test('installed Brave exports a post, a combined PDF, and individual PDFs withou
     const post = await download(() => page.frameLocator('iframe[title="Post export formats"]').getByRole('button', { name: 'PDF', exact: true }).click());
     expect(post.value.suggestedFilename()).toBe('Installed extension test.pdf');
     const postText = (await inspectPdf(post.bytes)).pages[0].text;
-    expect(postText).toContain('Post content. Ḫ ḫ Ṭ ṭ Ḥ ḥ.'); expect(postText).toContain('𒀭');
+    expect(postText).toContain('Post content. Ḫ ḫ Ṭ ṭ Ḥ ḥ.'); expect(postText).toContain('𒀭'); expect(postText.replace(/\s/g, '')).toContain('天地玄黃');
     await expect(page.locator('[data-patreon-export-print-frame]')).toHaveCount(0);
     // Match the existing native export fixture: reuse ready signed-in post tabs.
     for (const id of [201, 202]) {
@@ -70,19 +78,52 @@ test('installed Brave exports a post, a combined PDF, and individual PDFs withou
     const combinedDoc = await inspectPdf(combined.bytes);
     expect(combinedDoc.pages).toHaveLength(3);
     expect(combinedDoc.pages[1].text).toContain('Ḫ ḫ Ṭ ṭ Ḥ ḥ');
-    expect(combinedDoc.pages[1].text).toContain('𒀭');
+    expect(combinedDoc.pages[1].text).toContain('𒀭'); expect(combinedDoc.pages[1].text.replace(/\s/g, '')).toContain('天地玄黃');
     expect(combinedDoc.pages[2].text).toContain('Ḫ ḫ Ṭ ṭ Ḥ ḥ');
-    expect(combinedDoc.pages[2].text).toContain('𒀭');
+    expect(combinedDoc.pages[2].text).toContain('𒀭'); expect(combinedDoc.pages[2].text.replace(/\s/g, '')).toContain('天地玄黃');
     await expect(frame.locator("#download-collection")).toBeEnabled();
+    // Refresh reconnects to sources without discovery or rebuilding post snapshots.
+    const pageErrors = [];
+    const diagnostics = await context.newCDPSession(page); await diagnostics.send('Runtime.enable');
+    diagnostics.on('Runtime.exceptionThrown', event => pageErrors.push(event.exceptionDetails.text));
+    const previousDiscovery = discoveryRequests;
+    await page.reload();
+    await page.getByRole('button', { name: 'Download Collection', exact: true }).click();
+    await expect(frame.locator('#download-collection')).toBeEnabled();
+    expect(discoveryRequests).toBe(previousDiscovery);
+    const refreshed = await nativeDownload(() => startCollectionDownload(frame, 'Single PDF'));
+    expect((await inspectPdf(refreshed.bytes)).pages).toHaveLength(3);
+    await expect(page.locator('[data-progress-counts]')).toContainText('2 cached');
+    expect(discoveryRequests).toBe(previousDiscovery);
+    expect(pageErrors).toEqual([]);
+    await expect(frame.locator('#download-collection')).toBeEnabled();
     const zip = await nativeDownload(() => startCollectionDownload(frame, 'PDF'));
     const entries = readZip(zip.bytes);
     expect(entries.map(x => x.name)).toEqual(['001 - Installed extension test.pdf', '002 - Installed extension test.pdf']);
     for (const entry of entries) {
       const text = (await inspectPdf(entry.data)).pages[0].text;
-      expect(text).toContain('Ḫ ḫ Ṭ ṭ Ḥ ḥ'); expect(text).toContain('𒀭');
+      expect(text).toContain('Ḫ ḫ Ṭ ṭ Ḥ ḥ'); expect(text).toContain('𒀭'); expect(text.replace(/\s/g, '')).toContain('天地玄黃');
     }
     // Native download results are delivered through the existing report path.
-    await expect(page.locator('.download-report')).toContainText('completed');
+    await expect(page.locator('.download-report')).toContainText('All 2 posts downloaded.');
+    // Match the native fixture's existing ready-tab setup; this case tests diagnostic transport.
+    for (const postId of [203, 204]) {
+      const tab = await context.newPage(); await tab.goto(`https://www.patreon.com/posts/${postId}`);
+      await expect(tab.getByRole('button', { name: 'Download post', exact: true })).toBeVisible();
+    }
+    // Preserve indexed failure details through the actual worker/offscreen/runtime/archive path.
+    await page.goto('https://www.patreon.com/collection/501');
+    await page.getByRole('button', { name: 'Download Collection', exact: true }).click();
+    await startCollectionDownload(page.frameLocator('iframe[title="Collection export formats"]'), 'Single PDF');
+    await expect(page.getByRole('button', { name: 'Retry packaging', exact: true })).toBeVisible();
+    await expect(page.getByRole('status')).toContainText('Broken chapter 203');
+    await expect(page.getByRole('status')).toContainText('Broken chapter 204');
+    const failureReport = page.locator('.download-report');
+    for (const [postId, code] of [[203, 'U+1F600'], [204, 'U+5D0']]) {
+      const row = failureReport.locator('li').filter({ has: page.getByText(`Broken chapter ${postId}`, { exact: true }) });
+      await expect(row).toContainText('Failed'); await expect(row).toContainText(code);
+      await expect(row.getByRole('link', { name: 'Open post', exact: true })).toHaveAttribute('href', `https://www.patreon.com/posts/${postId}`);
+    }
     const worker = context.serviceWorkers().find(x => x.url().startsWith(`chrome-extension://${id}/`));
     expect(worker).toBeTruthy();
     // Exercise the real extension runtime bridge with input above the old cap.

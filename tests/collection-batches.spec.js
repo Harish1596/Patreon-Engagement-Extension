@@ -52,8 +52,8 @@ for (const format of ["Markdown", "EPUB", "Single EPUB"]) {
       expect(second[0].name).toMatch(/^101 - Chapter 101\./);
     }
     expect(await page.evaluate(() => collectionBuildIndices)).toEqual(Array.from({ length: 101 }, (_, index) => index));
-    await page.locator(".download-report summary").click();
-    await expect(page.locator(".download-report li").filter({ hasText: "Download started" })).toHaveCount(101);
+    await expect(page.locator(".report-totals")).toContainText("101 saving");
+    await expect(page.locator(".report-issues li")).toHaveCount(0);
   });
 }
 
@@ -65,8 +65,8 @@ test("later-part retry and cancellation retain the earlier handoff", async ({ pa
   await startCollectionDownload(frames(page), "Markdown");
   await expect(page.getByRole("button", { name: "Retry failed posts" })).toBeVisible({ timeout: 60_000 });
   expect(downloads).toHaveLength(1);
-  await page.locator(".download-report summary").click();
-  await expect(page.locator(".download-report li").filter({ hasText: "Download started" })).toHaveCount(100);
+  await expect(page.locator(".report-totals")).toContainText("100 saving");
+  await expect(page.locator(".report-issues li")).toHaveCount(1);
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; });
   await page.getByRole("button", { name: "Retry failed posts" }).click();
   await expect.poll(() => downloads.length).toBe(2);

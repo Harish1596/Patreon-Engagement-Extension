@@ -46,14 +46,13 @@ test("narrow busy panel keeps Cancel visible and can be dismissed without stoppi
   await expect(page.getByRole("status")).toContainText("ZIP download started");
 });
 
-test("Retry stays visible with an expanded failure report and preserves prepared chapters", async ({ page }) => {
+test("Retry stays visible with a summary failure report and preserves prepared chapters", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 });
   await ready(page);
   await page.evaluate(() => { globalThis.collectionFailedIndices = [1]; });
   await startCollectionDownload(formats(page), "Markdown");
   const retry = page.getByRole("button", { name: "Retry failed posts", exact: true });
   await expect(retry).toBeVisible();
-  await page.locator(".download-report summary").click();
   await withinPanel(page, retry);
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; });
   const download = page.waitForEvent("download"); await retry.click(); await download;

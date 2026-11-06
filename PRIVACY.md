@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: November 5, 2026
+Last updated: November 6, 2026
 
 Patreon Reader (the "extension") provides reading customisation and offline
 exports of accessible Patreon content. The developer does not receive post
@@ -41,10 +41,15 @@ create user-requested local exports:
   create one combined EPUB, Markdown or PDF file, or separate EPUB/PDF/Markdown
   files inside a local ZIP.
   A single book also processes the collection title and builds local chapter
-  navigation and a table of contents. Extension-created
-  tabs are closed after preparation or individual chapter generation, and on
+  navigation and a table of contents. Creator and source details remain local
+  export inputs even when combined documents omit visible per-chapter metadata.
+  Extension-created tabs are closed after preparation or individual chapter generation, and on
   cancellation. Discovered links and prepared metadata are cached for two hours;
   prepared metadata uses local browser-session storage to survive worker restarts.
+  It includes the canonical collection URL, without query parameters, so a refreshed
+  page can reconnect to an idle, unexpired session in the same tab and browser
+  window when the user next presses Download. Reconnecting alone does not extend
+  expiry; metadata without a valid collection binding is fetched again as needed.
   After a chapter is fetched for export, its sanitized text, creator, source URL,
   and distinct inline-image data are cached in extension-owned disk storage for
   up to two hours, allowing EPUB, PDF and Markdown to reuse one source copy without
@@ -70,12 +75,12 @@ create user-requested local exports:
   replacement by a new download attempt. Cancelling an export leaves its cancellation report available to review.
   Per-post preparation skips are included in prepared browser-session metadata
   under the same expiry/owner cleanup policy. The extension does not persist raw
-  error URLs, media links, post bodies or credentials in reports. Only clicking
-  Save report creates a user-retained plain-text report file; it is not uploaded
-  or automatically included in the exported collection. Reports label browser
-  handoff as Download started, then update to Completed or Interrupted when the
-  browser confirms the result. Missing download records are labelled Status
-  unavailable; completion is not a guarantee of file validity.
+  error URLs, media links, post bodies or credentials in reports. Reports are not
+  downloaded, uploaded or included in exported collections. The visible summary
+  shows completed counts and failed posts, with skipped, cancelled, saving and
+  unconfirmed counts distinguished. Reports update when the browser confirms the
+  result. Missing download records remain unconfirmed; completion is not a guarantee
+  of file validity.
 - To embed remote inline images, it asks the browser for access to the exact
   image origins used by that post. After permission is granted, the locally
   installed extension fetches those image bytes directly from the media origin.
@@ -154,8 +159,10 @@ replaces its appearance preferences with site defaults; it preserves the Reader
 enablement and engagement visibility choices. Disabling Reader retains its
 appearance preferences.
 Collection source entries are scoped to the prepared collection session and are
-removed on Cancel or closure of its owning tab. There is no manual Refresh
-Collection control. Valid discovery and source data is reused for up to two hours;
+removed on Cancel or closure of its owning tab. Refreshing the Patreon page clears
+its in-memory report and retry UI, but does not by itself delete valid background
+source entries; the next Download can reconnect under the ownership rules above.
+There is no manual Refresh Collection control. Valid discovery and source data is reused for up to two hours;
 missing or expired data is fetched when the user next presses Download. Source
 records keep their original expiry rather than extending it for each format.
 Collection metadata can include locally computed SHA-256 fingerprints of relevant

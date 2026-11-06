@@ -13,9 +13,15 @@ for (const theme of ["light", "dark"]) {
     await page.getByRole("button", { name: "Download Collection", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Choose a format");
     const frame = page.frameLocator('iframe[title="Collection export formats"]');
-    await frame.getByRole("radio", { name: "Separate files (ZIP)", exact: true }).check();
+    const packaging = frame.getByRole("radio", { name: "Separate files (ZIP)", exact: true });
+    await expect(packaging).toBeEnabled();
+    await packaging.press("Space");
+    await expect(packaging).toBeChecked();
     await expect(frame.locator("#download-collection")).toHaveAccessibleDescription(/ZIP/);
-    await frame.getByRole("radio", { name: "Markdown", exact: true }).check();
+    const markdown = frame.getByRole("radio", { name: "Markdown", exact: true });
+    await expect(markdown).toBeEnabled();
+    await markdown.press("Space");
+    await expect(markdown).toBeChecked();
     await expect(frame.locator("#download-collection")).toHaveAccessibleDescription(/editable.*ZIP/i);
 
   });

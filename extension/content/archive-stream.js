@@ -13,7 +13,7 @@
     try {
       const result = await Promise.race([pending, cancelled]);
       signal?.throwIfAborted();
-      if (result?.error || !result) throw new Error(result?.error || "The temporary archive did not respond.");
+      if (result?.error || !result) throw Object.assign(new Error(result?.error || "The temporary archive did not respond."), { pdfFailures: globalThis.PatreonPdf?.failureDetails?.(result?.pdfFailures) || [] });
       return result;
     } finally { signal?.removeEventListener("abort", abort); }
   }

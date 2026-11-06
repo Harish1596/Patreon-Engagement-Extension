@@ -30,6 +30,11 @@ test("Single Markdown is one ordered offline document with metadata, contents an
   const text = single.data.toString("utf8");
   expect(text).toContain("**Creator:** Creator &amp; Co"); expect(text).toContain("**Download time:**");
   expect(text).toContain("https://www.patreon.com/collection/500");
+  for (const label of ["**Creator:**", "**Download time:**", "**Source:**"]) {
+    expect(text.split(label)).toHaveLength(2);
+  }
+  expect(text).not.toContain("https://www.patreon.com/posts/101");
+  expect(text).not.toContain("https://www.patreon.com/posts/102");
   expect(text).toContain("# Collected stories"); expect(text).toContain("## Contents");
   expect(text).toContain("(#chapter-001)"); expect(text).toContain('id="chapter-002"');
   expect(text.indexOf("Body 1:")).toBeLessThan(text.indexOf("Body 2:"));
@@ -37,7 +42,7 @@ test("Single Markdown is one ordered offline document with metadata, contents an
   expect(text.match(/!\[Inline picture\]\(data:image\//g)).toHaveLength(2);
   const html = new commonmark.HtmlRenderer().render(new commonmark.Parser().parse(text));
   expect(html).toContain('<h2>Chapter 1 [story]</h2>');
-  await expect(page.locator(".report-totals")).toContainText("2 included");
+  await expect(page.locator(".report-totals")).toContainText("2 saving");
   await expect(formats(page).locator("#download-collection")).toBeEnabled();
   const separate = await download(page, () => startCollectionDownload(formats(page), "Markdown"));
   expect(separate.result.suggestedFilename()).toBe("Collected stories.zip");

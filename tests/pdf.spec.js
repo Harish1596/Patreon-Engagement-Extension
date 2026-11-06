@@ -90,6 +90,36 @@ test('browser PDF uses cuneiform fallback in mixed text, contents and links', as
   expect(doc.metadata.info.Title).toBe('Collection𒀭');
   expect(doc.pages[0].text).toMatch(/Chapter Ḫ\s*𒀭/);
   expect(doc.pages[0].annotations.some(item => item.dest)).toBe(true);
-  for (const pattern of [/Creator\s*𒀭/, /Before\s*𒀭\s*after Ḫ/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/]) expect(doc.pages[1].text).toMatch(pattern);
+  for (const pattern of [/Before\s*𒀭\s*after Ḫ/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/]) expect(doc.pages[1].text).toMatch(pattern);
+  expect(doc.pages[1].text).not.toContain('Creator:');
   expect(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cuneiform')).toBe(true);
+});
+
+test('CJK fallback loads only for needed text and preserves mixed-script PDF styles and links', async ({ page }) => {
+  await pdfWorkerFixture(page);
+  let imports = 0;
+  await page.route('https://www.patreon.com/pdf-assets/vendor/pdfmake/vfs_cjk.js', route => {
+    imports++;
+    return route.fulfill({ contentType: 'text/javascript', path: require('node:path').resolve(__dirname, '../extension/vendor/pdfmake/vfs_cjk.js') });
+  });
+  await page.evaluate(async snapshot => pdfFixtureRender([PatreonPdf.chapter(snapshot)]), chapter);
+  expect(imports).toBe(0);
+  const data = await page.evaluate(async snapshot => {
+    const input = PatreonPdf.chapter({ ...snapshot, title: 'Chapter 天 Ḫ𒀭', author: 'Creator 天', body: { tag: 'div', children: [
+      { tag: 'p', children: ['Regular 天地玄黃 中文 简体 繁體 Ḫ𒀭'] },
+      { tag: 'p', children: [{ tag: 'strong', children: ['Bold 天地'] }] },
+      { tag: 'p', children: [{ tag: 'em', children: ['Italic 天地'] }] },
+      { tag: 'p', children: [{ tag: 'strong', children: [{ tag: 'em', children: ['Both 天地'] }] }] },
+      { tag: 'p', children: [{ tag: 'a', href: 'https://example.com/cjk', children: ['Link 天地'] }] }
+    ] } });
+    return Array.from(await pdfFixtureRender([input], { title: 'Collection 天', source: 'https://www.patreon.com/collection/500', downloadedAt: 'Today' }));
+  }, chapter);
+  expect(imports).toBe(1);
+  const doc = await inspectPdf(data);
+  expect(doc.metadata.info.Title).toBe('Collection 天');
+  expect(doc.pages[0].text.replace(/\s/g, '')).toContain('Chapter天Ḫ𒀭');
+  expect(doc.pages[0].annotations.some(item => item.dest)).toBe(true);
+  for (const expected of ['Regular天地玄黃中文简体繁體Ḫ𒀭', 'Bold天地', 'Italic天地', 'Both天地', 'Link天地']) expect(doc.pages[1].text.replace(/\s/g, '')).toContain(expected);
+  expect(doc.pages[1].text).not.toContain('Creator:');
+  expect(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cjk')).toBe(true);
 });

@@ -17,14 +17,11 @@ files are generated locally using your existing access to Patreon.
 - **Keep entire collections:** choose PDF, EPUB or Markdown, then a single file
   or a ZIP of separate chapter files. Posts are ordered oldest to newest.
 - **Follow long downloads:** see progress and the current chapter, cancel work,
-  retry failed chapters and save a download report.
+  retry failed chapters and review a compact completion/failure summary.
 - **Reuse completed work:** valid text and images are cached locally for up to
   two hours so another format can reuse them.
 - **Reduce clutter:** optionally hide Patreon's floating engagement bar.
 
-This README describes the **1.2.0** feature branch. See the
-[release notes](docs/releases/1.2.0.md) for validation and submission status;
-publication in the Chrome Web Store has not been confirmed here.
 
 ## Install
 
@@ -96,6 +93,12 @@ See the [post-download guide](docs/usage.md#download-a-post) for more detail.
 | Single file | One PDF, EPUB or Markdown document with ordered chapters and linked contents |
 | Separate files (ZIP) | A ZIP containing one numbered, title-named file per accessible supported post |
 
+Combined files retain collection front matter without repeating Creator,
+Download time and Source blocks inside each chapter. EPUB and Markdown front
+matter includes Creator, Download time and Source; PDF includes collection title,
+Download time and Source. Separate chapter files retain individual post metadata.
+PDF contents use blue, underlined chapter links.
+
 Opening the menu or changing selectors does not fetch collection data. Discovery
 starts when Download is pressed. It follows collection pagination, with Patreon's
 Load more control as a fallback, and skips explicitly locked posts. Other
@@ -109,13 +112,17 @@ up to 100 accessible posts. Discovery is limited to 1,000 posts.
 
 The extension uses inactive temporary tabs for uncached chapters and closes its
 own tabs after use. Existing user tabs stay open, and background work does not
-repeatedly activate the collection page.
+repeatedly activate the collection page. After refreshing a collection tab, the
+next download can reconnect to its unexpired session and reuse cached sources.
 
-Progress shows the current stage and chapter. **Cancel** stops active work;
-**Retry** can resume retained chapters after a failure. **Download report** lists
-included, skipped and failed posts and supports saving a local text report.
-“Download started” means browser handoff; Completed and Interrupted reflect the
-browser's confirmed outcome. Completion does not validate the file's contents.
+Progress shows the current stage and chapter while work is running. **Cancel**
+stops active work; **Retry** can resume retained chapters after a failure. When
+work stops, **Download report** appears below the format choices with a completion
+summary and a list of failed posts. Skipped, cancelled, saving and unconfirmed
+posts are counted separately; there is no report-file download.
+“Saving” and “Download started” mean browser handoff. All-post success requires
+browser-confirmed completion; an interrupted file counts its posts as failed.
+Completion does not validate file contents.
 
 See the [collection guide](docs/usage.md#download-a-collection) for cancellation,
 retry, cache reuse, numbered parts and detailed resource limits.
@@ -153,7 +160,7 @@ in Brave. The user confirmed live operation on November 5, 2026; that report doe
 not itemise every browser, viewer or accessibility scenario.
 
 The original engagement-bar feature was manually confirmed in Chrome, Brave,
-Firefox and Safari for macOS. That does not establish 1.2.0 download compatibility
+Firefox and Safari for macOS. That does not establish current download compatibility
 in Firefox or Safari, which require their own packaging and validation. See
 [TESTING.md](TESTING.md) for exact evidence and the current release checklist.
 
@@ -164,8 +171,10 @@ may require an extension update.
 PDF generation has bounded input, output, image and rendering-time limits. A PDF
 currently allows 48 MiB of serialised input and 40 MiB of output, with a two-minute
 rendering deadline. Some scripts and emoji remain outside the bundled fonts'
-coverage. Unsupported characters and oversized documents produce explicit errors;
-try separate files or another format. The [download guide](docs/usage.md) records
+coverage. Version 1.2.1 adds a bundled fallback for common CJK ideographs such as
+天, alongside Latin and Cuneiform text. It loads only when needed and does not
+cover every CJK character or regional typography. Unsupported characters and
+oversized documents produce explicit errors; try separate files or another format. The [download guide](docs/usage.md) records
 image limits, supported font fallback and archive behaviour.
 
 ## Development
@@ -220,9 +229,18 @@ used. Store artwork and screenshot capture instructions are in
 
 ## Help and issues
 
+After updating or reloading the extension, refresh open Patreon tabs before using
+their controls. “Extension context invalidated” means an older page script has
+lost its connection to the extension; that page must be refreshed to reconnect.
+Download Collection now shows refresh guidance and a **Refresh page** button when
+it detects that lost connection. Pages opened before this fix need one manual
+refresh to load the updated controls.
+
 If controls are missing, refresh the Patreon page and confirm the extension has
 site access. For download failures, check the visible error and collection report,
-then retry or choose another format as appropriate.
+then retry or choose another format as appropriate. Per-post PDF validation
+failures identify affected titles and numbers; the collection report provides
+character codes and source links while retaining prepared chapters for retry.
 
 Report problems through [GitHub Issues](https://github.com/Harish1596/Patreon-Engagement-Extension/issues)
 or the Chrome Web Store listing's Support section. Include your browser and

@@ -1,8 +1,37 @@
 # Changelog
 
-## 1.2.0 — Release candidate
+## 1.2.1 — Prepared for release
 
-This version is prepared locally; Chrome Web Store publication is not yet confirmed.
+Prepared locally on November 6, 2026. A 1.2.1 store upload or publication has not
+been confirmed. See [release notes](docs/releases/1.2.1.md) for validation and
+remaining packaging/submission work.
+
+- Render supported CJK ideographs such as 天 in PDFs using an on-demand bundled
+  Noto Sans SC fallback, without downloading fonts. Existing Latin and Cuneiform
+  coverage is preserved; unsupported characters still produce explicit errors.
+- Make PDF contents chapter names blue and underlined so navigation is recognizable.
+- Omit repeated Creator, Download time and Source blocks inside combined PDF,
+  EPUB and Markdown chapters. Retain collection front matter and metadata in
+  individual post downloads and separate files inside ZIPs.
+- Identify posts responsible for combined-PDF font failures, with titles, post
+  numbers, Unicode errors and source links. Retain prepared chapters for retry.
+- Put Download report below the format choices, with confirmed completion totals
+  and failed-post details. Remove Save report and the file inventory; distinguish
+  skipped, cancelled, saving and unconfirmed posts from failures.
+- Reconnect refreshed collection tabs to unexpired sessions and cached sources,
+  restricted to the same tab, browser window and collection URL. Recovery alone
+  does not extend expiry; existing cache budgets and cleanup remain unchanged.
+- Replace the blank collection chooser after an extension reload with refresh
+  guidance and a user-controlled Refresh page button. Stop stale local operations
+  and guard direct runtime URL calls.
+- Handle synchronous extension API failures consistently while preserving the
+  user gesture required for optional image-origin permissions.
+
+## 1.2.0
+
+The user confirmed Chrome Web Store approval and publication. The exact uploaded
+archive hash and publication date were not supplied. See the
+[archived release record](docs/releases/1.2.0.md).
 
 - Download accessible posts as PDF, EPUB or Markdown with embedded inline images,
   title-based filenames and Creator, Download time and Source details.
