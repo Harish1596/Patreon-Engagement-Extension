@@ -2088,3 +2088,12 @@ mutation tests establish that this reported call path no longer escapes existing
 handlers; they do not establish recovery of every stale-script entry point. A
 page refresh is still required to reconnect after an extension reload/update.
 No new Patreon markup, selectors, access rules or cache behavior is established.
+
+
+**November 6 PDF contents-link affordance:** The supplied PDF screenshot shows
+working chapter destinations styled as ordinary text. Combined PDF contents now
+use blue, underlined chapter names, matching the EPUB's underlined link affordance;
+page numbers and chapter headings keep normal text styling. A rendered synthetic
+PDF confirms the treatment for Latin and CJK titles, with existing destinations
+preserved. This is an export-style boundary, not new Patreon DOM evidence; page
+selectors, Reader styling, access and caches are unchanged.

@@ -205,3 +205,25 @@ test('PDF failure metadata is bounded, redacted and restricted to actual chapter
   assert.equal(details[0].message, 'Image failed [URL omitted] Retry');
   assert.equal(pdf.failureDetails(Array.from({ length: 101 }, () => ({ index: 0, message: 'Too many' }))).length, 0);
 });
+
+test('rendered PDF contents use visible link color while chapter headings keep their text color', async () => {
+  const pdf = adapter();
+  const data = await render([pdf.chapter({ ...snapshot, title: 'First chapter' }), pdf.chapter({ ...snapshot, title: 'Second chapter' })],
+    { title: 'Link styling collection', source: 'https://www.patreon.com/collection/500', downloadedAt: 'Today' });
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const document = await pdfjs.getDocument({ data: new Uint8Array(data), useSystemFonts: false, isEvalSupported: false }).promise;
+  try {
+    const contents = await document.getPage(1), chapter = await document.getPage(2);
+    const colors = async page => {
+      const ops = await page.getOperatorList();
+      return ops.fnArray.flatMap((op, index) => op === pdfjs.OPS.setFillRGBColor ? ops.argsArray[index] : []);
+    };
+    assert.ok((await colors(contents)).includes('#1a0dab'), 'Contents chapter links must have visible blue styling');
+    assert.ok(!(await colors(chapter)).includes('#1a0dab'), 'Chapter text must retain its original styling');
+    const destinations = [...new Set((await contents.getAnnotations()).filter(link => link.dest).map(link => link.dest))];
+    assert.equal(destinations.length, 2);
+    const pages = [];
+    for (const destination of destinations) pages.push(await document.getPageIndex((await document.getDestination(destination))[0]));
+    assert.deepEqual(pages.sort(), [1, 2]);
+  } finally { await document.destroy(); }
+});

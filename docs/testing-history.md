@@ -2252,3 +2252,17 @@ normal operation, not actual extension reload/update invalidation. The triggerin
 user action remains unknown; refreshing the page is still required to reconnect.
 No private page, cache lifecycle, permission, manifest version or store archive
 changed. Current commands and limitations are in TESTING.md.
+
+
+## November 6, 2026 — Make PDF chapter links recognizable
+
+The supplied screenshot shows clickable PDF contents entries rendered as ordinary
+text. Contents titles now use blue underlined styling; page numbers, chapter
+headings and destinations retain their previous behavior. A failing real-PDF
+regression passed after the style change, checking link color, distinct chapter
+destinations and body-page styling. A rasterized four-page synthetic sample also
+confirms Latin/CJK link styling. Validation: 150 tooling tests, 14 targeted Brave
+PDF tests (including installed-extension output), and syntax checks for 94
+JavaScript files pass. No live private page or universal viewer coverage is
+claimed. Existing PDF files require regeneration; this remains an unreleased
+source change without a version bump or replacement store archive.

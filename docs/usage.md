@@ -342,7 +342,9 @@ Unsupported characters (including many emoji and scripts
 outside that coverage) produce an explicit error suggesting EPUB or Markdown.
 GIF/WebP/AVIF images are converted to static PNGs when the browser can decode
 them; SVGs use the existing sanitizer and a restricted vector path. PDF files
-use a light A4 reading layout independent of Reader appearance settings.
+use a light A4 reading layout independent of Reader appearance settings. Combined
+PDF contents show chapter names as blue, underlined links to their chapter pages;
+page numbers and chapter headings retain the normal text style.
 
 Source snapshots and staged chapter data cross extension boundaries in bounded
 chunks; the background assembles disk-backed ZIP/EPUB output locally. PDF renderer messages are separate and carry bounded document data and output;

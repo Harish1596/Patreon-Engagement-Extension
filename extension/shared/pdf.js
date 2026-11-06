@@ -104,7 +104,8 @@
     if (book) content.push({ text: book.title, style: 'title' },
       { text: `Download time: ${book.downloadedAt}`, style: 'metadata' },
       { text: url(book.source, true), link: url(book.source, true), style: 'metadata' },
-      { toc: { title: { text: 'Contents', style: 'heading' } }, margin: [0, 16, 0, 12] });
+      { toc: { title: { text: 'Contents', style: 'heading' },
+        textStyle: { color: '#1a0dab', decoration: 'underline' }, numberStyle: { color: '#222222' } }, margin: [0, 16, 0, 12] });
     function inline(node, style = {}) {
       if (typeof node === 'string') return [{ text: node, ...style }];
       if (node.tag === 'img') return [{ pdfImage: node.image, ...style }];

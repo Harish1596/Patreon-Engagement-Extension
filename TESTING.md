@@ -44,6 +44,26 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 6, 2026 — PDF contents link styling
+
+Combined PDF contents now use blue (#1a0dab), underlined chapter titles. Page
+numbers and chapter headings retain normal text styling. A real-renderer test
+first failed because contents had no blue link text, then passed while confirming
+two distinct destinations still resolve to the expected chapter pages and chapter
+body pages do not inherit the contents color.
+
+- `npm run check`: 94 JavaScript files pass syntax checks.
+- `npm run test:tooling`: 150 tests pass.
+- `npm run test:brave -- tests/pdf.spec.js tests/collection-pdf.spec.js tests/installed-pdf.spec.js`:
+  14 pass, covering internal navigation, mixed font fallback and native output.
+- A four-page synthetic sample was rendered through the packaged worker and
+  rasterized with PDF.js. Visual inspection confirms blue underlined Latin/CJK
+  contents entries and normal page numbers; preview files stay outside the repo.
+
+No live/private collection or exhaustive PDF-viewer matrix was tested. Existing
+saved PDFs are unchanged; regenerate them to receive the new styling. No font,
+permission, manifest version or release archive changed.
+
 ## November 6, 2026 — Handle invalidated extension API contexts
 
 The reported stack points to the shared helper's promise-style API branch. A

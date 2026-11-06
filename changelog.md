@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make chapter links in combined PDF contents visibly blue and underlined, while
+  retaining normal page-number and chapter-heading styling.
+
 - Handle synchronous extension API failures consistently, including stale content
   scripts after an extension reload/update. Return refresh-page guidance through
   existing error handlers while preserving permission-request user gestures.
