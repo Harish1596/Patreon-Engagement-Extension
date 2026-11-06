@@ -8,8 +8,8 @@ below; documenting the captures does not establish live behavioral coverage.
 
 ## Current release status — November 6, 2026
 
-Source metadata is **1.2.1**, prepared locally; no 1.2.1 release ZIP, store upload
-or publication has been recorded. The user confirmed 1.2.0 approval/publication
+Source metadata is **1.2.1**. A validated local release ZIP is recorded in the
+1.2.1 release notes; store upload or publication has not been confirmed. The user confirmed 1.2.0 approval/publication
 and later confirmed downloads were working during hotfix development. That does
 not establish a final 1.2.1 package/browser/viewer matrix. See the
 [current release record](docs/releases/1.2.1.md) for the remaining checklist.
@@ -59,6 +59,16 @@ itemized in this confirmation; it does not establish an exhaustive browser or
 accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
+
+## November 6, 2026 — Generate the 1.2.1 upload ZIP
+
+`npm run package` passes and creates `dist/patreon-reader-1.2.1.zip` with 54
+allowlisted files and root-level manifest version 1.2.1. Integrity, referenced
+assets and exact source bytes validate. Size: 10,710,913 bytes. SHA-256:
+`e7f0775838e9bffab3306f87e568d817898992ac741e6d216d18d91a54b1ca98`.
+
+The artifact is ignored by Git; its record is in docs/releases/1.2.1.md. This
+packaging task does not claim a new browser run, upload, approval or publication.
 
 ## November 6, 2026 — Documentation and privacy alignment for 1.2.1
 

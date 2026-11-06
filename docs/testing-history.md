@@ -2374,3 +2374,13 @@ package contains 54 allowlisted files and all 11 packaging tests pass after the
 policy update. This documentation-only pass did not rerun browsers or generate a
 new release ZIP, screenshot set, tag or publication. Current 1.2.1 release checks
 are listed in docs/releases/1.2.1.md and TESTING.md.
+
+
+## November 6, 2026 — Create the 1.2.1 Chrome Web Store ZIP
+
+`npm run package` validates and creates `dist/patreon-reader-1.2.1.zip`: 54
+allowlisted files, root-level manifest version 1.2.1, 10,710,913 bytes.
+Archive integrity, referenced assets and exact source bytes pass validation.
+SHA-256: `e7f0775838e9bffab3306f87e568d817898992ac741e6d216d18d91a54b1ca98`.
+The ZIP remains a local ignored artifact. No browser rerun, store upload, approval
+or publication is claimed; retain the exact artifact/checksum for submission.
