@@ -44,6 +44,30 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 6, 2026 — Omit repeated chapter metadata in combined downloads
+
+Single PDF, Single EPUB and Single Markdown omit visible per-chapter Creator,
+Download time and Source blocks. Collection front matter remains; individual
+post exports and chapter files in ZIPs retain their metadata. Synthetic export
+controller checks inspect real PDF text and generated EPUB/Markdown output,
+including separate-file metadata preservation and 101-post PDF parts.
+
+- `node --test tests/tooling/pdf-collection-content.test.cjs`: seven pass. New
+  assertions first failed on repeated PDF and Markdown chapter metadata.
+- `npm run test:tooling`: 153 pass. Three existing font tests initially expected
+  chapter creator text; their metadata coverage now renders standalone PDFs,
+  retaining Latin, cuneiform and CJK coverage alongside combined body/TOC checks.
+- `npm run check`: 94 JavaScript files pass syntax checks.
+- `npm test`: 163 fail at browser launch, two skip. All 163 report
+  `browserType.launch`; Chrome exits with SIGABRT before page assertions.
+- Targeted `npm run test:brave -- tests/collection-book.spec.js tests/collection-markdown.spec.js --grep 'Single EPUB contains|Single Markdown is one'`:
+  both also fail at launch with SIGABRT. Browser assertions were added but could
+  not execute; generated-file checks above run through the Node harness instead.
+
+No live Patreon check, version bump or replacement store archive was performed.
+Existing downloaded files must be regenerated to receive this change.
+
+
 ## November 6, 2026 — PDF contents link styling
 
 Combined PDF contents now use blue (#1a0dab), underlined chapter titles. Page

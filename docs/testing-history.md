@@ -2266,3 +2266,17 @@ PDF tests (including installed-extension output), and syntax checks for 94
 JavaScript files pass. No live private page or universal viewer coverage is
 claimed. Existing PDF files require regeneration; this remains an unreleased
 source change without a version bump or replacement store archive.
+
+
+## November 6, 2026 — Remove repeated metadata from combined collection chapters
+
+The supplied screenshot showed Creator, Download time and Source under each
+chapter title. Single PDF, EPUB and Markdown now omit these chapter blocks while
+keeping collection front matter and separate-file metadata. Real generated-file
+checks cover all six collection formats. Seven focused controller tests and all
+153 tooling tests pass; syntax checks pass for 94 JavaScript files. Font tests
+retain metadata coverage using standalone PDFs and combined body/contents output.
+The full browser suite has 163 launch failures and two skips; both targeted Brave
+cases also abort at launch. These are SIGABRT environment failures before page
+assertions, so no browser or live Patreon verification is claimed. Commands and
+limits are in TESTING.md. No version or store package changed.

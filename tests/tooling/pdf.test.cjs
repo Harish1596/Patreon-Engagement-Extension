@@ -127,8 +127,10 @@ test('PDF preserves extended Latin diacritics in metadata and all four text face
   const { inspectPdf } = require('../helpers/pdf');
   const doc = await inspectPdf(bytes);
   assert.equal(doc.metadata.info.Title, 'Collection Ḫ');
+  const standalone = await inspectPdf(await render([adapter().chapter(source)]));
+  assert.ok(standalone.pages[0].text.normalize('NFC').includes('Creator ḫ'));
   const text = doc.pages.map(page => page.text).join(' ').normalize('NFC');
-  for (const expected of ['Chapter Ḫ', 'Creator ḫ', 'Regular Ḫ ḫ Ṭ ṭ Ḥ ḥ Ā ā', 'Bold Ḫ', 'Italic Ḫ', 'Both Ḫ', 'Decomposed Ḫ']) assert.ok(text.includes(expected), expected + '\n' + text);
+  for (const expected of ['Chapter Ḫ', 'Regular Ḫ ḫ Ṭ ṭ Ḥ ḥ Ā ā', 'Bold Ḫ', 'Italic Ḫ', 'Both Ḫ', 'Decomposed Ḫ']) assert.ok(text.includes(expected), expected + '\n' + text);
 });
 
 test('PDF font fallback preserves mixed Latin and cuneiform in styled text, metadata, contents and links', async () => {
@@ -147,8 +149,10 @@ test('PDF font fallback preserves mixed Latin and cuneiform in styled text, meta
   assert.equal(doc.metadata.info.Title, 'Collection𒀭');
   assert.match(doc.pages[0].text, /Collection\s*𒀭/); assert.match(doc.pages[0].text, /Chapter Ḫ\s*𒀭/);
   assert.ok(doc.pages[0].annotations.some(item => item.dest), 'Mixed-font contents entry remains linked');
+  const standalone = await inspectPdf(await render([adapter().chapter(input)]));
+  assert.match(standalone.pages[0].text, /Creator\s*𒀭/);
   const text = doc.pages[1].text.normalize('NFC');
-  for (const pattern of [/Creator\s*𒀭/, /Before\s*𒀭\s*after Ḫ/, /Heading\s*𒀭/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/, /List\s*𒀭/, /Code\s*𒀭/]) assert.match(text, pattern);
+  for (const pattern of [/Before\s*𒀭\s*after Ḫ/, /Heading\s*𒀭/, /Bold\s*𒀭/, /Italic\s*𒀭/, /Both\s*𒀭/, /Link\s*𒀭/, /List\s*𒀭/, /Code\s*𒀭/]) assert.match(text, pattern);
   assert.ok(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cuneiform'));
 });
 
@@ -176,8 +180,10 @@ test('PDF preserves CJK ideographs alongside Latin and cuneiform across styles, 
   assert.equal(doc.metadata.info.Title, 'Collection 天');
   assert.ok(doc.pages[0].text.replace(/\s/g, '').includes('Chapter天Ḫ𒀭'));
   assert.ok(doc.pages[0].annotations.some(item => item.dest), 'Mixed-font contents entry remains linked');
+  const standalone = await inspectPdf(await render([adapter().chapter(input)]));
+  assert.ok(standalone.pages[0].text.replace(/\s/g, '').includes('Creator天'));
   const text = doc.pages[1].text.replace(/\s/g, '');
-  for (const expected of ['Creator天', 'Regular天地玄黃中文简体繁體Ḫ𒀭', 'Bold天地', 'Italic天地', 'Both天地', 'Link天地']) assert.ok(text.includes(expected), expected + '\n' + text);
+  for (const expected of ['Regular天地玄黃中文简体繁體Ḫ𒀭', 'Bold天地', 'Italic天地', 'Both天地', 'Link天地']) assert.ok(text.includes(expected), expected + '\n' + text);
   assert.ok(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cjk'));
 });
 

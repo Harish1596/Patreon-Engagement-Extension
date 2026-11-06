@@ -159,10 +159,8 @@
         { text: `Download time: ${post.downloadedAt}`, style: 'metadata' },
         { text: [{ text: 'Source: ' }, { text: post.sourceUrl, link: post.sourceUrl }], style: 'metadata' }
       ];
-      // A chapter's heading starts the page; its metadata follows in books.
       if (!book) content.push(...metadata);
       content.push({ text: post.title, style: 'title', ...(book ? { pageBreak: 'before', tocItem: true, id: `chapter-${index}` } : {}) });
-      if (book) content.push(...metadata);
       content.push(...blocks(post.body, post.assets));
     }
     const document = { pageSize: 'A4', pageMargins: [51, 51, 51, 51],

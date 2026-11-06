@@ -2097,3 +2097,15 @@ page numbers and chapter headings keep normal text styling. A rendered synthetic
 PDF confirms the treatment for Latin and CJK titles, with existing destinations
 preserved. This is an export-style boundary, not new Patreon DOM evidence; page
 selectors, Reader styling, access and caches are unchanged.
+
+
+**November 6 combined collection chapter metadata:** The supplied download
+screenshot shows Creator, Download time and Source repeated below a chapter
+title. Combined Single PDF, Single EPUB and Single Markdown now omit those
+visible per-chapter blocks. Collection-level front matter is retained, as are
+chapter titles, body content, images, ordering and navigation. Standalone posts
+and separate files in collection ZIPs retain their metadata. This supersedes
+the earlier combined-document per-post metadata descriptions above. No Patreon
+markup, selector, Reader boundary or access rule changes. Synthetic export
+verification and browser-launch limits are recorded in TESTING.md; no live
+Patreon verification of this change is claimed.

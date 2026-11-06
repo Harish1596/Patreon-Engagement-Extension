@@ -454,7 +454,7 @@
     const content = renderHtml(post.body, post.assets, asset => asset.path);
     const folder = index => String(index + 1).padStart(3, "0");
     const navigation = chapter ? `<nav aria-label="Chapter navigation"><p>${chapter.index ? `<a href="../${folder(chapter.index - 1)}/post.xhtml">Previous chapter</a> · ` : ""}<a href="../../nav.xhtml">Contents</a>${chapter.index + 1 < chapter.count ? ` · <a href="../${folder(chapter.index + 1)}/post.xhtml">Next chapter</a>` : ""}</p></nav>` : "";
-    const metadata = `<dl class="metadata"><div><dt>Creator</dt><dd>${escapeText(post.author)}</dd></div><div><dt>Download time</dt><dd>${escapeText(post.downloadedAt)}</dd></div><div><dt>Source</dt><dd><a href="${escapeAttribute(post.sourceUrl)}">${escapeText(post.sourceUrl)}</a></dd></div></dl>`;
+    const metadata = chapter ? "" : `<dl class="metadata"><div><dt>Creator</dt><dd>${escapeText(post.author)}</dd></div><div><dt>Download time</dt><dd>${escapeText(post.downloadedAt)}</dd></div><div><dt>Source</dt><dd><a href="${escapeAttribute(post.sourceUrl)}">${escapeText(post.sourceUrl)}</a></dd></div></dl>`;
     const imageItems = post.assets.map((asset, index) => `<item id="image-${index + 1}" href="${asset.path}" media-type="${escapeAttribute(asset.type)}" />`).join("\n");
     const identifier = `urn:uuid:${crypto.randomUUID()}`;
     const entries = [
@@ -474,7 +474,7 @@
     const content = renderMarkdown(post.body, post.assets, 0, chapter ? 2 : 0).trim();
     if (chapter) {
       const id = String(chapter.index + 1).padStart(3, "0");
-      return `<a id="chapter-${id}"></a>\n\n## ${markdownText(post.title)}\n\n${metadata}\n\n---\n\n${content}\n`;
+      return `<a id="chapter-${id}"></a>\n\n## ${markdownText(post.title)}\n\n${content}\n`;
     }
     return `${metadata}\n\n---\n\n# ${markdownText(post.title)}\n\n${content}\n`;
   }
