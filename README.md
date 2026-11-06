@@ -111,10 +111,12 @@ The extension uses inactive temporary tabs for uncached chapters and closes its
 own tabs after use. Existing user tabs stay open, and background work does not
 repeatedly activate the collection page.
 
-Progress shows the current stage and chapter. **Cancel** stops active work;
-**Retry** can resume retained chapters after a failure. **Download report** lists
-included, skipped and failed posts and supports saving a local text report.
-“Download started” means browser handoff; Completed and Interrupted reflect the
+Progress shows the current stage and chapter while work is running. **Cancel**
+stops active work; **Retry** can resume retained chapters after a failure. When
+work stops, **Download report** replaces progress with totals, file outcomes and
+failed or skipped posts. **Save report** keeps the full per-post list in a local
+text file.
+“Saving” and “Download started” mean browser handoff; Completed and Interrupted reflect the
 browser's confirmed outcome. Completion does not validate the file's contents.
 
 See the [collection guide](docs/usage.md#download-a-collection) for cancellation,

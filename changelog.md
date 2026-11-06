@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Show progress during collection operations and replace it with a compact result
+  summary afterward. List file outcomes and posts needing attention without
+  repeated successful chapter rows; retain every post in saved reports.
+
 - Identify posts responsible for combined-PDF font validation failures, including
   titles, post numbers, per-post Unicode errors and source links in the download
   report. Keep staged chapters available for packaging retries.

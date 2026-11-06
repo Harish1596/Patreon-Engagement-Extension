@@ -103,7 +103,6 @@ test('installed Brave exports a post, a combined PDF, and individual PDFs withou
     await expect(page.getByRole('status')).toContainText('Broken chapter 203');
     await expect(page.getByRole('status')).toContainText('Broken chapter 204');
     const failureReport = page.locator('.download-report');
-    await failureReport.locator('summary').click();
     for (const [postId, code] of [[203, 'U+1F600'], [204, 'U+5D0']]) {
       const row = failureReport.locator('li').filter({ has: page.getByText(`Broken chapter ${postId}`, { exact: true }) });
       await expect(row).toContainText('Failed'); await expect(row).toContainText(code);

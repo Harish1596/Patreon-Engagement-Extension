@@ -13,13 +13,12 @@ async function fixture(page) {
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Choose a format");
 }
-async function reportText(page) {
-  if (await report(page).getAttribute("open") === null) await report(page).locator("summary").click();
+async function reportText(page, title = "Report collection") {
   const pending = page.waitForEvent("download");
   await report(page).getByRole("button", { name: "Save report" }).click();
   const result = await pending, chunks = [];
   for await (const chunk of await result.createReadStream()) chunks.push(chunk);
-  expect(result.suggestedFilename()).toBe("Report collection - Download Report.txt");
+  expect(result.suggestedFilename()).toBe(`${title} - Download Report.txt`);
   return Buffer.concat(chunks).toString();
 }
 
@@ -31,7 +30,7 @@ test("download report lists skipped and failed posts, redacts URLs, and updates 
   await expect(report(page)).toContainText("Unavailable post");
   expect(await report(page).locator("img").count()).toBe(0);
   await expect(report(page)).toContainText("Failed · Synthetic chapter failure.");
-  await expect(report(page)).toContainText("Prepared");
+  await expect(report(page)).toContainText("1 prepared");
   await expect(report(page)).toContainText("Nothing downloaded");
   let text = await reportText(page);
   expect(text).toContain("FAILED:"); expect(text).toContain("SKIPPED: Unavailable post");
@@ -39,7 +38,7 @@ test("download report lists skipped and failed posts, redacts URLs, and updates 
   await page.evaluate(() => { globalThis.collectionFailedIndices = []; });
   const pending = page.waitForEvent("download");
   await page.getByRole("button", { name: "Retry failed posts", exact: true }).click(); await pending;
-  await expect(report(page)).toContainText("2 included · 1 skipped · 0 failed");
+  await expect(report(page)).toContainText("2 included");
   await expect(report(page)).toContainText("The browser is saving the file");
   text = await reportText(page);
   expect(text.match(/DOWNLOAD-STARTED:/g)).toHaveLength(2);
@@ -75,8 +74,7 @@ test("all locked posts receive individual report rows without a download", async
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
   await startCollectionDownload(formats(page), "Markdown");
   await expect(page.getByRole("status")).toContainText("All 2 posts are locked");
-  await report(page).locator('summary').click();
-  await expect(report(page).locator('li')).toHaveCount(2);
+  await expect(report(page).locator('.report-issues li')).toHaveCount(2);
   await expect(report(page)).toContainText("Locked for your current membership");
   expect(await page.evaluate(() => collectionPrepareCount)).toBe(0);
 });
@@ -105,4 +103,47 @@ test("export errors redact remote URLs in saved reports and expire after two hou
   expect(text).toContain("[URL omitted]"); expect(text).not.toContain("private-secret");
   await page.clock.fastForward(2 * 60 * 60_000 + 1000);
   await expect(report(page)).toBeHidden();
+});
+
+for (const width of [360, 1280]) test(`report replaces progress and summarizes 75 posts at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: width === 360 ? 740 : 900 });
+  await setup(page, { content: '<main><h1>Summary collection</h1><a class="fixture_gridCard" href="/posts/101">First</a></main>', url: "https://www.patreon.com/collection/500" });
+  await page.evaluate(() => {
+    globalThis.collectionPreparationOverrides = { count: 75, postUrls: Array.from({ length: 75 }, (_, i) => `https://www.patreon.com/posts/${101 + i}`), skipped: 0 };
+    globalThis.collectionBuildResult = { files: Array.from({ length: 75 }, (_, i) => ({ title: `Chapter ${i + 1}`, extension: "md", encoding: "text", data: "Body" })), skipped: 0 };
+    globalThis.collectionMessageHolds = ["COLLECTION_ARCHIVE_PACKAGE"];
+  });
+  await page.getByRole("button", { name: "Download Collection", exact: true }).click();
+  await expect(report(page)).toBeHidden();
+  await startCollectionDownload(formats(page), "Markdown");
+  await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("COLLECTION_ARCHIVE_PACKAGE");
+  await expect(page.locator(".progress-details")).toBeVisible();
+  await expect(report(page)).toBeHidden();
+  const pending = page.waitForEvent("download");
+  await page.evaluate(() => { globalThis.collectionMessageHolds = []; releaseCollectionMessage(); });
+  await pending;
+  await expect(report(page)).toBeVisible();
+  await expect(page.locator(".progress-details")).toBeHidden();
+  await expect(report(page).getByRole("heading", { name: "Download report", exact: true })).toBeVisible();
+  await expect(report(page).locator("summary")).toHaveCount(0);
+  await expect(report(page).locator(".report-totals")).toContainText("75 included");
+  await expect(report(page).locator(".report-issues li")).toHaveCount(0);
+  await page.evaluate(() => deliverBackgroundMessage({ type: "COLLECTION_ARCHIVE_RESULT", id: collectionArchiveHandoffs[0].id, state: "complete" }));
+  await expect(report(page).locator(".report-totals")).toContainText("75 completed");
+  await expect(report(page)).not.toContainText("0 skipped");
+  const box = await report(page).boundingBox();
+  expect(box.height).toBeLessThan(300);
+  const overflow = await report(page).evaluate(node => node.scrollWidth > node.clientWidth);
+  expect(overflow).toBe(false);
+  expect((await reportText(page, "Summary collection")).match(/COMPLETED:/g)).toHaveLength(75);
+  // Starting another attempt replaces the previous summary until work stops.
+  await page.evaluate(() => { globalThis.collectionMessageHolds = ["BUILD_COLLECTION_EXPORT"]; });
+  await startCollectionDownload(formats(page), "Markdown");
+  await expect.poll(() => page.evaluate(() => globalThis.collectionHeldType)).toBe("BUILD_COLLECTION_EXPORT");
+  await expect(report(page)).toBeHidden();
+  await expect(page.locator(".progress-details")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(report(page)).toBeVisible();
+  await expect(page.locator(".progress-details")).toBeHidden();
+  await page.evaluate(() => { globalThis.collectionMessageHolds = []; releaseCollectionMessage(); });
 });

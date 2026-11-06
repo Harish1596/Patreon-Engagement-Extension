@@ -262,7 +262,6 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     const bookBytes = await downloadCollectionZip(() => startCollectionDownload(collection.frameLocator('iframe[title="Collection export formats"]'), "Single EPUB"), ".epub");
     const bookEntries = readZip(bookBytes);
     await expect(collection.locator(".download-report .report-totals")).toContainText("2 included");
-    await collection.locator(".download-report summary").click();
     await expect(collection.locator(".download-report")).toContainText("Completed");
     await expect(collection.locator(".download-report").getByRole("button", { name: "Save report" })).toBeEnabled();
     expect(bookEntries[0].name).toBe("mimetype");

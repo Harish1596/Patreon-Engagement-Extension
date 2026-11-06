@@ -79,7 +79,8 @@ for (const format of ["Markdown", "EPUB", "Single Markdown", "Single EPUB"]) tes
       `001 - First post.${format === "EPUB" ? "epub" : "md"}`, `003 - Third post.${format === "EPUB" ? "epub" : "md"}`
     ]);
   }
-  await expect(page.locator(".report-totals")).toContainText("2 included · 1 skipped");
+  await expect(page.locator(".report-totals")).toContainText("2 included");
+  await expect(page.locator(".report-totals")).toContainText("1 skipped");
   await expect(page.getByRole("button", { name: "Retry failed posts", exact: true })).toBeHidden();
 });
 

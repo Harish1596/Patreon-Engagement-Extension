@@ -125,19 +125,23 @@ be retried before the complete book or ZIP is saved; completed encrypted chapter
 are retained for retry. Switching between book and separate-file modes reuses
 source text/images but rebuilds the format-specific files.
 
-Expand **Download report** in the collection dialog to see each post's result.
-It lists ready/prepared chapters, skipped posts (including membership locks),
-failed chapters with reasons, cancellations, and posts included in a download
-that has started. **Open post** links help identify missing chapters. Where
+During collection preparation and packaging, the dialog shows progress details.
+When work stops, **Download report** replaces those details automatically. The
+summary lists nonzero status counts and each file's browser outcome. Successful
+chapters share that file outcome instead of repeating a row for every chapter.
+Only failed or skipped posts appear individually under **Posts needing attention**.
+The report appears above the format choices. **Open post** links help identify
+missing chapters. Where
 Patreon exposes no title or precise cause, the report uses its post URL and an
 explicitly limited explanation rather than guessing whether it is locked.
 
-Choose **Save report** to download `<collection> - Download Report.txt`. Reports
-are available once a selected download discovers its posts, including after
-export failures, not just successful
-downloads. A packaging failure leaves chapters marked Prepared; a successful
-retry replaces failed outcomes. “Download started” means the collection file was
-handed to the browser. Reports update to Completed or Interrupted when the browser
+Choose **Save report** to download `<collection> - Download Report.txt`. The saved
+report includes every post and its individual status, even when the
+on-screen summary omits successful chapter rows. Reports are available when an
+attempt stops, including after cancellation or export failure. A packaging failure
+leaves chapters counted as prepared; a successful retry replaces failed outcomes.
+“Saving” means the collection file was handed to the browser. Reports update to
+Completed or Interrupted when the browser
 confirms the outcome; missing download records are labelled Status unavailable.
 Completed confirms the browser save, not that a reader validated the file. Reports are not
 inserted into generated files and are saved only when requested. They contain post

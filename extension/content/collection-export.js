@@ -48,27 +48,42 @@
   function renderDownloadReport() {
     const view = shadow?.querySelector(".download-report");
     if (!view) return;
-    view.hidden = !downloadReport;
-    if (!downloadReport) return;
-    const summary = view.querySelector("summary");
+    view.hidden = busy || !downloadReport;
+    if (view.hidden) return;
     const totals = Object.fromEntries(["ready", "prepared", "download-started", "completed", "interrupted", "unconfirmed", "skipped", "failed", "cancelled"].map(status =>
       [status, downloadReport.posts.filter(post => post.status === status).length]));
-    const result = totals.interrupted ? `${totals.interrupted} interrupted` : totals.failed ? `${totals.failed} failed`
-      : totals["download-started"] ? `${totals["download-started"]} in progress` : totals.completed ? `${totals.completed} completed`
-      : totals.skipped ? `${totals.skipped} skipped` : "";
-    summary.textContent = `Download report${result ? ` · ${result}` : ""}`;
-    view.querySelector(".report-totals").textContent = `${totals["download-started"] + totals.completed + totals.interrupted + totals.unconfirmed} included · ${totals.skipped} skipped · ${totals.failed} failed · ${totals.completed} completed · ${totals.interrupted} interrupted`;
-    view.querySelector(".report-state").textContent = downloadReport.state;
-    view.querySelector(".download-parts").textContent = partResults();
+    const labels = { ready: "Ready", prepared: "Prepared", "download-started": "Saving", completed: "Completed", interrupted: "Interrupted", unconfirmed: "Status unavailable", skipped: "Skipped", failed: "Failed", cancelled: "Cancelled" };
+    const totalsList = view.querySelector(".report-totals"); totalsList.replaceChildren();
+    const included = totals["download-started"] + totals.completed + totals.interrupted + totals.unconfirmed;
+    totalsList.append(element("li", {}, `${included} included`));
+    for (const [status, label] of Object.entries(labels)) if (totals[status]) {
+      totalsList.append(element("li", { "data-result": status }, `${totals[status]} ${label.toLowerCase()}`));
+    }
+    const state = view.querySelector(".report-state");
+    state.textContent = downloadReport.state;
+    state.hidden = included > 0 && !totals.failed && !totals.cancelled && !totals.ready && !totals.prepared;
+    const parts = view.querySelector(".download-parts"); parts.replaceChildren();
+    for (const part of downloadReport.parts.values()) if (part.started) {
+      const row = element("li");
+      const outcome = part.state === "complete" ? "Completed" : part.state === "interrupted" ? "Interrupted"
+        : part.state === "unavailable" ? "Status unavailable" : "In progress";
+      row.append(element("strong", {}, part.filename), element("span", {}, outcome));
+      if (["interrupted", "unavailable"].includes(part.state)) row.append(element("p", {}, part.reason));
+      else if (part.state !== "complete") row.append(element("p", {}, "The browser is saving the file."));
+      parts.append(row);
+    }
+    parts.hidden = !parts.childElementCount;
     const list = view.querySelector("ol"); list.replaceChildren();
-    const labels = { ready: "Ready", prepared: "Prepared", "download-started": "Download started", completed: "Completed", interrupted: "Interrupted", unconfirmed: "Status unavailable", skipped: "Skipped", failed: "Failed", cancelled: "Cancelled" };
-    for (const post of downloadReport.posts) {
+    // Successful chapters share their file outcome; only individual issues need rows.
+    for (const post of downloadReport.posts.filter(post => ["failed", "skipped"].includes(post.status))) {
       const row = element("li");
       row.append(element("strong", {}, post.title || post.url || "Post"), element("p", {}, `${labels[post.status]}${post.reason ? ` · ${post.reason}` : ""}`));
       if (post.url) row.append(element("a", { href: post.url, target: "_blank", rel: "noopener noreferrer" }, "Open post"));
       list.append(row);
     }
-    view.querySelector("button").disabled = busy;
+    list.hidden = !list.childElementCount;
+    view.querySelector(".report-issues-heading").hidden = list.hidden;
+    view.querySelector("button").disabled = false;
   }
   function prepareDownloadReport(prepared, discovered) {
     if (downloadReport?.format) return; // Preserve the last attempt while its chooser is refreshed.
@@ -519,7 +534,8 @@
       chooser.style.pointerEvents = value ? "none" : "";
       chooser.style.opacity = value ? ".5" : "1";
     }
-    if (!value) { const details = shadow?.querySelector(".progress-details"); if (details) details.open = false; }
+    const details = shadow?.querySelector(".progress-details");
+    if (details) { details.hidden = !value; if (!value) details.open = false; }
     const close = shadow?.querySelector(".close");
     if (close) close.disabled = false;
     const cancel = shadow?.querySelector(".cancel");
@@ -974,13 +990,14 @@
     restart.addEventListener("click", () => showOptions());
     const retry = element("button", { type: "button", class: "close retry", hidden: "" }, "Retry failed posts");
     retry.addEventListener("click", () => { if (checkpoint) run(checkpoint.format); });
-    const reportView = element("details", { class: "download-report", hidden: "" });
-    reportView.append(element("summary", {}, "Download report"), element("p", { class: "report-totals" }), element("p", { class: "report-state" }), element("p", { class: "download-parts", style: "white-space:pre-line" }),
-      element("ol", { "aria-label": "Post download results" }));
+    const reportView = element("div", { class: "download-report", role: "region", "aria-label": "Download report", hidden: "" });
+    reportView.append(element("h3", {}, "Download report"), element("ul", { class: "report-totals", "aria-label": "Post totals" }), element("p", { class: "report-state" }), element("ul", { class: "download-parts", "aria-label": "Downloaded files" }),
+      element("h4", { class: "report-issues-heading" }, "Posts needing attention"), element("ol", { class: "report-issues", "aria-label": "Posts needing attention" }));
     const saveReport = element("button", { type: "button", class: "close" }, "Save report");
     saveReport.addEventListener("click", saveDownloadReport); reportView.append(saveReport);
-    style.textContent += ".download-report{margin-top:14px;border-top:1px solid #dedee3;padding-top:10px}.download-report summary{cursor:pointer;font-weight:650;font-size:13px}.download-report ol{max-height:220px;overflow:auto;padding-left:22px;margin:8px 0;font-size:12px}.download-report li{margin:10px 0;overflow-wrap:anywhere}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline}.download-report strong{font-size:12px}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}}";
-    body.append(reportView);
+    style.textContent += `.download-report{margin-bottom:16px;border-bottom:1px solid #dedee3;padding-bottom:16px;overflow-wrap:anywhere}.download-report h3{margin:0 0 8px;font-size:15px;font-weight:650}.download-report h4{margin:16px 0 8px;font-size:13px;font-weight:650}.download-report ul{list-style:none;padding:0;margin:8px 0 12px}.report-totals{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;font-variant-numeric:tabular-nums}.download-parts li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;margin:10px 0;font-size:13px}.download-parts p{grid-column:1/-1}.download-report .report-issues{padding-left:20px;margin:8px 0 16px;font-size:13px}.report-issues li{margin:12px 0}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline;text-underline-offset:3px}.download-report strong{font-size:13px}.report-totals [data-result=failed],.report-totals [data-result=interrupted]{color:#a32037}.download-report [hidden]{display:none!important}#collection-export-status{overflow-wrap:anywhere}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}.report-totals [data-result=failed],.report-totals [data-result=interrupted]{color:#ff9bac}}`;
+
+    body.prepend(reportView);
     controls.append(cancel, restart, retry);
     dialog.append(header, body, controls);
     style.textContent += `@media(prefers-color-scheme:dark){.progress-details summary{color:#b8b8c3}}section{display:flex;flex-direction:column;overflow:hidden}header,.controls{flex:none}.collection-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.controls{border-top:1px solid #dedee3;padding-top:12px}.format-options[aria-hidden=true]{height:0;overflow:hidden;visibility:hidden}.retry{font-weight:650}@media(prefers-color-scheme:dark){.controls{border-color:#48484e}}`;

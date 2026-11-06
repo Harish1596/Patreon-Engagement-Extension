@@ -2211,3 +2211,24 @@ cases skip; 14 targeted Brave PDF tests pass; 92 JavaScript files pass syntax
 checks. A temporary 54-file ZIP validates at 10,709,695 bytes. No published archive
 was replaced and no version bump, merge, push or live private-page inspection is
 claimed. Detailed commands and attribution limits are in TESTING.md.
+
+
+## November 6, 2026 — Compact collection report UI
+
+The supplied screenshot showed completed progress and an expanded 75-chapter
+report competing for space. Progress now gives way to a summary above the format
+choices when work stops. Successful chapters share file outcomes; failed/skipped
+chapters retain reasons and source links; Save report retains all individual
+records. Native completion, interruption and unavailable-history states remain
+separate. Reopening, retry, cancellation and expiry keep their existing lifecycle.
+
+RED fixtures reproduced overlap at 360px and 1280px. Final Chrome: 161 pass, two
+Brave-only cases skip. Targeted Brave: 20 pass, including both installed-extension
+specs. Tooling: 143 pass. Syntax: 92 JavaScript files pass. Batched visual checks
+at 360×740/dark and 1280×900/light confirm progress/summary transitions and compact
+results (147.5px for the completed 75-post summary), with no page errors. Browser
+plugin was unavailable, so existing Playwright tooling was used. A readiness race
+in a description-only checkbox test was stabilized with the existing keyboard
+pattern; production menu behavior was unchanged. Commands, test-adjustment details
+and evidence limits are recorded in TESTING.md. No live private page was inspected
+and no store package, release version or publication was changed.

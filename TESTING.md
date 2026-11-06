@@ -44,6 +44,39 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 6, 2026 — Compact collection download reports
+
+Progress details are visible only while collection preparation/packaging is busy.
+When work stops, an always-visible Download report appears above format choices,
+with counts and file outcomes instead of repeated successful chapter rows. Only
+failed/skipped posts receive individual rows; full per-post details remain in
+Save report. Browser handoff remains distinct from confirmed completion.
+
+- `npm run check`: syntax checks pass for 92 JavaScript files.
+- `npm run test:tooling`: 143 tests pass.
+- `npm test -- --workers=2`: 161 pass, two Brave-only tests skip.
+- `npm run test:brave -- tests/collection-report.spec.js tests/collection-completion.spec.js tests/collection-progress.spec.js tests/collection-controls.spec.js tests/installed.spec.js tests/installed-pdf.spec.js`:
+  20 pass, including actual installed-extension storage and native PDF downloads.
+- Responsive Chrome inspection uses synthetic collection 500 at 360×740/dark and
+  1280×900/light. Progress, completed and failed outcomes were captured outside
+  the repository. A 75-post completed summary measures 147.5px high at both widths;
+  checks confirm no report horizontal overflow and no page errors in this flow.
+
+Browser plugin not available; existing Playwright fixtures provide the browser
+checks. New regressions first reproduced the overlapping report/progress state at
+both widths, then passed for completion, repeat download, cancellation and a saved
+report containing all 75 post records. Existing tests retain failure reasons,
+source links, skipped membership locks, ordered parts, interruption, unavailable
+history, expiry and retry coverage. Initial test adjustments fixed a hardcoded
+saved-report filename and narrowed skipped-row selectors to the issue list. A
+menu description test also exposed a click during iframe resizing; it now uses
+the established enabled/Space/checked interaction, while menu pointer coverage
+remains in the menu specs. No production chooser change was needed.
+
+This is synthetic and installed-extension evidence, not new live Patreon or
+private-account verification. No permissions, cache lifecycle, version or release
+archive changed. Changelog changes remain unreleased.
+
 ## November 6, 2026 — Identify posts behind PDF packaging failures
 
 Collection PDF errors now carry bounded, validated chapter indices and reasons

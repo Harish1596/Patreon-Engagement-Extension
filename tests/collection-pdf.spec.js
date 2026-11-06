@@ -92,7 +92,6 @@ test('combined PDF errors name all affected posts, keep their data and link repo
   await expect(status).toContainText('Post 1'); await expect(status).toContainText('Chapter Alpha');
   await expect(status).toContainText('Post 3'); await expect(status).toContainText('Chapter Gamma');
   const report = page.locator('.download-report');
-  if (await report.getAttribute('open') === null) await report.locator('summary').click();
   for (const [title, url, code] of [['Chapter Alpha', 'https://www.patreon.com/posts/101', 'U+1F600'], ['Chapter Gamma', 'https://www.patreon.com/posts/103', 'U+5D0']]) {
     const row = report.locator('li').filter({ has: page.getByText(title, { exact: true }) });
     await expect(row).toContainText('Failed'); await expect(row).toContainText(code);

@@ -2063,3 +2063,15 @@ all identified failures. Global size/layout failures remain unattributed when a
 specific chapter cannot be established. Prepared chapter data remains retryable.
 Synthetic and installed-Brave fixtures verify these boundaries, not live Patreon
 markup. No selectors, Reader surfaces, access rules or cache lifecycle changed.
+
+
+**November 6 collection-report presentation:** The supplied screenshot shows
+completed progress details alongside a long expanded report repeating successful
+chapter rows. The local collection panel now shows progress details only while
+busy, then an always-visible summary above the format choices. Counts omit zero
+statuses except included; file rows carry native completion/interruption states;
+only failed/skipped chapters get individual rows and source links. Saved reports
+retain every chapter and its reason. The report has no disclosure or nested list
+scrollbar. Retry, cancellation, membership access, temporary caches and page
+selectors are unchanged. Synthetic 75-post and installed-extension checks are
+separate from the user's screenshot; no new live Patreon markup was inspected.
