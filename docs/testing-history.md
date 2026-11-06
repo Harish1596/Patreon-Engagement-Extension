@@ -2351,3 +2351,10 @@ or in the final run. No production PDF or cache workaround was added. This is
 synthetic/isolated-profile evidence, not a live private-page check or a universal
 stale-context fix for every extension surface. Current commands and limits are
 recorded in TESTING.md; no permission, manifest version or store archive changed.
+
+
+## November 6, 2026 — Prepare version 1.2.1
+
+Updated the manifest and required package/lockfile version fields from 1.2.0 to
+1.2.1. Source-package validation passes, as do all 11 packaging tests. No new
+release archive, browser run or publication is claimed by this metadata change.

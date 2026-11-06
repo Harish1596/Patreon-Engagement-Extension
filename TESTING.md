@@ -44,6 +44,13 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 6, 2026 — Version metadata 1.2.1
+
+The manifest, package metadata and both root lockfile versions are aligned at
+1.2.1. `readPackage(process.cwd())` validates the source package;
+`node --test tests/tooling/package.test.cjs` passes all 11 tests. No new release
+ZIP was generated or published. Earlier versioned results remain historical.
+
 ## November 6, 2026 — Omit repeated chapter metadata in combined downloads
 
 Single PDF, Single EPUB and Single Markdown omit visible per-chapter Creator,
