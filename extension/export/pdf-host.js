@@ -20,7 +20,7 @@
       signal?.addEventListener('abort', abort, { once: true });
       worker.onerror = () => finish(new Error('The packaged PDF renderer could not start.'));
       worker.onmessage = event => {
-        if (event.data?.error) finish(new Error(event.data.error));
+        if (event.data?.error) finish(Object.assign(new Error(event.data.error), { pdfFailures: PatreonPdf.failureDetails(event.data.pdfFailures, chapters.length) }));
         else if (!(event.data?.bytes instanceof Uint8Array) || event.data.bytes.length > PatreonPdf.MAX_OUTPUT) finish(new Error('The PDF renderer returned an invalid file.'));
         else finish(null, event.data.bytes);
       };

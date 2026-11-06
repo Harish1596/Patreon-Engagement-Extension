@@ -26,7 +26,7 @@
         });
         const result = await Promise.race([pending, stopped]);
         signal?.throwIfAborted();
-        if (result?.error) throw new Error(result.error);
+        if (result?.error) throw Object.assign(new Error(result.error), { pdfFailures: PatreonPdf.failureDetails(result.pdfFailures, validated.length) });
         if (typeof result?.data !== 'string' || result.data.length > Math.ceil(PatreonPdf.MAX_OUTPUT / 3) * 4) throw new Error('The PDF renderer returned an invalid file.');
         const bytes = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
         if (bytes.length > PatreonPdf.MAX_OUTPUT || new TextDecoder().decode(bytes.subarray(0, 5)) !== '%PDF-') throw new Error('The PDF renderer returned an invalid file.');
@@ -58,7 +58,10 @@
         job.controller.signal.throwIfAborted();
         let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
         respond({ data: btoa(binary) });
-      }).catch(error => respond({ error: error.message || 'The PDF could not be generated.' }))
+      }).catch(error => {
+        const pdfFailures = PatreonPdf.failureDetails(error.pdfFailures, message.chapters?.length);
+        respond({ error: error.message || 'The PDF could not be generated.', ...(pdfFailures.length ? { pdfFailures } : {}) });
+      })
         .finally(() => { clearTimeout(timer); active.delete(message.id); });
       return true;
     });

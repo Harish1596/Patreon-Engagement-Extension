@@ -44,6 +44,33 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 6, 2026 — Identify posts behind PDF packaging failures
+
+Collection PDF errors now carry bounded, validated chapter indices and reasons
+through the worker, offscreen renderer and archive bridge. Font preflight checks
+all chapters before rendering; the summary names up to three affected posts and
+the Download report includes every identified post, its character error and its
+existing source link. Skipped entries retain correct collection numbering.
+Prepared data survives packaging retries. Global resource/layout failures remain
+generic when no individual post can be identified.
+
+- `npm run check`: 92 JavaScript files pass syntax checks.
+- `npm run test:tooling`: 143 tests pass, including multi-chapter font failures,
+  bounded metadata validation, duplicate rejection and URL/control redaction.
+- `npm test -- --workers=2`: 159 pass; two Brave-only tests skip.
+- `npm run test:brave -- tests/pdf.spec.js tests/collection-pdf.spec.js tests/installed-pdf.spec.js`:
+  14 pass, including saved reports, retry without refetching and native transport.
+- Temporary packaging validation: 54 files, 10,709,695-byte ZIP; the published
+  release archive was not overwritten. Manifest remains 1.2.0, changes unreleased.
+
+The installed fixture uses already-ready source tabs, as its successful-download
+scenarios do. An initial cold-tab variant exceeded the five-second retry-control
+expectation; the adjusted fixture and final targeted suite passed. This does not
+establish cold-tab timing or live Patreon/private-collection verification. No post
+body or signed URL is added to structured failure metadata; titles/source links
+come from existing report context. A chapter reports its first unsupported glyph,
+not an exhaustive list of every unsupported character.
+
 ## November 6, 2026 — CJK PDF fallback for U+5929
 
 The reported retained-collection packaging failure at U+5929 (天) reproduced in

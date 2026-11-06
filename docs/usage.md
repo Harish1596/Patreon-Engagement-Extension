@@ -142,7 +142,17 @@ confirms the outcome; missing download records are labelled Status unavailable.
 Completed confirms the browser save, not that a reader validated the file. Reports are not
 inserted into generated files and are saved only when requested. They contain post
 links/titles, status and reasons, not post bodies or media URLs; URLs in failure
-messages are omitted. The latest report stays in this page's memory for up to
+messages are omitted.
+
+If a combined PDF fails a per-post font check, the error identifies affected post
+numbers and titles. All detected font-failing posts are marked Failed in the
+report with their Unicode error and an Open post link, including when other posts
+were skipped. Their staged chapter data stays retained for Retry packaging. The
+short error shows up to three titles; the report and saved report list every
+identified post. Collection-wide limits or unassignable renderer errors do not
+invent a responsible post.
+
+The latest report stays in this page's memory for up to
 two hours, survives closing/reopening the dialog, and clears on
 navigation/reload or expiry. Cancel updates it so it can be reviewed.
 New downloads replace the previous report. Saved report files remain yours.

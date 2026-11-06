@@ -225,7 +225,9 @@ used. Store artwork and screenshot capture instructions are in
 
 If controls are missing, refresh the Patreon page and confirm the extension has
 site access. For download failures, check the visible error and collection report,
-then retry or choose another format as appropriate.
+then retry or choose another format as appropriate. Per-post PDF validation
+failures identify affected titles and numbers; the collection report provides
+character codes and source links while retaining prepared chapters for retry.
 
 Report problems through [GitHub Issues](https://github.com/Harish1596/Patreon-Engagement-Extension/issues)
 or the Chrome Web Store listing's Support section. Include your browser and

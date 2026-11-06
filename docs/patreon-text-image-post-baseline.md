@@ -2052,3 +2052,14 @@ A larger 75-chapter image fixture includes 天 and passes the real runtime bridg
 a visual raster confirms the glyph shape. No live Patreon page or private post
 body was inspected. This is an unreleased export-boundary update; page selectors,
 Reader surfaces, access rules and cache retention are unchanged.
+
+
+**November 6 PDF error attribution:** Collection exports preserve validated
+chapter-index/error pairs through the local renderer and archive bridge. Font
+preflight identifies every affected chapter in the current part, including correct
+indices across skipped entries; the UI resolves titles and source links from its
+existing report context. The summary lists up to three titles and the report lists
+all identified failures. Global size/layout failures remain unattributed when a
+specific chapter cannot be established. Prepared chapter data remains retryable.
+Synthetic and installed-Brave fixtures verify these boundaries, not live Patreon
+markup. No selectors, Reader surfaces, access rules or cache lifecycle changed.

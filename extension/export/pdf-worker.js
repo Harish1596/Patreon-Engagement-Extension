@@ -42,10 +42,12 @@ function glyphs(value, ranges = PatreonPdfGlyphs, label = 'PDF font') {
     throw new Error(`The ${label} does not support character U+${cp.toString(16).toUpperCase()}. Use EPUB or Markdown for this text.`);
   }
 }
-async function normalize(chapter, budget) {
+function validateText(chapter) {
   function text(node) { if (typeof node === 'string') glyphs(node); else { if (node.alt) glyphs(node.alt); node.children.forEach(text); } }
   for (const value of [chapter.title, chapter.author, chapter.downloadedAt, chapter.sourceUrl]) glyphs(value);
   text(chapter.body);
+}
+async function normalize(chapter, budget) {
   for (const asset of chapter.assets) {
     const type = /^data:image\/([^;,]+)/i.exec(asset.dataUrl)[1].toLowerCase();
     const data = bytes(asset.dataUrl);
@@ -79,7 +81,18 @@ self.onmessage = async event => {
     if (!Array.isArray(chapters) || !chapters.length || chapters.length > 100) throw new Error('The PDF chapter count is invalid.');
     const validated = chapters.map(PatreonPdf.chapter);
     const budget = { pixels: 0 };
-    for (const chapter of validated) await normalize(chapter, budget);
+    const failures = [];
+    for (const [index, chapter] of validated.entries()) {
+      try { validateText(chapter); } catch (error) { failures.push({ index, message: error.message }); }
+    }
+    if (failures.length) throw Object.assign(new Error(failures[0].message), { pdfFailures: failures });
+    for (const [index, chapter] of validated.entries()) {
+      try { await normalize(chapter, budget); }
+      catch (error) {
+        if (!error.message.startsWith('The PDF exceeds its 32-million-pixel')) error.pdfFailures = [{ index, message: error.message }];
+        throw error;
+      }
+    }
     if (book) { glyphs(book.title || ''); glyphs(book.downloadedAt || ''); }
     PatreonPdf.size({ chapters: validated, book });
     const definition = PatreonPdf.definition(validated, book);
@@ -103,5 +116,8 @@ self.onmessage = async event => {
     const result = new Uint8Array(length); let offset = 0;
     for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; }
     self.postMessage({ bytes: result }, [result.buffer]);
-  } catch (error) { self.postMessage({ error: typeof error?.message === 'string' ? error.message : 'The PDF could not be rendered.' }); }
+  } catch (error) {
+    const pdfFailures = PatreonPdf.failureDetails(error?.pdfFailures);
+    self.postMessage({ error: typeof error?.message === 'string' ? error.message : 'The PDF could not be rendered.', ...(pdfFailures.length ? { pdfFailures } : {}) });
+  }
 };

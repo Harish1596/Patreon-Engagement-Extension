@@ -46,7 +46,7 @@ async function render(chapters, book) {
     return await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Renderer timed out')), 20_000);
       worker.on('error', error => { clearTimeout(timeout); reject(error); });
-      worker.on('message', result => { clearTimeout(timeout); result.error ? reject(new Error(result.error)) : resolve(result.bytes); });
+      worker.on('message', result => { clearTimeout(timeout); result.error ? reject(Object.assign(new Error(result.error), { pdfFailures: result.pdfFailures })) : resolve(result.bytes); });
       worker.postMessage({ chapters, book });
     });
   } finally { await worker.terminate(); }
@@ -179,4 +179,29 @@ test('PDF preserves CJK ideographs alongside Latin and cuneiform across styles, 
   const text = doc.pages[1].text.replace(/\s/g, '');
   for (const expected of ['Creator天', 'Regular天地玄黃中文简体繁體Ḫ𒀭', 'Bold天地', 'Italic天地', 'Both天地', 'Link天地']) assert.ok(text.includes(expected), expected + '\n' + text);
   assert.ok(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cjk'));
+});
+
+test('PDF validation identifies every affected chapter without including post contents or source queries', async () => {
+  const pdf = adapter();
+  const chapters = ['Supported text', 'Private sample 😀', 'Still supported', 'Another sample א'].map((text, index) => pdf.chapter({
+    ...snapshot, title: `Chapter ${index + 1}`, sourceUrl: `https://www.patreon.com/posts/${201 + index}?secret=private`, body: { tag: 'p', children: [text] }
+  }));
+  await assert.rejects(render(chapters), error => {
+    assert.deepEqual(error.pdfFailures?.map(item => item.index), [1, 3]);
+    assert.match(error.pdfFailures[0].message, /U\+1F600/);
+    assert.match(error.pdfFailures[1].message, /U\+5D0/);
+    assert.ok(!JSON.stringify(error.pdfFailures).includes('Private sample'));
+    assert.ok(!JSON.stringify(error.pdfFailures).includes('secret='));
+    return true;
+  });
+});
+
+test('PDF failure metadata is bounded, redacted and restricted to actual chapter indices', () => {
+  const pdf = adapter();
+  const details = pdf.failureDetails([{ index: 0, message: 'Image failed https://media.example/image?secret=private\nRetry' },
+    { index: 0, message: 'Duplicate' }, { index: -1, message: 'Negative' }, { index: 1, message: 'Outside chapter list' },
+    { index: 0.5, message: 'Fraction' }, { index: 0, message: 'x'.repeat(1201) }], 1);
+  assert.equal(details.length, 1); assert.equal(details[0].index, 0);
+  assert.equal(details[0].message, 'Image failed [URL omitted] Retry');
+  assert.equal(pdf.failureDetails(Array.from({ length: 101 }, () => ({ index: 0, message: 'Too many' }))).length, 0);
 });

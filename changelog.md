@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Identify posts responsible for combined-PDF font validation failures, including
+  titles, post numbers, per-post Unicode errors and source links in the download
+  report. Keep staged chapters available for packaging retries.
 - Fix PDF exports failing on U+5929 (天) and other supported CJK ideographs by
   adding a bundled, on-demand Noto Sans SC fallback. Preserve existing Latin and
   Cuneiform coverage, links and metadata without remote font requests.

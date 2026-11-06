@@ -12,7 +12,10 @@
       const bytes = await PatreonPdfHost.render(message.chapters, message.book, controller.signal);
       let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
       return { data: btoa(binary) };
-    })().then(respond, error => respond({ error: error.message || 'The PDF could not be generated.' }))
+    })().then(respond, error => {
+      const pdfFailures = PatreonPdf.failureDetails(error.pdfFailures, message.chapters?.length);
+      respond({ error: error.message || 'The PDF could not be generated.', ...(pdfFailures.length ? { pdfFailures } : {}) });
+    })
       .finally(() => jobs.delete(message.id));
     return true;
   });

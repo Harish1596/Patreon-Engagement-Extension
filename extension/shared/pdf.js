@@ -23,6 +23,17 @@
     }
     return json;
   }
+  function failureDetails(value, count = 100) {
+    if (!Array.isArray(value) || value.length > 100 || !Number.isSafeInteger(count) || count < 1 || count > 100) return [];
+    const seen = new Set(), result = [];
+    for (const item of value) {
+      if (!Number.isSafeInteger(item?.index) || item.index < 0 || item.index >= count || seen.has(item.index)
+        || typeof item.message !== 'string' || !item.message || item.message.length > 1200) continue;
+      seen.add(item.index);
+      result.push({ index: item.index, message: item.message.replace(/https?:\/\/[^\s<>"']+/gi, '[URL omitted]').replace(/[\u0000-\u001f\u007f]/g, ' ') });
+    }
+    return result;
+  }
   function chapter(snapshot) {
     size(snapshot);
     if (snapshot?.version !== 1 || !Array.isArray(snapshot.assets) || snapshot.assets.length > 1000
@@ -161,5 +172,5 @@
     withFallbackFonts(document.content);
     return document;
   }
-  globalThis.PatreonPdf = Object.freeze({ chapter, definition, size, MAX_INPUT, MAX_OUTPUT, MAX_PIXELS, MAX_SIDE });
+  globalThis.PatreonPdf = Object.freeze({ chapter, definition, size, failureDetails, MAX_INPUT, MAX_OUTPUT, MAX_PIXELS, MAX_SIDE });
 })();

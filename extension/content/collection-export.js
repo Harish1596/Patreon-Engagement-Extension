@@ -716,8 +716,9 @@
     setBusy(true);
     setProgress(single ? `Building ${documentLabel}` : `Building ${label} files`);
     report(single ? `Building ${documentLabel}…` : `Building ${label} files…`);
+    let prepared;
     try {
-      let prepared = await waitFor(call(api.runtime, "sendMessage", {
+      prepared = await waitFor(call(api.runtime, "sendMessage", {
         type: "GET_COLLECTION_EXPORT_REQUEST", token: requestToken
       }), signal);
       if (!Number.isSafeInteger(prepared?.count)) {
@@ -874,13 +875,28 @@
 
     } catch (error) {
       if (signal.aborted || activeOperation !== operation) return;
-      reportState(`Collection download failed: ${cleanReportText(error.message || "Export failed.")} Chapters marked Prepared are retained for retry.`);
-      report(error.message || "The collection could not be exported.", "error");
+      let message = error.message || "The collection could not be exported.";
+      const affected = [];
+      if (checkpoint && Array.isArray(prepared?.postUrls)) {
+        for (const issue of globalThis.PatreonPdf.failureDetails(error.pdfFailures, checkpoint.count)) {
+          const entry = checkpoint.entries[issue.index];
+          if (!entry || entry.skipped) continue;
+          const postIndex = (checkpoint.offset || 0) + issue.index, url = prepared.postUrls[postIndex];
+          const post = downloadReport?.posts.find(post => post.url === url);
+          const title = cleanReportText(entry.title || post?.title || `Post ${postIndex + 1}`);
+          if (post) post.title = title;
+          updateReportPost(url, "failed", `${issue.message} Chapter data is retained for retry.`);
+          affected.push(`Post ${postIndex + 1} — ${title.slice(0, 160)}`);
+        }
+      }
+      if (affected.length) message += ` Affected posts: ${affected.slice(0, 3).join("; ")}${affected.length > 3 ? `; and ${affected.length - 3} more` : ""}. See Download report for details.`;
+      reportState(`Collection download failed: ${cleanReportText(message)} Prepared chapter data is retained for retry.`);
+      report(message, "error");
       setProgress();
       setBusy(false);
       finishOperation(operation);
       loadChooser();
-      if (checkpoint) { checkpoint.error = error.message; showRetry(); }
+      if (checkpoint) { checkpoint.error = message; showRetry(); }
     }
   }
 

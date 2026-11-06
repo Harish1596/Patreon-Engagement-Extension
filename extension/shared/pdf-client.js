@@ -17,7 +17,7 @@
       });
       const result = await Promise.race([pending, stopped]);
       signal?.throwIfAborted();
-      if (result?.error || typeof result?.data !== 'string') throw new Error(result?.error || 'The PDF renderer did not respond.');
+      if (result?.error || typeof result?.data !== 'string') throw Object.assign(new Error(result?.error || 'The PDF renderer did not respond.'), { pdfFailures: PatreonPdf.failureDetails(result?.pdfFailures, chapters.length) });
       if (result.data.length > Math.ceil(PatreonPdf.MAX_OUTPUT / 3) * 4) throw new Error('The generated PDF exceeds its size limit.');
       return Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
     } finally { signal?.removeEventListener('abort', abort); }

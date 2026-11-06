@@ -11,7 +11,7 @@ async function render(chapters, book, signal) {
       abort = () => reject(new DOMException('PDF cancelled', 'AbortError'));
       signal?.addEventListener('abort', abort, { once: true });
       worker.on('error', reject);
-      worker.on('message', result => result.error ? reject(new Error(result.error)) : resolve(result.bytes));
+      worker.on('message', result => result.error ? reject(Object.assign(new Error(result.error), { pdfFailures: result.pdfFailures })) : resolve(result.bytes));
       worker.postMessage({ chapters, book });
     });
   } finally { clearTimeout(timeout); signal?.removeEventListener('abort', abort); await worker.terminate(); }

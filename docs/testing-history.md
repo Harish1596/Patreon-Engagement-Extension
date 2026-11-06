@@ -2193,3 +2193,21 @@ Patreon DOM selector was introduced.
 Final local evidence: 98 tooling tests pass; 61 JavaScript files pass syntax checks;
 whitespace checks pass; Playwright collects 129 cases across 23 files. Browser
 execution remains blocked as described above, so no browser success is implied.
+
+
+## November 6, 2026 — Collection PDF failure attribution
+
+Synthetic real-renderer fixtures identify two unsupported-text posts around a
+skipped entry, preserve original post numbering, populate failed report rows with
+source links and character codes, and save those details without chapter bodies.
+Retry packaging reuses retained source data. Native Brave verifies the full
+worker/offscreen/service/archive/content message path and still renders the
+75-chapter mixed-script fixture. Initial cold-tab fixture timing was resolved by
+using the ready-source-tab setup already used by the installed-download test;
+no production timing workaround was introduced.
+
+Final results: 143 tooling tests pass; 159 Chrome tests pass and two Brave-only
+cases skip; 14 targeted Brave PDF tests pass; 92 JavaScript files pass syntax
+checks. A temporary 54-file ZIP validates at 10,709,695 bytes. No published archive
+was replaced and no version bump, merge, push or live private-page inspection is
+claimed. Detailed commands and attribution limits are in TESTING.md.
