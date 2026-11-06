@@ -125,6 +125,12 @@ be retried before the complete book or ZIP is saved; completed encrypted chapter
 are retained for retry. Switching between book and separate-file modes reuses
 source text/images but rebuilds the format-specific files.
 
+If the extension is reloaded while a Patreon tab stays open, opening Download
+Collection checks the old script connection. An invalid connection replaces the
+chooser with a refresh message and **Refresh page** button. The page reloads only
+when that button is clicked; this loads the current extension scripts. Existing
+tabs opened before this guard was installed need an initial manual page refresh.
+
 During collection preparation and packaging, the dialog shows progress details.
 When work stops, **Download report** appears at the bottom, below the format
 choices. It says **All N posts downloaded** only when the browser confirms every

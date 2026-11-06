@@ -2323,3 +2323,31 @@ PDF assertions were aligned in separate commit `a531d24`. The final full run
 passed. No live private collection or new release archive/version is claimed.
 Commands and limits are recorded in TESTING.md. Earlier saved-report and
 above-chooser notes remain historical evidence superseded by this behavior.
+
+
+## November 6, 2026 — Recover blank collection controls after extension reload
+
+The user supplied the stale outer collection dialog with an empty format frame
+after reloading the extension while leaving Patreon open. Collection runtime URL
+calls now fail into a compact recovery message and Refresh page action. Stale
+local operations stop, old progress/report UI is hidden and late callbacks cannot
+restore normal choices. Origin/frame/token validation and user-driven navigation
+remain intact. Pages loaded before this fix need an initial manual refresh.
+
+Final evidence: 169 Chrome tests pass, three Brave-only specs skip; 153 tooling
+tests pass; 95 JavaScript files pass syntax checks. The final targeted Brave run
+passes 21 tests, including an actual extension-manager reload, recovery from the
+old page control, user-triggered new-document navigation and functioning format
+choices afterward. CDP reports no uncaught exception in that flow. Synthetic
+360×740/dark and 1280×900/light recovery panels measure 205px/213px and contain no
+blank chooser space or page errors. Screenshots remain outside the repository.
+
+Native fixture investigation found Developer mode had to be enabled in the
+disposable profile: CLI loading bypassed that requirement initially, but Brave
+disabled the unpacked extension on reload without it. Explicit DOM-ready
+navigation checking verifies the new document after the refresh click. One native
+PDF timeout in the first combined run did not reproduce independently with tracing
+or in the final run. No production PDF or cache workaround was added. This is
+synthetic/isolated-profile evidence, not a live private-page check or a universal
+stale-context fix for every extension surface. Current commands and limits are
+recorded in TESTING.md; no permission, manifest version or store archive changed.

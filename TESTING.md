@@ -68,6 +68,46 @@ No live Patreon check, version bump or replacement store archive was performed.
 Existing downloaded files must be regenerated to receive this change.
 
 
+## November 6, 2026 — Collection recovery after extension reload
+
+The collection panel now checks runtime identity/URL availability before opening
+and guards direct URL use during chooser loading, resize messages and permission
+handling. Invalidated scripts hide the iframe, stale report and progress, stop
+local work and show refresh guidance with a Refresh page button. Late callbacks
+cannot overwrite this latched recovery state. Page navigation remains user driven.
+
+- RED: both API namespaces reproduced an uncaught URL error/blank chooser before
+  the guard; the new recovery expectations failed, then passed after the change.
+- `npm run check`: 95 JavaScript files pass syntax checks.
+- `npm run test:tooling`: 153 pass.
+- `npm test -- --workers=2`: 169 pass; three installed-Brave specs skip.
+- `npm run test:brave -- tests/extension-context.spec.js tests/collection-controls.spec.js tests/collection-demand.spec.js tests/installed-context.spec.js tests/installed.spec.js tests/installed-pdf.spec.js --trace=retain-on-failure`:
+  final run: 21 pass. Includes missing runtime ID/throwing URL cases in both
+  namespaces, late chooser resize, normal permission/cancel flows and all three
+  installed-extension scenarios.
+- The new native test reloads the real unpacked extension through Brave's manager,
+  verifies recovery without automatic navigation, clicks Refresh page, checks a
+  new document and preserved URL/query, and confirms enabled format controls with
+  no uncaught CDP exceptions. Developer mode is enabled only in its disposable
+  profile; the user's browser profile is not modified.
+- Synthetic visual checks at 360×740/dark and 1280×900/light collapse a previously
+  1,000px chooser to 205px/213px recovery panels with visible focused refresh
+  controls and no page errors. Screenshots stay outside the repository.
+
+Initial native attempts timed out after refresh because CLI loading permitted an
+unpacked extension while the test profile's Developer mode was off; manager state
+showed DISABLED/unsupportedDeveloperExtension on reload. Enabling that fixture
+setting restored injection. The final test uses an explicit DOM-ready wait after
+click and verifies the new document. An existing installed-PDF scenario also
+hit its 90-second timeout once in the first combined run; it passed independently
+with tracing and in the final 21-test run. No production PDF workaround was added.
+
+No live private Patreon page or universal browser matrix is claimed. The Browser
+plugin is unavailable; validation uses existing Playwright tooling. The change is
+scoped to the collection UI, not every direct API entry point in the extension.
+Existing tabs opened before this guard was loaded need one manual page refresh.
+No new permissions, manifest version, cache policy or release ZIP changed.
+
 ## November 6, 2026 — Minimal download summary at the bottom
 
 Download report now follows format choices, status and hidden finished progress.

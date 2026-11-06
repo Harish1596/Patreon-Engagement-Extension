@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Replace the blank collection chooser after an extension reload with refresh
+  guidance and a user-controlled Refresh page button. Guard direct runtime URL
+  calls and stop stale local operations from changing the recovery state.
+
 - Reconnect refreshed collection tabs to their unexpired download sessions so
   later downloads reuse cached sources without rediscovering the collection.
   Restrict recovery to the same tab, browser window and collection URL.

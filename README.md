@@ -229,6 +229,9 @@ used. Store artwork and screenshot capture instructions are in
 After updating or reloading the extension, refresh open Patreon tabs before using
 their controls. “Extension context invalidated” means an older page script has
 lost its connection to the extension; that page must be refreshed to reconnect.
+Download Collection now shows refresh guidance and a **Refresh page** button when
+it detects that lost connection. Pages opened before this fix need one manual
+refresh to load the updated controls.
 
 If controls are missing, refresh the Patreon page and confirm the extension has
 site access. For download failures, check the visible error and collection report,

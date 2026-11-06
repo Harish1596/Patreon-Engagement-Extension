@@ -2136,3 +2136,20 @@ rows. Page-memory report expiry and cache/session recovery are unchanged. This
 supersedes the earlier above-chooser and saved-report presentation. No Patreon
 markup, selector, Reader or access change is involved; verification uses synthetic
 and installed-extension fixtures rather than a new live private-page capture.
+
+
+**November 6 collection recovery after extension reload:** The supplied screenshot
+shows the old page-owned dialog with an empty extension-owned format iframe after
+reloading the extension without refreshing Patreon. The panel now checks runtime
+identity/URL availability before opening and before direct URL use in frame and
+permission handling. Context loss hides the chooser and stale report/progress,
+stops local work, and offers a user-initiated Refresh page action. Recovery is
+latched for that old script; late callbacks cannot overwrite its guidance or
+restart work. Existing frame-source, origin and token validation is preserved.
+A real isolated Brave extension reload confirms the old control reaches recovery,
+no automatic page navigation occurs, and clicking Refresh page creates a new
+document at the same URL/query with working format controls. Synthetic cases also
+cover a missing runtime ID and throwing URL API, including a late chooser resize.
+This is extension-UI lifecycle evidence, not new Patreon markup or a claim about
+all stale-runtime entry points elsewhere in the extension. No access, permission,
+cache/session retention or native download-state rules changed.

@@ -20,6 +20,8 @@
   let permissionWait = null;
   let downloadReport = null;
   let reportTimer;
+  let contextLost = false;
+  const RELOAD_MESSAGE = "The extension was reloaded. Refresh this Patreon page to continue.";
   const cleanReportText = value => String(value || "").replace(/https?:\/\/[^\s<>"']+/gi, "[URL omitted]")
     .replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 1200);
   function reportUrl(value) {
@@ -44,7 +46,7 @@
   function renderDownloadReport() {
     const view = shadow?.querySelector(".download-report");
     if (!view) return;
-    view.hidden = busy || !downloadReport;
+    view.hidden = contextLost || busy || !downloadReport;
     if (view.hidden) return;
     const totals = Object.fromEntries(["ready", "prepared", "download-started", "completed", "interrupted", "unconfirmed", "skipped", "failed", "cancelled"].map(status =>
       [status, downloadReport.posts.filter(post => post.status === status).length]));
@@ -229,7 +231,7 @@
         failed ||= !result?.cancelled;
       } catch { failed = true; }
     }
-    if (host !== ownerHost || !host?.isConnected || activeOperation) return;
+    if (contextLost || host !== ownerHost || !host?.isConnected || activeOperation) return;
     report(failed ? "Cancellation could not be confirmed. Close this collection tab to stop its worker."
       : "Cancelled. You can start again.", failed ? "error" : "");
     setProgress();
@@ -485,12 +487,50 @@
     throw new Error("This collection has too many pages to prepare safely.");
   }
 
+  function showRefreshRequired() {
+    contextLost = true;
+    // The old runtime cannot receive cleanup messages. Stop local work and leave
+    // browser/background teardown to own its resources; refresh is user initiated.
+    permissionWait = null;
+    activeOperation?.controller.abort();
+    finishOperation();
+    busy = false;
+    requestToken = "";
+    checkpoint = null;
+    clearDiscovery();
+    resetDownloadReport();
+    if (!shadow) return;
+    chooser.hidden = true;
+    chooser.src = "about:blank";
+    shadow.querySelector(".format-options").hidden = true;
+    shadow.querySelector(".progress-details").hidden = true;
+    for (const name of ["cancel", "restart", "retry"]) shadow.querySelector(`.${name}`).hidden = true;
+    const refresh = shadow.querySelector(".refresh-page");
+    refresh.hidden = false;
+    setProgress();
+    report(RELOAD_MESSAGE, "error");
+    if (open && shadow.activeElement) refresh.focus();
+  }
+
+  function extensionOrigin() {
+    if (contextLost) { showRefreshRequired(); return null; }
+    try {
+      if (!api.runtime.id) throw new Error("Extension context invalidated.");
+      return api.runtime.getURL("").replace(/\/$/, "");
+    } catch {
+      showRefreshRequired();
+      return null;
+    }
+  }
+
   function report(message, tone = "") {
+    if (contextLost) { message = RELOAD_MESSAGE; tone = "error"; }
     const status = shadow?.querySelector("#collection-export-status");
     if (status) { status.textContent = message; status.dataset.tone = tone; }
   }
 
   function setProgress(label = "", current, total) {
+    if (contextLost) label = "";
     const progress = shadow?.querySelector("#collection-export-progress");
     if (!progress) return;
     if (!label) {
@@ -511,6 +551,7 @@
   }
 
   function setBusy(value) {
+    if (contextLost) return;
     busy = value;
     if (chooser) {
       chooser.hidden = !requestToken || chooser.src === "about:blank";
@@ -534,7 +575,7 @@
     finishOperation();
     setBusy(false);
     setProgress();
-    loadChooser();
+    if (!loadChooser()) return;
     report(message);
     if (checkpoint) showRetry();
     else shadow.querySelector(".retry").hidden = true;
@@ -542,18 +583,23 @@
 
   function showImagePermission() {
     if (!permissionWait || !open) return;
+    const origin = extensionOrigin();
+    if (!origin) return;
     chooser.hidden = false;
     chooser.style.pointerEvents = "";
     chooser.style.opacity = "1";
     shadow.querySelector(".format-options").setAttribute("aria-hidden", "false");
     shadow.querySelector(".intro").textContent = "Your download is waiting for image access.";
     chooser.contentWindow?.postMessage({ source: "patreon-reader-collection-permission", token: requestToken,
-      requestId: permissionWait.id }, api.runtime.getURL("").replace(/\/$/, ""));
+      requestId: permissionWait.id }, origin);
   }
 
   function loadChooser() {
+    const origin = extensionOrigin();
+    if (!origin) return false;
     chooser.hidden = false;
-    chooser.src = `${api.runtime.getURL("export/collection-chooser.html")}?instance=${crypto.randomUUID()}#${requestToken}`;
+    chooser.src = `${origin}/export/collection-chooser.html?instance=${crypto.randomUUID()}#${requestToken}`;
+    return true;
   }
 
   async function discardPreparation(clearCheckpoint = true) {
@@ -711,6 +757,7 @@
   }
 
   async function run(format, start = checkpoint?.offset || 0, continuation = false) {
+    if (contextLost) { showRefreshRequired(); return; }
     if (busy) return;
     if (checkpoint && checkpoint.format !== format) start = 0;
     const book = format === "epub-book";
@@ -991,7 +1038,9 @@
     style.textContent += `.download-report{margin-top:16px;border-top:1px solid #dedee3;padding-top:16px;overflow-wrap:anywhere}.download-report h3{margin:0 0 8px;font-size:15px;font-weight:650}.download-report h4{margin:16px 0 8px;font-size:13px;font-weight:650}.report-totals{font-size:13px;font-variant-numeric:tabular-nums;color:inherit}.download-report .report-issues{padding-left:20px;margin:8px 0;font-size:13px}.report-issues li{margin:12px 0}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline;text-underline-offset:3px}.download-report strong{font-size:13px}.download-report [hidden]{display:none!important}#collection-export-status{overflow-wrap:anywhere}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}}`;
     body.append(reportView);
 
-    controls.append(cancel, restart, retry);
+    const refresh = element("button", { type: "button", class: "close refresh-page", hidden: "" }, "Refresh page");
+    refresh.addEventListener("click", () => location.reload());
+    controls.append(cancel, restart, retry, refresh);
     dialog.append(header, body, controls);
     style.textContent += `@media(prefers-color-scheme:dark){.progress-details summary{color:#b8b8c3}}section{display:flex;flex-direction:column;overflow:hidden}header,.controls{flex:none}.collection-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.controls{border-top:1px solid #dedee3;padding-top:12px}.format-options[aria-hidden=true]{height:0;overflow:hidden;visibility:hidden}.retry{font-weight:650}@media(prefers-color-scheme:dark){.controls{border-color:#48484e}}`;
     trigger.addEventListener("click", () => {
@@ -1000,6 +1049,7 @@
       dialog.hidden = false;
       trigger.setAttribute("aria-expanded", "true");
       dialog.focus();
+      if (!extensionOrigin()) return;
       if (busy) { showImagePermission(); return; }
       showOptions();
     });
@@ -1029,8 +1079,9 @@
   }
 
   window.addEventListener("message", event => {
-    if (!open || event.origin !== api.runtime.getURL("").replace(/\/$/, "")
-      || event.source !== chooser?.contentWindow || event.data?.token !== requestToken) return;
+    if (!open || contextLost || event.source !== chooser?.contentWindow || event.data?.token !== requestToken) return;
+    const origin = extensionOrigin();
+    if (!origin || event.origin !== origin) return;
     if (event.data.source === "patreon-reader-collection-export") {
       if (!busy && ["epub", "pdf", "markdown", "epub-book", "pdf-book", "markdown-book"].includes(event.data.format)) run(event.data.format);
       return;
@@ -1069,7 +1120,7 @@
   });
 
   api.runtime.onMessage.addListener((message, sender, respond) => {
-    if (sender.id !== api.runtime.id || !message || typeof message !== "object") return;
+    if (contextLost || sender.id !== api.runtime.id || !message || typeof message !== "object") return;
     if (message.type === "COLLECTION_MEDIA_PERMISSION") {
       if (sender.tab || !busy || !activeOperation || message.token !== requestToken
         || message.operationId !== activeOperation.id || activeOperation.controller.signal.aborted || permissionWait) {
