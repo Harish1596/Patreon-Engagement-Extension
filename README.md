@@ -114,9 +114,9 @@ next download can reconnect to its unexpired session and reuse cached sources.
 
 Progress shows the current stage and chapter while work is running. **Cancel**
 stops active work; **Retry** can resume retained chapters after a failure. When
-work stops, **Download report** replaces progress with totals, file outcomes and
-failed or skipped posts. **Save report** keeps the full per-post list in a local
-text file.
+work stops, **Download report** appears below the format choices with a completion
+summary and a list of failed posts. Skipped, cancelled, saving and unconfirmed
+posts are counted separately; there is no report-file download.
 “Saving” and “Download started” mean browser handoff; Completed and Interrupted reflect the
 browser's confirmed outcome. Completion does not validate the file's contents.
 

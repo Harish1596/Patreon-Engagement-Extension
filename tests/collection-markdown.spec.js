@@ -42,7 +42,7 @@ test("Single Markdown is one ordered offline document with metadata, contents an
   expect(text.match(/!\[Inline picture\]\(data:image\//g)).toHaveLength(2);
   const html = new commonmark.HtmlRenderer().render(new commonmark.Parser().parse(text));
   expect(html).toContain('<h2>Chapter 1 [story]</h2>');
-  await expect(page.locator(".report-totals")).toContainText("2 included");
+  await expect(page.locator(".report-totals")).toContainText("2 saving");
   await expect(formats(page).locator("#download-collection")).toBeEnabled();
   const separate = await download(page, () => startCollectionDownload(formats(page), "Markdown"));
   expect(separate.result.suggestedFilename()).toBe("Collected stories.zip");

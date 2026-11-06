@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: November 5, 2026
+Last updated: November 6, 2026
 
 Patreon Reader (the "extension") provides reading customisation and offline
 exports of accessible Patreon content. The developer does not receive post
@@ -73,12 +73,12 @@ create user-requested local exports:
   replacement by a new download attempt. Cancelling an export leaves its cancellation report available to review.
   Per-post preparation skips are included in prepared browser-session metadata
   under the same expiry/owner cleanup policy. The extension does not persist raw
-  error URLs, media links, post bodies or credentials in reports. Only clicking
-  Save report creates a user-retained plain-text report file; it is not uploaded
-  or automatically included in the exported collection. Reports label browser
-  handoff as Download started, then update to Completed or Interrupted when the
-  browser confirms the result. Missing download records are labelled Status
-  unavailable; completion is not a guarantee of file validity.
+  error URLs, media links, post bodies or credentials in reports. Reports are not
+  downloaded, uploaded or included in exported collections. The visible summary
+  shows completed counts and failed posts, with skipped, cancelled, saving and
+  unconfirmed counts distinguished. Reports update when the browser confirms the
+  result. Missing download records remain unconfirmed; completion is not a guarantee
+  of file validity.
 - To embed remote inline images, it asks the browser for access to the exact
   image origins used by that post. After permission is granted, the locally
   installed extension fetches those image bytes directly from the media origin.

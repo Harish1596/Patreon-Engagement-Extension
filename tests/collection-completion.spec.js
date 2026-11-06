@@ -23,32 +23,25 @@ async function result(page, index, state, reason) {
   }), { index, state, reason });
 }
 
-test("completed results update closed reports, survive reopening, and appear in saved reports", async ({ page }) => {
+test("completed results update a closed summary and survive reopening without a save action", async ({ page }) => {
   await fixture(page); await download(page);
-  await expect(report(page)).toContainText("In progress");
+  await expect(report(page)).toContainText("2 saving");
   await page.getByRole("button", { name: "Close collection download" }).click();
   await result(page, 0, "complete");
   await page.getByRole("button", { name: "Download Collection", exact: true }).click();
-  await expect(report(page).locator(".report-totals")).toContainText("2 completed");
-  await expect(report(page).locator(".download-parts li")).toContainText("Completion collection.zip");
-  await expect(report(page).locator(".download-parts li")).toContainText("Completed");
-  const pending = page.waitForEvent("download");
-  await report(page).getByRole("button", { name: "Save report" }).click();
-  const saved = await pending, chunks = [];
-  for await (const chunk of await saved.createReadStream()) chunks.push(chunk);
-  const text = Buffer.concat(chunks).toString();
-  expect(text.match(/COMPLETED:/g)).toHaveLength(2);
-  expect(text).toContain("Completion collection.zip: Completed");
+  await expect(report(page).locator(".report-totals")).toContainText("All 2 posts downloaded.");
+  await expect(report(page).getByRole("button")).toHaveCount(0);
+  await expect(report(page).locator(".download-parts")).toHaveCount(0);
   await result(page, 0, "interrupted", "Late duplicate");
-  await expect(report(page).locator(".report-totals")).toContainText("2 completed");
+  await expect(report(page).locator(".report-totals")).toContainText("All 2 posts downloaded.");
 });
 
 test("terminal results arriving before PACKAGE replies are not overwritten", async ({ page }) => {
   await fixture(page);
   await page.evaluate(() => { globalThis.collectionEarlyCompletion = true; });
   await download(page);
-  await expect(report(page).locator(".report-totals")).toContainText("2 completed");
-  await expect(report(page)).not.toContainText("In progress");
+  await expect(report(page).locator(".report-totals")).toContainText("All 2 posts downloaded.");
+  await expect(report(page)).not.toContainText("2 saving");
 });
 
 test("results require a background sender and the current report's part identifier", async ({ page }) => {
@@ -59,7 +52,7 @@ test("results require a background sender and the current report's part identifi
   await result(page, 0, "complete");
   await expect(report(page).locator(".report-totals")).toContainText("2 saving");
   await result(page, 1, "interrupted", "The download was cancelled in the browser.");
-  await expect(report(page).locator(".report-totals")).toContainText("2 interrupted");
+  await expect(report(page).locator(".report-totals")).toContainText("2 failed");
   await expect(report(page)).toContainText("The download was cancelled in the browser");
 });
 
@@ -68,18 +61,19 @@ test("numbered part completion and interruption remain independent", async ({ pa
   await fixture(page, 101); await download(page);
   await result(page, 1, "interrupted", "The device has insufficient disk space.");
   await result(page, 0, "complete");
-  await expect(report(page).locator(".report-totals")).toContainText("100 completed");
-  await expect(report(page).locator(".report-totals")).toContainText("1 interrupted");
-  await expect(report(page).locator(".download-parts li").first()).toContainText("Completed");
-  await expect(report(page).locator(".download-parts li").last()).toContainText("Interrupted");
+  await expect(report(page).locator(".report-totals")).toContainText("100 of 101 posts downloaded");
+  await expect(report(page).locator(".report-totals")).toContainText("1 failed");
+  await expect(report(page).locator(".report-issues li")).toHaveCount(1);
+  await expect(report(page).locator(".report-issues li")).toContainText("Chapter 101");
+  await expect(report(page)).toContainText("insufficient disk space");
 });
 
 test("unavailable history stays unconfirmed and expired reports ignore late results", async ({ page }) => {
   await page.clock.install();
   await fixture(page); await download(page);
   await result(page, 0, "unavailable", "The browser download record is unavailable. Completion could not be confirmed.");
-  await expect(report(page)).toContainText("Status unavailable");
-  await expect(report(page).locator(".report-totals")).toContainText("2 status unavailable");
+  await expect(report(page)).toContainText("Download completion could not be confirmed");
+  await expect(report(page).locator(".report-totals")).toContainText("2 unconfirmed");
   await page.clock.fastForward(2 * 60 * 60_000 + 1000);
   await expect(report(page)).toBeHidden();
   await result(page, 0, "complete");

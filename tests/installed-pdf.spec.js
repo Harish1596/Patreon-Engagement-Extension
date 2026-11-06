@@ -105,7 +105,7 @@ test('installed Brave exports a post, a combined PDF, and individual PDFs withou
       expect(text).toContain('Ḫ ḫ Ṭ ṭ Ḥ ḥ'); expect(text).toContain('𒀭'); expect(text.replace(/\s/g, '')).toContain('天地玄黃');
     }
     // Native download results are delivered through the existing report path.
-    await expect(page.locator('.download-report')).toContainText('completed');
+    await expect(page.locator('.download-report')).toContainText('All 2 posts downloaded.');
     // Match the native fixture's existing ready-tab setup; this case tests diagnostic transport.
     for (const postId of [203, 204]) {
       const tab = await context.newPage(); await tab.goto(`https://www.patreon.com/posts/${postId}`);

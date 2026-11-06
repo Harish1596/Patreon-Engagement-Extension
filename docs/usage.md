@@ -126,33 +126,28 @@ are retained for retry. Switching between book and separate-file modes reuses
 source text/images but rebuilds the format-specific files.
 
 During collection preparation and packaging, the dialog shows progress details.
-When work stops, **Download report** replaces those details automatically. The
-summary lists nonzero status counts and each file's browser outcome. Successful
-chapters share that file outcome instead of repeating a row for every chapter.
-Only failed or skipped posts appear individually under **Posts needing attention**.
-The report appears above the format choices. **Open post** links help identify
-missing chapters. Where
-Patreon exposes no title or precise cause, the report uses its post URL and an
-explicitly limited explanation rather than guessing whether it is locked.
+When work stops, **Download report** appears at the bottom, below the format
+choices. It says **All N posts downloaded** only when the browser confirms every
+post's file completed. Otherwise it shows the completed count out of the total,
+plus nonzero failed, skipped, cancelled, saving or unconfirmed counts.
 
-Choose **Save report** to download `<collection> - Download Report.txt`. The saved
-report includes every post and its individual status, even when the
-on-screen summary omits successful chapter rows. Reports are available when an
-attempt stops, including after cancellation or export failure. A packaging failure
-leaves chapters counted as prepared; a successful retry replaces failed outcomes.
-“Saving” means the collection file was handed to the browser. Reports update to
-Completed or Interrupted when the browser
-confirms the outcome; missing download records are labelled Status unavailable.
-Completed confirms the browser save, not that a reader validated the file. Reports are not
-inserted into generated files and are saved only when requested. They contain post
-links/titles, status and reasons, not post bodies or media URLs; URLs in failure
-messages are omitted.
+Failed posts are listed with their title, reason and **Open post** link. A browser
+interruption counts the posts in that file as failed and lists them too. Skipped
+posts, including membership locks and unsupported chapters, are counted separately
+from failures. An unavailable browser download record stays unconfirmed. A
+packaging failure without an identifiable culprit does not invent failed posts.
+Successful post rows, per-file inventories and the Save report action are omitted.
+Reports are available after cancellation and export failure as well as success.
+Retry updates the summary using retained chapters where available. Completion
+confirms the browser save, not that a reader validated the file. Reports contain
+no post bodies or media URLs; URLs in failure messages are omitted. They remain
+in page memory and are not downloaded or inserted into generated files.
 
 If a combined PDF fails a per-post font check, the error identifies affected post
 numbers and titles. All detected font-failing posts are marked Failed in the
 report with their Unicode error and an Open post link, including when other posts
 were skipped. Their staged chapter data stays retained for Retry packaging. The
-short error shows up to three titles; the report and saved report list every
+short error shows up to three titles; the failed-post list shows every
 identified post. Collection-wide limits or unassignable renderer errors do not
 invent a responsible post.
 

@@ -2302,3 +2302,24 @@ The full browser suite has 163 launch failures and two skips; both targeted Brav
 cases also abort at launch. These are SIGABRT environment failures before page
 assertions, so no browser or live Patreon verification is claimed. Commands and
 limits are in TESTING.md. No version or store package changed.
+
+
+## November 6, 2026 — Bottom summary without a report download
+
+The user requested Download report below the format choices and removed the Save
+report action. The panel now shows a completion sentence and only failed-post
+rows, retaining reasons and source links. Browser interruptions count affected
+posts as failed, while skipped/cancelled/saving/unconfirmed outcomes stay separate.
+The full report-file generator and per-file inventory were removed. Native result
+tracking, retry, cache/session lifecycle and progress visibility are unchanged.
+
+Final validation: 164 Chrome tests pass with two Brave-only skips; 153 tooling
+tests pass; 15 targeted Brave tests pass, including both installed-extension
+specs; syntax checks pass for 94 JavaScript files. A 75-post synthetic summary
+measures 67px at 360×740/dark and 1280×900/light, without page errors. The first
+full run exposed a cancelled later-part explanation hidden by saving copy and
+two stale combined-PDF creator expectations. The cancellation summary was fixed;
+PDF assertions were aligned in separate commit `a531d24`. The final full run
+passed. No live private collection or new release archive/version is claimed.
+Commands and limits are recorded in TESTING.md. Earlier saved-report and
+above-chooser notes remain historical evidence superseded by this behavior.

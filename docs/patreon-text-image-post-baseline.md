@@ -2124,3 +2124,15 @@ expiry, cancellation and browser-close cleanup rules remain. Native synthetic
 PDF download → refresh → download confirms cached sources and no rediscovery or
 uncaught exception in that flow; this does not establish the root cause of the
 user's earlier context-invalidation error or new live Patreon DOM behavior.
+
+
+**November 6 minimal bottom download report:** The user supplied a screenshot
+and requested the report below the format choices, without Save report or a file
+inventory. The result is now a single completion summary with a failed-post list.
+Browser-confirmed completion is required for all-post success; interruptions count
+as failed posts, while skipped/cancelled/saving/unconfirmed outcomes remain
+separate. Only failed/interrupted posts receive title, reason and source-link
+rows. Page-memory report expiry and cache/session recovery are unchanged. This
+supersedes the earlier above-chooser and saved-report presentation. No Patreon
+markup, selector, Reader or access change is involved; verification uses synthetic
+and installed-extension fixtures rather than a new live private-page capture.

@@ -13,9 +13,9 @@
   scripts after an extension reload/update. Return refresh-page guidance through
   existing error handlers while preserving permission-request user gestures.
 
-- Show progress during collection operations and replace it with a compact result
-  summary afterward. List file outcomes and posts needing attention without
-  repeated successful chapter rows; retain every post in saved reports.
+- Show progress during collection operations and a compact Download report below
+  the format choices afterward. Summarize completion and list failed posts,
+  removing the Save report action and per-file inventory.
 
 - Identify posts responsible for combined-PDF font validation failures, including
   titles, post numbers, per-post Unicode errors and source links in the download

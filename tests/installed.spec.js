@@ -261,9 +261,9 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     await suspendExportWorker();
     const bookBytes = await downloadCollectionZip(() => startCollectionDownload(collection.frameLocator('iframe[title="Collection export formats"]'), "Single EPUB"), ".epub");
     const bookEntries = readZip(bookBytes);
-    await expect(collection.locator(".download-report .report-totals")).toContainText("2 included");
-    await expect(collection.locator(".download-report")).toContainText("Completed");
-    await expect(collection.locator(".download-report").getByRole("button", { name: "Save report" })).toBeEnabled();
+    await expect(collection.locator(".download-report .report-totals")).toContainText("2 posts downloaded");
+    await expect(collection.locator(".download-report")).toContainText("posts downloaded");
+    await expect(collection.locator(".download-report").getByRole("button", { name: "Save report" })).toHaveCount(0);
     expect(bookEntries[0].name).toBe("mimetype");
     expect(bookEntries.filter(entry => entry.name.endsWith("post.xhtml")).map(entry => entry.name)).toEqual([
       "EPUB/chapters/001/post.xhtml", "EPUB/chapters/002/post.xhtml"
@@ -281,7 +281,7 @@ test("installed Brave extension: actual storage, content scripts, and popup", as
     expect(markdownBook).toContain("(#chapter-002)");
     expect(markdownBook.indexOf("Collection body one")).toBeLessThan(markdownBook.indexOf("Collection body two"));
     expect(markdownBook.match(/!\[[^\]]*\]\(data:image\//g)).toHaveLength(4);
-    await expect(collection.locator(".report-totals")).toContainText("2 completed");
+    await expect(collection.locator(".report-totals")).toContainText("All 2 posts downloaded.");
     await expect(collectionMarkdown).toBeEnabled({ timeout: 20_000 });
     await expect.poll(() => popup.evaluate(async () => {
       const root = await navigator.storage.getDirectory();

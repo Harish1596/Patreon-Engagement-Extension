@@ -32,10 +32,6 @@
     renderDownloadReport();
   }
   const handedOff = post => ["download-started", "completed", "interrupted", "unconfirmed"].includes(post.status);
-  function partResults() {
-    return [...(downloadReport?.parts?.values() || [])].filter(part => part.started).map(part =>
-      `${part.filename}: ${part.state === "complete" ? "Completed" : part.state === "interrupted" ? `Interrupted · ${part.reason}` : part.state === "unavailable" ? "Status unavailable · Completion could not be confirmed." : "In progress · The browser is saving the file."}`).join("\n");
-  }
   function applyPartResult(part) {
     if (!downloadReport) return;
     const status = part.state === "complete" ? "completed" : part.state === "interrupted" ? "interrupted" : part.state === "unavailable" ? "unconfirmed" : "download-started";
@@ -53,29 +49,26 @@
     const totals = Object.fromEntries(["ready", "prepared", "download-started", "completed", "interrupted", "unconfirmed", "skipped", "failed", "cancelled"].map(status =>
       [status, downloadReport.posts.filter(post => post.status === status).length]));
     const labels = { ready: "Ready", prepared: "Prepared", "download-started": "Saving", completed: "Completed", interrupted: "Interrupted", unconfirmed: "Status unavailable", skipped: "Skipped", failed: "Failed", cancelled: "Cancelled" };
-    const totalsList = view.querySelector(".report-totals"); totalsList.replaceChildren();
-    const included = totals["download-started"] + totals.completed + totals.interrupted + totals.unconfirmed;
-    totalsList.append(element("li", {}, `${included} included`));
-    for (const [status, label] of Object.entries(labels)) if (totals[status]) {
-      totalsList.append(element("li", { "data-result": status }, `${totals[status]} ${label.toLowerCase()}`));
-    }
+    const total = downloadReport.posts.length;
+    const failed = totals.failed + totals.interrupted;
+    const allDownloaded = total > 0 && totals.completed === total;
+    const counts = [[failed, "failed"], [totals.skipped, "skipped"], [totals.cancelled, "cancelled"],
+      [totals["download-started"], "saving"], [totals.unconfirmed, "unconfirmed"]]
+      .filter(([count]) => count).map(([count, label]) => `${count} ${label}`);
+    const summary = view.querySelector(".report-totals");
+    summary.textContent = allDownloaded ? `All ${total} posts downloaded.`
+      : `${totals.completed} of ${total} posts downloaded.${counts.length ? ` ${counts.join(" · ")}.` : ""}`;
+    summary.dataset.tone = failed ? "error" : allDownloaded ? "success" : "";
     const state = view.querySelector(".report-state");
-    state.textContent = downloadReport.state;
-    state.hidden = included > 0 && !totals.failed && !totals.cancelled && !totals.ready && !totals.prepared;
-    const parts = view.querySelector(".download-parts"); parts.replaceChildren();
-    for (const part of downloadReport.parts.values()) if (part.started) {
-      const row = element("li");
-      const outcome = part.state === "complete" ? "Completed" : part.state === "interrupted" ? "Interrupted"
-        : part.state === "unavailable" ? "Status unavailable" : "In progress";
-      row.append(element("strong", {}, part.filename), element("span", {}, outcome));
-      if (["interrupted", "unavailable"].includes(part.state)) row.append(element("p", {}, part.reason));
-      else if (part.state !== "complete") row.append(element("p", {}, "The browser is saving the file."));
-      parts.append(row);
-    }
-    parts.hidden = !parts.childElementCount;
+    state.textContent = totals.cancelled ? downloadReport.state
+      : totals["download-started"] ? "The browser is saving the file."
+      : totals.unconfirmed ? "Download completion could not be confirmed."
+      : totals.interrupted ? "The browser interrupted the download." : downloadReport.state;
+    state.hidden = allDownloaded || (totals.completed > 0 && !failed && !totals.cancelled
+      && !totals.ready && !totals.prepared && !totals["download-started"] && !totals.unconfirmed);
     const list = view.querySelector("ol"); list.replaceChildren();
-    // Successful chapters share their file outcome; only individual issues need rows.
-    for (const post of downloadReport.posts.filter(post => ["failed", "skipped"].includes(post.status))) {
+    // Only failed posts need individual rows; other outcomes stay in the summary.
+    for (const post of downloadReport.posts.filter(post => ["failed", "interrupted"].includes(post.status))) {
       const row = element("li");
       row.append(element("strong", {}, post.title || post.url || "Post"), element("p", {}, `${labels[post.status]}${post.reason ? ` · ${post.reason}` : ""}`));
       if (post.url) row.append(element("a", { href: post.url, target: "_blank", rel: "noopener noreferrer" }, "Open post"));
@@ -83,13 +76,11 @@
     }
     list.hidden = !list.childElementCount;
     view.querySelector(".report-issues-heading").hidden = list.hidden;
-    view.querySelector("button").disabled = false;
   }
   function prepareDownloadReport(prepared, discovered) {
     if (downloadReport?.format) return; // Preserve the last attempt while its chooser is refreshed.
     if (!downloadReport) {
-      downloadReport = { title: cleanReportText(collectionTitle()), source: `${location.origin}${location.pathname}`,
-        createdAt: new Date().toISOString(), format: "", state: "Collection discovered. Nothing downloaded yet.", posts: [], parts: new Map() };
+      downloadReport = { format: "", state: "Collection discovered. Nothing downloaded yet.", posts: [], parts: new Map() };
       reportTimer = setTimeout(resetDownloadReport, COLLECTION_CACHE_MS);
     }
     const posts = new Map();
@@ -112,14 +103,6 @@
   }
   function reportState(state) {
     if (downloadReport) { downloadReport.state = state; renderDownloadReport(); }
-  }
-  function saveDownloadReport() {
-    if (!downloadReport || busy) return;
-    const lines = [downloadReport.title, `Source: ${downloadReport.source}`, `Report time: ${downloadReport.createdAt}`,
-      `Format: ${downloadReport.format || "Not selected"}`, `Status: ${downloadReport.state}`, partResults(), "",
-      "Download started means the file was handed to the browser, not that it finished saving.", ""];
-    for (const post of downloadReport.posts) lines.push(`${post.status.toUpperCase()}: ${post.title || post.url || "Post"}`, post.url, post.reason, "");
-    globalThis.PatreonExporter.saveBlob(new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" }), `${fileStem(downloadReport.title)} - Download Report.txt`);
   }
   const COLLECTION_CACHE_MS = 2 * 60 * 60_000;
   const observedApiRequests = [];
@@ -875,7 +858,7 @@
       // Register before PACKAGE: a small native download can finish before its
       // request reply arrives. Keep results attached to this attempt and part.
       const partResult = { urls: prepared.postUrls.slice(offset, offset + checkpoint.count).filter((url, index) => !checkpoint.entries[index].skipped),
-        filename: `${fileStem(collectionTitle())}${suffix}.${extension}`, state: "pending", started: false };
+        state: "pending", started: false };
       downloadReport?.parts.set(checkpoint.id, partResult);
       const packaged = await archive.request("PACKAGE", { id: checkpoint.id, operationId: operation.id }, signal);
       checkOperation(operation);
@@ -918,7 +901,7 @@
         }
       }
       if (affected.length) message += ` Affected posts: ${affected.slice(0, 3).join("; ")}${affected.length > 3 ? `; and ${affected.length - 3} more` : ""}. See Download report for details.`;
-      reportState(`Collection download failed: ${cleanReportText(message)} Prepared chapter data is retained for retry.`);
+      reportState(checkpoint ? "Packaging failed. Prepared chapter data is retained for retry." : "Download failed. Try again.");
       report(message, "error");
       setProgress();
       setBusy(false);
@@ -1003,13 +986,11 @@
     const retry = element("button", { type: "button", class: "close retry", hidden: "" }, "Retry failed posts");
     retry.addEventListener("click", () => { if (checkpoint) run(checkpoint.format); });
     const reportView = element("div", { class: "download-report", role: "region", "aria-label": "Download report", hidden: "" });
-    reportView.append(element("h3", {}, "Download report"), element("ul", { class: "report-totals", "aria-label": "Post totals" }), element("p", { class: "report-state" }), element("ul", { class: "download-parts", "aria-label": "Downloaded files" }),
-      element("h4", { class: "report-issues-heading" }, "Posts needing attention"), element("ol", { class: "report-issues", "aria-label": "Posts needing attention" }));
-    const saveReport = element("button", { type: "button", class: "close" }, "Save report");
-    saveReport.addEventListener("click", saveDownloadReport); reportView.append(saveReport);
-    style.textContent += `.download-report{margin-bottom:16px;border-bottom:1px solid #dedee3;padding-bottom:16px;overflow-wrap:anywhere}.download-report h3{margin:0 0 8px;font-size:15px;font-weight:650}.download-report h4{margin:16px 0 8px;font-size:13px;font-weight:650}.download-report ul{list-style:none;padding:0;margin:8px 0 12px}.report-totals{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;font-variant-numeric:tabular-nums}.download-parts li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;margin:10px 0;font-size:13px}.download-parts p{grid-column:1/-1}.download-report .report-issues{padding-left:20px;margin:8px 0 16px;font-size:13px}.report-issues li{margin:12px 0}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline;text-underline-offset:3px}.download-report strong{font-size:13px}.report-totals [data-result=failed],.report-totals [data-result=interrupted]{color:#a32037}.download-report [hidden]{display:none!important}#collection-export-status{overflow-wrap:anywhere}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}.report-totals [data-result=failed],.report-totals [data-result=interrupted]{color:#ff9bac}}`;
+    reportView.append(element("h3", {}, "Download report"), element("p", { class: "report-totals", "aria-live": "polite" }), element("p", { class: "report-state" }),
+      element("h4", { class: "report-issues-heading" }, "Failed posts"), element("ol", { class: "report-issues", "aria-label": "Failed posts" }));
+    style.textContent += `.download-report{margin-top:16px;border-top:1px solid #dedee3;padding-top:16px;overflow-wrap:anywhere}.download-report h3{margin:0 0 8px;font-size:15px;font-weight:650}.download-report h4{margin:16px 0 8px;font-size:13px;font-weight:650}.report-totals{font-size:13px;font-variant-numeric:tabular-nums;color:inherit}.download-report .report-issues{padding-left:20px;margin:8px 0;font-size:13px}.report-issues li{margin:12px 0}.download-report p{margin:4px 0 8px}.download-report a{color:inherit;text-decoration:underline;text-underline-offset:3px}.download-report strong{font-size:13px}.download-report [hidden]{display:none!important}#collection-export-status{overflow-wrap:anywhere}@media(prefers-color-scheme:dark){.download-report{border-color:#48484e}}`;
+    body.append(reportView);
 
-    body.prepend(reportView);
     controls.append(cancel, restart, retry);
     dialog.append(header, body, controls);
     style.textContent += `@media(prefers-color-scheme:dark){.progress-details summary{color:#b8b8c3}}section{display:flex;flex-direction:column;overflow:hidden}header,.controls{flex:none}.collection-body{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}.controls{border-top:1px solid #dedee3;padding-top:12px}.format-options[aria-hidden=true]{height:0;overflow:hidden;visibility:hidden}.retry{font-weight:650}@media(prefers-color-scheme:dark){.controls{border-color:#48484e}}`;

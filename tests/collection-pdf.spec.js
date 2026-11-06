@@ -97,12 +97,10 @@ test('combined PDF errors name all affected posts, keep their data and link repo
     await expect(row).toContainText('Failed'); await expect(row).toContainText(code);
     await expect(row.getByRole('link', { name: 'Open post', exact: true })).toHaveAttribute('href', url);
   }
-  await expect(report).toContainText('Prepared');
-  const savedReport = await download(page, () => report.getByRole('button', { name: 'Save report', exact: true }).click());
-  const reportText = savedReport.bytes.toString('utf8');
-  expect(reportText).toContain('FAILED: Chapter Alpha'); expect(reportText).toContain('FAILED: Chapter Gamma');
-  expect(reportText).toContain('U+1F600'); expect(reportText).toContain('U+5D0');
-  expect(reportText).not.toContain('Unsupported sample');
+  await expect(report).toContainText('Prepared chapter data is retained for retry.');
+  await expect(report).toContainText('2 failed');
+  await expect(report.getByRole('button', { name: 'Save report' })).toHaveCount(0);
+  await expect(report).not.toContainText('Unsupported sample');
   const builds = await page.evaluate(() => collectionBuildIndices.slice());
   await page.getByRole('button', { name: 'Retry packaging', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Retry packaging', exact: true })).toBeVisible();

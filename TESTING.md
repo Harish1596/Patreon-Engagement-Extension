@@ -68,6 +68,40 @@ No live Patreon check, version bump or replacement store archive was performed.
 Existing downloaded files must be regenerated to receive this change.
 
 
+## November 6, 2026 — Minimal download summary at the bottom
+
+Download report now follows format choices, status and hidden finished progress.
+It contains a completion sentence and a failed-post list, with no Save report
+button, generated report file or per-file inventory. All-post success requires
+browser-confirmed completion of every post. Browser interruptions count affected
+posts as failed; skipped, cancelled, saving and unconfirmed counts stay distinct.
+Failure rows retain reasons, Unicode diagnostics and canonical source links.
+
+- RED: the new bottom-summary regression first found the unwanted Save report
+  button. It now confirms no save action/file inventory, bottom placement and
+  that skipped posts prevent all-success wording.
+- `npm run check`: 94 JavaScript files pass syntax checks.
+- `npm run test:tooling`: 153 pass.
+- `npm test -- --workers=2`: 164 pass, two Brave-only specs skip.
+- `npm run test:brave -- tests/collection-report.spec.js tests/collection-completion.spec.js tests/installed.spec.js tests/installed-pdf.spec.js`:
+  15 pass, including both real installed-extension workflows.
+- Responsive synthetic checks at 360×740/dark and 1280×900/light show progress,
+  completed and failed states without page errors. The 75-post completed summary
+  measures 67px high at both widths; screenshots stay outside the repository.
+
+The first full run found a later-part cancellation message hidden by saving copy;
+prioritizing cancellation preserves the earlier-file handoff explanation. It also
+found two stale creator-metadata expectations after the separate combined-chapter
+metadata change. Those assertions were corrected in focused commit `a531d24`,
+retaining body, contents and mixed-script navigation checks. The PDF/batch subset
+then passed 13 tests and the final full Chrome run passed as recorded above.
+
+No new live private-page or exhaustive accessibility verification is claimed.
+The Browser plugin is unavailable; checks use existing Playwright tooling. Cache
+expiry/recovery, output generation and download tracking remain unchanged. No new
+permissions, manifest version or replacement store ZIP was produced. This entry
+supersedes earlier above-chooser/file-inventory/saved-report presentation notes.
+
 ## November 6, 2026 — Reconnect collection sources after page refresh
 
 Collection source entries remain keyed to the original token, and the background
