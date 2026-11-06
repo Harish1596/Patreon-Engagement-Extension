@@ -17,14 +17,15 @@ files are generated locally using your existing access to Patreon.
 - **Keep entire collections:** choose PDF, EPUB or Markdown, then a single file
   or a ZIP of separate chapter files. Posts are ordered oldest to newest.
 - **Follow long downloads:** see progress and the current chapter, cancel work,
-  retry failed chapters and save a download report.
+  retry failed chapters and review a compact completion/failure summary.
 - **Reuse completed work:** valid text and images are cached locally for up to
   two hours so another format can reuse them.
 - **Reduce clutter:** optionally hide Patreon's floating engagement bar.
 
-This README describes the **1.2.0** feature branch. See the
-[release notes](docs/releases/1.2.0.md) for validation and submission status;
-publication in the Chrome Web Store has not been confirmed here.
+This checkout is prepared as **1.2.1**. The user confirmed that **1.2.0** was
+approved and published in the Chrome Web Store; 1.2.1 publication is pending.
+See the [1.2.1 release notes](docs/releases/1.2.1.md) for validation and remaining
+packaging/submission work.
 
 ## Install
 
@@ -96,6 +97,12 @@ See the [post-download guide](docs/usage.md#download-a-post) for more detail.
 | Single file | One PDF, EPUB or Markdown document with ordered chapters and linked contents |
 | Separate files (ZIP) | A ZIP containing one numbered, title-named file per accessible supported post |
 
+Combined files retain collection front matter without repeating Creator,
+Download time and Source blocks inside each chapter. EPUB and Markdown front
+matter includes Creator, Download time and Source; PDF includes collection title,
+Download time and Source. Separate chapter files retain individual post metadata.
+PDF contents use blue, underlined chapter links.
+
 Opening the menu or changing selectors does not fetch collection data. Discovery
 starts when Download is pressed. It follows collection pagination, with Patreon's
 Load more control as a fallback, and skips explicitly locked posts. Other
@@ -117,8 +124,9 @@ stops active work; **Retry** can resume retained chapters after a failure. When
 work stops, **Download report** appears below the format choices with a completion
 summary and a list of failed posts. Skipped, cancelled, saving and unconfirmed
 posts are counted separately; there is no report-file download.
-“Saving” and “Download started” mean browser handoff; Completed and Interrupted reflect the
-browser's confirmed outcome. Completion does not validate the file's contents.
+“Saving” and “Download started” mean browser handoff. All-post success requires
+browser-confirmed completion; an interrupted file counts its posts as failed.
+Completion does not validate file contents.
 
 See the [collection guide](docs/usage.md#download-a-collection) for cancellation,
 retry, cache reuse, numbered parts and detailed resource limits.
@@ -156,7 +164,7 @@ in Brave. The user confirmed live operation on November 5, 2026; that report doe
 not itemise every browser, viewer or accessibility scenario.
 
 The original engagement-bar feature was manually confirmed in Chrome, Brave,
-Firefox and Safari for macOS. That does not establish 1.2.0 download compatibility
+Firefox and Safari for macOS. That does not establish current download compatibility
 in Firefox or Safari, which require their own packaging and validation. See
 [TESTING.md](TESTING.md) for exact evidence and the current release checklist.
 
@@ -167,11 +175,10 @@ may require an extension update.
 PDF generation has bounded input, output, image and rendering-time limits. A PDF
 currently allows 48 MiB of serialised input and 40 MiB of output, with a two-minute
 rendering deadline. Some scripts and emoji remain outside the bundled fonts'
-coverage. The current source includes an unreleased local fallback for common
-CJK ideographs such as 天, alongside
-Latin and Cuneiform text; it loads only when needed and does not cover every CJK
-character or regional typography. Unsupported characters and oversized documents produce explicit errors;
-try separate files or another format. The [download guide](docs/usage.md) records
+coverage. Version 1.2.1 adds a bundled fallback for common CJK ideographs such as
+天, alongside Latin and Cuneiform text. It loads only when needed and does not
+cover every CJK character or regional typography. Unsupported characters and
+oversized documents produce explicit errors; try separate files or another format. The [download guide](docs/usage.md) records
 image limits, supported font fallback and archive behaviour.
 
 ## Development

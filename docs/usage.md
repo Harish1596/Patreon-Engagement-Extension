@@ -1,6 +1,6 @@
 # Reading and downloads
 
-Detailed behaviour for the 1.2.0 reading and offline-download features. For
+Detailed behaviour for the 1.2.1 reading and offline-download features. For
 installation and a quick overview, start with the [README](../README.md).
 See the [privacy policy](../PRIVACY.md) for data processing and retention and
 [TESTING.md](../TESTING.md) for validation evidence and limits.
@@ -110,9 +110,14 @@ Fetching starts only when Download is pressed:
 - **Single Markdown**: downloads one editable `.md` with collection metadata,
   linked contents and ordered chapters, with embedded inline images.
 - **Single PDF**: downloads one `.pdf` with a linked contents page and each
-  accessible post starting on a new page, oldest first.
+  accessible post starting on a new page, oldest first. Contents links are blue
+  and underlined; front matter includes collection title, Download time and Source.
 - **Separate files (ZIP)** with EPUB, PDF or Markdown: downloads one numbered
   file per accessible text post inside a ZIP archive.
+
+Combined chapters omit repeated Creator, Download time and Source blocks;
+collection-level front matter remains. Separate chapter files retain their own
+metadata just like standalone post downloads.
 
 All options download posts **oldest to newest** and reuse the same cached
 sources. Complete publication dates determine reading order, independently of
@@ -340,7 +345,7 @@ and Cyrillic text, including bold and italic faces. A bundled Noto Sans Cuneifor
 fallback renders cuneiform signs such as U+1202D alongside Latin text, using font
 runs that retain metadata, contents and links. The Cuneiform regular face serves
 all style aliases. Document text uses fallback; SVG text keeps primary-font coverage.
-The current source adds an unreleased Noto Sans SC regular fallback for common CJK ideographs,
+Version 1.2.1 adds a bundled Noto Sans SC regular fallback for common CJK ideographs,
 including U+5929 (天), while preserving Latin and Cuneiform text. Its local font
 asset loads only when needed; it is not downloaded from a font service. The font
 uses SC-locale glyph designs and its regular face serves all style aliases. This

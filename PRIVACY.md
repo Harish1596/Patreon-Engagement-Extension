@@ -41,13 +41,15 @@ create user-requested local exports:
   create one combined EPUB, Markdown or PDF file, or separate EPUB/PDF/Markdown
   files inside a local ZIP.
   A single book also processes the collection title and builds local chapter
-  navigation and a table of contents. Extension-created
-  tabs are closed after preparation or individual chapter generation, and on
+  navigation and a table of contents. Creator and source details remain local
+  export inputs even when combined documents omit visible per-chapter metadata.
+  Extension-created tabs are closed after preparation or individual chapter generation, and on
   cancellation. Discovered links and prepared metadata are cached for two hours;
   prepared metadata uses local browser-session storage to survive worker restarts.
   It includes the canonical collection URL, without query parameters, so a refreshed
-  page can reconnect to an unexpired session in the same tab and browser window
-  when the user next presses Download.
+  page can reconnect to an idle, unexpired session in the same tab and browser
+  window when the user next presses Download. Reconnecting alone does not extend
+  expiry; metadata without a valid collection binding is fetched again as needed.
   After a chapter is fetched for export, its sanitized text, creator, source URL,
   and distinct inline-image data are cached in extension-owned disk storage for
   up to two hours, allowing EPUB, PDF and Markdown to reuse one source copy without
@@ -157,8 +159,10 @@ replaces its appearance preferences with site defaults; it preserves the Reader
 enablement and engagement visibility choices. Disabling Reader retains its
 appearance preferences.
 Collection source entries are scoped to the prepared collection session and are
-removed on Cancel or closure of its owning tab. There is no manual Refresh
-Collection control. Valid discovery and source data is reused for up to two hours;
+removed on Cancel or closure of its owning tab. Refreshing the Patreon page clears
+its in-memory report and retry UI, but does not by itself delete valid background
+source entries; the next Download can reconnect under the ownership rules above.
+There is no manual Refresh Collection control. Valid discovery and source data is reused for up to two hours;
 missing or expired data is fetched when the user next presses Download. Source
 records keep their original expiry rather than extending it for each format.
 Collection metadata can include locally computed SHA-256 fingerprints of relevant

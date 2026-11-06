@@ -2358,3 +2358,19 @@ recorded in TESTING.md; no permission, manifest version or store archive changed
 Updated the manifest and required package/lockfile version fields from 1.2.0 to
 1.2.1. Source-package validation passes, as do all 11 packaging tests. No new
 release archive, browser run or publication is claimed by this metadata change.
+
+
+## November 6, 2026 — Align current documentation with 1.2.1
+
+The changelog and new 1.2.1 release record cover the PDF/font, combined metadata,
+summary, cache-reconnection and reload-recovery changes. Current README, privacy,
+usage, product, packaging and artwork guidance now match that behavior. The
+1.2.0 record acknowledges user-confirmed publication while retaining its original
+candidate evidence and unverified uploaded-checksum boundary. Historical dated
+behavior records remain distinct from current feature guidance.
+
+Local Markdown file targets and all four 1.2.1 version fields validate. The source
+package contains 54 allowlisted files and all 11 packaging tests pass after the
+policy update. This documentation-only pass did not rerun browsers or generate a
+new release ZIP, screenshot set, tag or publication. Current 1.2.1 release checks
+are listed in docs/releases/1.2.1.md and TESTING.md.

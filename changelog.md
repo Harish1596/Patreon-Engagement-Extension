@@ -1,36 +1,37 @@
 # Changelog
 
-## Unreleased
+## 1.2.1 — Prepared for release
 
+Prepared locally on November 6, 2026. A 1.2.1 store upload or publication has not
+been confirmed. See [release notes](docs/releases/1.2.1.md) for validation and
+remaining packaging/submission work.
+
+- Render supported CJK ideographs such as 天 in PDFs using an on-demand bundled
+  Noto Sans SC fallback, without downloading fonts. Existing Latin and Cuneiform
+  coverage is preserved; unsupported characters still produce explicit errors.
+- Make PDF contents chapter names blue and underlined so navigation is recognizable.
+- Omit repeated Creator, Download time and Source blocks inside combined PDF,
+  EPUB and Markdown chapters. Retain collection front matter and metadata in
+  individual post downloads and separate files inside ZIPs.
+- Identify posts responsible for combined-PDF font failures, with titles, post
+  numbers, Unicode errors and source links. Retain prepared chapters for retry.
+- Put Download report below the format choices, with confirmed completion totals
+  and failed-post details. Remove Save report and the file inventory; distinguish
+  skipped, cancelled, saving and unconfirmed posts from failures.
+- Reconnect refreshed collection tabs to unexpired sessions and cached sources,
+  restricted to the same tab, browser window and collection URL. Recovery alone
+  does not extend expiry; existing cache budgets and cleanup remain unchanged.
 - Replace the blank collection chooser after an extension reload with refresh
-  guidance and a user-controlled Refresh page button. Guard direct runtime URL
-  calls and stop stale local operations from changing the recovery state.
+  guidance and a user-controlled Refresh page button. Stop stale local operations
+  and guard direct runtime URL calls.
+- Handle synchronous extension API failures consistently while preserving the
+  user gesture required for optional image-origin permissions.
 
-- Reconnect refreshed collection tabs to their unexpired download sessions so
-  later downloads reuse cached sources without rediscovering the collection.
-  Restrict recovery to the same tab, browser window and collection URL.
+## 1.2.0
 
-- Make chapter links in combined PDF contents visibly blue and underlined, while
-  retaining normal page-number and chapter-heading styling.
-
-- Handle synchronous extension API failures consistently, including stale content
-  scripts after an extension reload/update. Return refresh-page guidance through
-  existing error handlers while preserving permission-request user gestures.
-
-- Show progress during collection operations and a compact Download report below
-  the format choices afterward. Summarize completion and list failed posts,
-  removing the Save report action and per-file inventory.
-
-- Identify posts responsible for combined-PDF font validation failures, including
-  titles, post numbers, per-post Unicode errors and source links in the download
-  report. Keep staged chapters available for packaging retries.
-- Fix PDF exports failing on U+5929 (天) and other supported CJK ideographs by
-  adding a bundled, on-demand Noto Sans SC fallback. Preserve existing Latin and
-  Cuneiform coverage, links and metadata without remote font requests.
-
-## 1.2.0 — Release candidate
-
-This version is prepared locally; Chrome Web Store publication is not yet confirmed.
+The user confirmed Chrome Web Store approval and publication. The exact uploaded
+archive hash and publication date were not supplied. See the
+[archived release record](docs/releases/1.2.0.md).
 
 - Download accessible posts as PDF, EPUB or Markdown with embedded inline images,
   title-based filenames and Creator, Download time and Source details.

@@ -6,6 +6,21 @@ inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
+## Current release status — November 6, 2026
+
+Source metadata is **1.2.1**, prepared locally; no 1.2.1 release ZIP, store upload
+or publication has been recorded. The user confirmed 1.2.0 approval/publication
+and later confirmed downloads were working during hotfix development. That does
+not establish a final 1.2.1 package/browser/viewer matrix. See the
+[current release record](docs/releases/1.2.1.md) for the remaining checklist.
+
+The latest runtime checkpoint below records 169 Chrome passes (three installed
+Brave skips), 153 tooling passes, 21 targeted Brave passes and 95-file syntax
+checks before the metadata-only version bump. Packaging tests subsequently passed
+11 cases at 1.2.1. Historical checkpoint wording about unreleased work, Save
+report, above-chooser placement and earlier versions describes the code at those
+dates, not the current UI. Current reports are compact and stay in page memory.
+
 ## Live Patreon verification
 
 ## November 5, 2026 — User release-readiness confirmation
@@ -18,7 +33,8 @@ labelled demo captures below. Browser/OS versions, exact package path and detail
 scenario coverage were not itemised; this does not establish an exhaustive browser,
 viewer or accessibility matrix. The final user-prepared visual assets were not
 supplied to this checkout, so the committed demo captures remain unchanged.
-Web Store upload, review and publication have not been confirmed.
+At that checkpoint, Web Store upload, review and publication had not yet been
+confirmed. The later user confirmation of 1.2.0 publication supersedes that status.
 
 The earlier dated release checkpoints below retain the evidence and status
 recorded at those checkpoints.
@@ -43,6 +59,23 @@ itemized in this confirmation; it does not establish an exhaustive browser or
 accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
+
+## November 6, 2026 — Documentation and privacy alignment for 1.2.1
+
+Updated the current README, user/product guidance, privacy policy, changelog,
+release/packaging notes and asset status to match the implementation. The 1.2.0
+record now distinguishes user-confirmed publication from its original candidate
+checkpoint; 1.2.1 remains prepared locally with packaging/submission checks open.
+Historical behavior records retain their original context. Current docs distinguish
+standalone/ZIP metadata from combined front matter, page-memory summaries from
+saved report files, page-refresh cache recovery from extension-reload recovery,
+and bundled CJK support from complete Unicode coverage.
+
+Validation: local Markdown file-link targets exist; all four version fields are
+1.2.1; source-package validation includes 54 allowlisted files; all 11 packaging
+tests pass. Runtime code, dependencies and permissions were not changed, so this
+pass does not claim a fresh browser run, new ZIP, screenshot set or store update.
+The local file-link check does not validate external URLs or viewer compatibility.
 
 ## November 6, 2026 — Version metadata 1.2.1
 
@@ -1738,9 +1771,9 @@ Node tooling cases passed**, plus syntax and whitespace checks. Chrome skips
 the Brave-only installed test intentionally. Detailed dated results, earlier
 failures/retries, and original browser/OS versions are retained in
 [testing history](docs/testing-history.md); historical counts are not current totals.
-The current release candidate is **1.2.0**, including the 1.1.1 hiding fix and
-post/collection downloads. The highest version in the Web Store dashboard must
-be checked before submission; this task does not inspect that account. The 1.1.0 feature release consolidated the local 1.3.9
+The current local release target is **1.2.1**; 1.2.0 publication was confirmed
+by the user. Confirm the dashboard's highest uploaded version before submitting
+1.2.1; repository checks do not inspect that account. The 1.1.0 feature release consolidated the local 1.3.9
 development series. Historical version numbers below describe their original
 checkpoints, not the current release metadata.
 

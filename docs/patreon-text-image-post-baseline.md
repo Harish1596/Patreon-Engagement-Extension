@@ -1,5 +1,13 @@
 # Patreon post-page reference: text posts with inline images
 
+**November 6 documentation alignment:** Current package metadata is 1.2.1,
+prepared locally. The user confirmed 1.2.0 store approval/publication. Earlier
+release/hotfix labels below retain their historical checkpoint meaning. The
+November 6 notes at the end describe current collection summaries, combined
+chapter metadata, CJK fallback, cache recovery and extension-reload handling.
+No Patreon markup or integration behavior changed in this documentation pass.
+Current release state is in [1.2.1 notes](releases/1.2.1.md).
+
 **November 5 release preparation:** The current package candidate is 1.2.0.
 The dated observations and earlier unreleased/hotfix labels below describe their
 original checkpoints. Post and collection exports are included in this candidate;
