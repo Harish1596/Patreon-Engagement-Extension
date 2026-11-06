@@ -22,10 +22,6 @@ files are generated locally using your existing access to Patreon.
   two hours so another format can reuse them.
 - **Reduce clutter:** optionally hide Patreon's floating engagement bar.
 
-This checkout is prepared as **1.2.1**. The user confirmed that **1.2.0** was
-approved and published in the Chrome Web Store; 1.2.1 publication is pending.
-See the [1.2.1 release notes](docs/releases/1.2.1.md) for validation and remaining
-packaging/submission work.
 
 ## Install
 
