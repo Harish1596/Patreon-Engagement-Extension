@@ -44,6 +44,37 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 6, 2026 — Handle invalidated extension API contexts
+
+The reported stack points to the shared helper's promise-style API branch. A
+synchronous `Extension context invalidated.` throw escaped callers' `.catch()`
+handlers, unlike the Chrome callback branch. A failing Node regression reproduced
+that difference. The helper now always returns a promise and translates this
+specific error to refresh-page guidance. Other API errors remain errors; no
+request is silently retried or represented as successful. Permissions are still
+invoked before returning, preserving the caller's user gesture.
+
+- `node --test tests/tooling/extension-call.test.cjs`: six pass after four failed
+  before the fix; covers synchronous throws, promise rejection, ordinary-error
+  identity, Chrome callback lastError and immediate permission invocation.
+- `npm run check`: 94 JavaScript files pass syntax checks.
+- `npm run test:tooling`: 149 pass.
+- `npm test -- tests/extension-context.spec.js tests/collection-export.spec.js tests/export.spec.js tests/popup.spec.js --workers=2`:
+  37 pass, including mutation-triggered collection registration failures for both
+  API namespaces, plus existing export, popup and cancellation coverage.
+- `npm run test:brave -- tests/extension-context.spec.js tests/installed.spec.js tests/installed-pdf.spec.js`:
+  four pass, including both installed-extension specs and the large PDF fixture.
+
+The invalidation itself is simulated with synchronous runtime API exceptions on
+synthetic collection pages. The native tests confirm normal installed operation,
+not a real extension-update/reload cycle. No private collection was inspected and
+the user's exact invalidation trigger was not supplied. This fix covers the
+reported helper call path; it does not reconnect stale content scripts or promise
+recovery of every direct runtime API entry point. Refresh affected Patreon tabs
+after reloading/updating the extension. No new permissions, version bump or store
+archive was produced. The full Chrome suite was not rerun for this focused fix;
+prior full-suite results remain recorded in the preceding task's checkpoint.
+
 ## November 6, 2026 — Compact collection download reports
 
 Progress details are visible only while collection preparation/packaging is busy.

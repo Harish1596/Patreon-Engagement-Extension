@@ -2232,3 +2232,23 @@ in a description-only checkbox test was stabilized with the existing keyboard
 pattern; production menu behavior was unchanged. Commands, test-adjustment details
 and evidence limits are recorded in TESTING.md. No live private page was inspected
 and no store package, release version or publication was changed.
+
+
+## November 6, 2026 — Invalidated extension context in shared calls
+
+The user supplied the exact `Uncaught Error: Extension context invalidated.`
+message after reporting a collection-page stack at shared/extension.js:5. The
+promise-style branch could throw synchronously before content route-observer
+callers attached `.catch()`. Node regressions reproduced the escape; the helper
+now always returns a promise and supplies refresh-page guidance for invalidation,
+while preserving ordinary failures and immediate permission API invocation.
+
+Final validation: six focused helper tests pass, 149 total tooling tests pass,
+37 targeted Chrome tests pass, four targeted Brave tests pass (including both
+installed-extension specs), and 94 JavaScript files pass syntax checks. Synthetic
+collection mutations generate repeated synchronous invalidation errors without
+escaping existing observer rejection handlers. The native download tests verify
+normal operation, not actual extension reload/update invalidation. The triggering
+user action remains unknown; refreshing the page is still required to reconnect.
+No private page, cache lifecycle, permission, manifest version or store archive
+changed. Current commands and limitations are in TESTING.md.

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Handle synchronous extension API failures consistently, including stale content
+  scripts after an extension reload/update. Return refresh-page guidance through
+  existing error handlers while preserving permission-request user gestures.
+
 - Show progress during collection operations and replace it with a compact result
   summary afterward. List file outcomes and posts needing attention without
   repeated successful chapter rows; retain every post in saved reports.

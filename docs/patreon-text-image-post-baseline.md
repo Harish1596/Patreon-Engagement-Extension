@@ -2075,3 +2075,16 @@ retain every chapter and its reason. The report has no disclosure or nested list
 scrollbar. Retry, cancellation, membership access, temporary caches and page
 selectors are unchanged. Synthetic 75-post and installed-extension checks are
 separate from the user's screenshot; no new live Patreon markup was inspected.
+
+
+**November 6 stale-extension-context handling:** The user supplied an
+`Uncaught Error: Extension context invalidated.` stack at the shared API helper's
+promise-style browser branch. That branch could throw before route-observer
+callers attached their rejection handlers. The helper now always returns a
+promise, catches synchronous API exceptions and reads Chrome lastError inside
+its callback, translating invalidation to refresh-page guidance. Permission API
+invocation remains synchronous to preserve user activation. Synthetic collection
+mutation tests establish that this reported call path no longer escapes existing
+handlers; they do not establish recovery of every stale-script entry point. A
+page refresh is still required to reconnect after an extension reload/update.
+No new Patreon markup, selectors, access rules or cache behavior is established.

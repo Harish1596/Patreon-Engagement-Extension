@@ -225,6 +225,10 @@ used. Store artwork and screenshot capture instructions are in
 
 ## Help and issues
 
+After updating or reloading the extension, refresh open Patreon tabs before using
+their controls. “Extension context invalidated” means an older page script has
+lost its connection to the extension; that page must be refreshed to reconnect.
+
 If controls are missing, refresh the Patreon page and confirm the extension has
 site access. For download failures, check the visible error and collection report,
 then retry or choose another format as appropriate. Per-post PDF validation
