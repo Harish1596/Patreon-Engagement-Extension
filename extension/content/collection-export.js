@@ -594,6 +594,18 @@
       await discardPreparation(true);
       checkOperation(operation);
     }
+    // A refresh loses this document's token, not the background's disk sources.
+    // Ask only after Download, and let the background bind recovery to this tab/URL.
+    if (!discoveryCache) {
+      const restored = await waitFor(call(api.runtime, "sendMessage", { type: "RESUME_COLLECTION_EXPORT" }), signal);
+      checkOperation(operation);
+      if (restored?.error) throw new Error(restored.error);
+      if (/^[0-9a-f-]{36}$/i.test(restored?.token || "") && Number.isSafeInteger(restored.count) && restored.count > 0) {
+        requestToken = restored.token;
+        loadChooser();
+        return restored;
+      }
+    }
     let discovered = discoveryCache?.discovered;
     if (!discovered) {
       chooser.src = "about:blank";

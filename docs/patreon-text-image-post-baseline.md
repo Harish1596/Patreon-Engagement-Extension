@@ -2109,3 +2109,18 @@ the earlier combined-document per-post metadata descriptions above. No Patreon
 markup, selector, Reader boundary or access rule changes. Synthetic export
 verification and browser-launch limits are recorded in TESTING.md; no live
 Patreon verification of this change is claimed.
+
+
+**November 6 collection session recovery after refresh:** Previously a page
+refresh lost its request token while disk sources remained keyed to that token.
+The next Download now asks the background for an idle, unexpired session bound to
+the same tab, browser window and canonical numeric collection URL. The URL strips
+query/fragment and is persisted with existing session metadata; recovery survives
+worker restart and does not extend expiry by itself. Legacy metadata without the
+binding, busy sessions and mismatched owners/collections are not attached. Opening
+the menu stays local. Page reports and generated-file retry UI are not restored;
+the selected output is built afresh from valid source entries. Existing access,
+expiry, cancellation and browser-close cleanup rules remain. Native synthetic
+PDF download → refresh → download confirms cached sources and no rediscovery or
+uncaught exception in that flow; this does not establish the root cause of the
+user's earlier context-invalidation error or new live Patreon DOM behavior.

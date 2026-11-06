@@ -2268,6 +2268,28 @@ claimed. Existing PDF files require regeneration; this remains an unreleased
 source change without a version bump or replacement store archive.
 
 
+## November 6, 2026 — Recover collection cache sessions after page reload
+
+The user observed that refresh caused a cold download despite the two-hour disk
+cache. The page lost its token, so the next session could not address existing
+source entries. A background-only lookup now restores an unexpired session for
+the same collection, tab and window when Download is pressed. Persisted metadata
+includes the canonical collection URL, and lookup does not extend expiry. Busy,
+legacy, cancelled, expired and mismatched sessions are not attached. Existing
+source encryption, resource bounds, access rules and cleanup remain in force.
+
+Validation: 153 tooling tests pass; 163 Chrome tests pass with two Brave-only
+skips; 94 JavaScript files pass syntax checks. The installed Brave PDF scenario
+passes download → refresh → download with both chapters cached, no additional
+collection discovery and no uncaught CDP exceptions. Existing native ZIP and
+large-PDF checks still pass. This is synthetic fixture evidence, not a live
+private-page check or proof that session loss caused the earlier invalidation
+error. Concurrent unrelated book-metadata changes were committed separately as
+`5f5b23d`; the 153-test tooling suite, 94-file syntax check and installed Brave
+scenario passed again on the integrated checkout. The full Chrome result predates
+that separate commit. Detailed commands and limitations are in TESTING.md.
+
+
 ## November 6, 2026 — Remove repeated metadata from combined collection chapters
 
 The supplied screenshot showed Creator, Download time and Source under each

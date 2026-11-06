@@ -172,19 +172,25 @@ Posts without an access flag are checked when their chapter is generated. A coll
 only locked posts shows a message without opening worker tabs.
 
 Discovered links, access flags, and download session metadata are cached for
-two hours on the current collection page. Reopening the panel, changing a selector,
+two hours for the current collection tab. Reopening the panel, changing a selector,
 or downloading another format reuses valid cached data. There is no manual Refresh
 Collection step. Collection discovery and post retrieval start only when Download
 is pressed; expired or missing data is fetched as needed by that download.
 New chapters, publication-date changes and access changes are picked up when discovery
 is fetched again after expiry. Opening the chooser does not eagerly refresh it.
 
-The download progress reports cached chapters as they are reused. Navigating away
-or reloading clears the page's discovery cache. Prepared metadata
-uses browser session storage so idle background-worker restarts do not invalidate
-the format buttons; it is removed on cancellation, owner-tab closure, or expiry,
+The download progress reports cached chapters as they are reused. Reloading clears
+the page's in-memory discovery list and report, but the next Download can reconnect
+to an idle, unexpired session for the same collection in the same tab and browser
+window. Its post list and cached chapter sources can then be reused without fresh
+discovery. Recovery alone does not extend expiry. A busy, missing, expired or
+legacy session without a collection URL binding falls back to normal discovery.
+Prepared metadata uses browser session storage so idle background-worker restarts
+do not invalidate the format buttons; it is removed on cancellation, owner-tab
+closure, or expiry,
 and browser-session storage clears when the browser session ends. Missing or
-expired sessions produce a visible panel error. Generated file bytes are
+expired sessions are rediscovered on the next download when possible. Generated
+file bytes are
 released after each download. Fetched chapter text and distinct inline images
 are cached once in extension-owned local disk storage for two hours. PDF, EPUB and
 Markdown are generated from that shared source, one chapter at a time, so another

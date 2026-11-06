@@ -21,6 +21,7 @@ test('installed Brave exports a post, a combined PDF, and individual PDFs withou
       }
       throw new Error('Extension did not load');
     });
+    let discoveryRequests = 0;
     await context.route('https://www.patreon.com/**', route => {
       const pathname = new URL(route.request().url()).pathname;
       if (pathname.startsWith('/collection/')) {
@@ -31,7 +32,7 @@ test('installed Brave exports a post, a combined PDF, and individual PDFs withou
         body: fs.readFileSync(path.resolve(__dirname, 'fixtures/installed-post.html'), 'utf8')
           .replace('Installed extension test', `Broken chapter ${pathname.split('/').pop()}`)
           .replace('Post content.', pathname.endsWith('203') ? 'Unsupported sample 😀' : 'Unsupported sample א') });
-      if (pathname === '/api/posts') return route.fulfill({ status: 404, body: 'Synthetic DOM discovery' });
+      if (pathname === '/api/posts') { discoveryRequests++; return route.fulfill({ status: 404, body: 'Synthetic DOM discovery' }); }
       return route.fulfill({ contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.resolve(__dirname, 'fixtures/installed-post.html'), 'utf8').replace('Post content.', 'Post content. Ḫ ḫ Ṭ ṭ Ḥ ḥ. 𒀭 天地玄黃') });
     });
     const page = await context.newPage(); await page.goto('https://www.patreon.com/posts/201');
@@ -81,6 +82,21 @@ test('installed Brave exports a post, a combined PDF, and individual PDFs withou
     expect(combinedDoc.pages[2].text).toContain('Ḫ ḫ Ṭ ṭ Ḥ ḥ');
     expect(combinedDoc.pages[2].text).toContain('𒀭'); expect(combinedDoc.pages[2].text.replace(/\s/g, '')).toContain('天地玄黃');
     await expect(frame.locator("#download-collection")).toBeEnabled();
+    // Refresh reconnects to sources without discovery or rebuilding post snapshots.
+    const pageErrors = [];
+    const diagnostics = await context.newCDPSession(page); await diagnostics.send('Runtime.enable');
+    diagnostics.on('Runtime.exceptionThrown', event => pageErrors.push(event.exceptionDetails.text));
+    const previousDiscovery = discoveryRequests;
+    await page.reload();
+    await page.getByRole('button', { name: 'Download Collection', exact: true }).click();
+    await expect(frame.locator('#download-collection')).toBeEnabled();
+    expect(discoveryRequests).toBe(previousDiscovery);
+    const refreshed = await nativeDownload(() => startCollectionDownload(frame, 'Single PDF'));
+    expect((await inspectPdf(refreshed.bytes)).pages).toHaveLength(3);
+    await expect(page.locator('[data-progress-counts]')).toContainText('2 cached');
+    expect(discoveryRequests).toBe(previousDiscovery);
+    expect(pageErrors).toEqual([]);
+    await expect(frame.locator('#download-collection')).toBeEnabled();
     const zip = await nativeDownload(() => startCollectionDownload(frame, 'PDF'));
     const entries = readZip(zip.bytes);
     expect(entries.map(x => x.name)).toEqual(['001 - Installed extension test.pdf', '002 - Installed extension test.pdf']);

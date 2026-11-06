@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Reconnect refreshed collection tabs to their unexpired download sessions so
+  later downloads reuse cached sources without rediscovering the collection.
+  Restrict recovery to the same tab, browser window and collection URL.
+
 - Make chapter links in combined PDF contents visibly blue and underlined, while
   retaining normal page-number and chapter-heading styling.
 

@@ -45,6 +45,9 @@ create user-requested local exports:
   tabs are closed after preparation or individual chapter generation, and on
   cancellation. Discovered links and prepared metadata are cached for two hours;
   prepared metadata uses local browser-session storage to survive worker restarts.
+  It includes the canonical collection URL, without query parameters, so a refreshed
+  page can reconnect to an unexpired session in the same tab and browser window
+  when the user next presses Download.
   After a chapter is fetched for export, its sanitized text, creator, source URL,
   and distinct inline-image data are cached in extension-owned disk storage for
   up to two hours, allowing EPUB, PDF and Markdown to reuse one source copy without

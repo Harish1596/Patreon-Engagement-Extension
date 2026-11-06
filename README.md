@@ -109,7 +109,8 @@ up to 100 accessible posts. Discovery is limited to 1,000 posts.
 
 The extension uses inactive temporary tabs for uncached chapters and closes its
 own tabs after use. Existing user tabs stay open, and background work does not
-repeatedly activate the collection page.
+repeatedly activate the collection page. After refreshing a collection tab, the
+next download can reconnect to its unexpired session and reuse cached sources.
 
 Progress shows the current stage and chapter while work is running. **Cancel**
 stops active work; **Retry** can resume retained chapters after a failure. When

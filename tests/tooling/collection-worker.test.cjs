@@ -698,3 +698,54 @@ test("deferred unsupported posts are skipped during generation without blocking 
   assert.ok((await send({ type: "BUILD_COLLECTION_EXPORT", token, format: "snapshot", index: 1 })).skippedPost);
   assert.equal(calls.describe.length, described);
 });
+
+async function resume(send, sender) {
+  let timer;
+  try {
+    return await Promise.race([send({ type: 'RESUME_COLLECTION_EXPORT' }, sender),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Session recovery did not respond')), 1000); })]);
+  } finally { clearTimeout(timer); }
+}
+test('refreshed owner recovers its collection token and disk sources after worker restart without extending expiry', async () => {
+  const { send, restart, calls, sessionStore, sender, advanceTime } = backgroundHarness();
+  const token = '99999999-9999-4999-8999-999999999999';
+  await send({ type: 'PREPARE_COLLECTION_EXPORT', token, urls: ['https://www.patreon.com/posts/101'], deferred: true });
+  await send({ type: 'BUILD_COLLECTION_EXPORT', token, format: 'snapshot', index: 0 });
+  await send({ type: 'FINISH_COLLECTION_EXPORT', token });
+  const expires = sessionStore['collection-export:' + token].expires, builds = calls.build.length;
+  advanceTime(5); restart();
+  const restored = await resume(send, { ...sender, tab: { ...sender.tab, url: sender.tab.url + '?view=expanded' } });
+  assert.equal(restored.token, token);
+  assert.equal(restored.count, 1);
+  assert.equal(sessionStore['collection-export:' + token].expires, expires);
+  const result = await send({ type: 'BUILD_COLLECTION_EXPORT', token: restored.token, format: 'snapshot', index: 0 });
+  assert.equal(result.files[0].cached, true);
+  assert.equal(calls.build.length, builds);
+});
+test('session recovery rejects other tabs, windows, collections, origins, cancelled and expired sessions', async () => {
+  const { send, sender, advanceTime } = backgroundHarness();
+  const token = '99999999-9999-4999-8999-999999999999';
+  const prepare = () => send({ type: 'PREPARE_COLLECTION_EXPORT', token, urls: ['https://www.patreon.com/posts/101'], deferred: true });
+  await prepare();
+  for (const tab of [{ ...sender.tab, id: 42 }, { ...sender.tab, windowId: 42 },
+    { ...sender.tab, url: 'https://www.patreon.com/collection/501' }, { ...sender.tab, url: 'https://example.com/collection/500' }]) {
+    assert.equal((await resume(send, { ...sender, tab })).token, undefined);
+  }
+  advanceTime(121);
+  assert.equal((await resume(send, sender)).token, undefined);
+  await prepare(); await send({ type: 'CANCEL_COLLECTION_EXPORT', token });
+  assert.equal((await resume(send, sender)).token, undefined);
+});
+test('session recovery does not attach to active work or legacy metadata without a collection binding', async () => {
+  const { send, sender, hold, restart, sessionStore } = backgroundHarness();
+  const token = '99999999-9999-4999-8999-999999999999';
+  await send({ type: 'PREPARE_COLLECTION_EXPORT', token, urls: ['https://www.patreon.com/posts/101'], deferred: true });
+  const gate = hold('BUILD_POST_EXPORT');
+  const building = send({ type: 'BUILD_COLLECTION_EXPORT', token, format: 'snapshot', index: 0 });
+  await gate.entered;
+  assert.equal((await resume(send, sender)).token, undefined);
+  gate.release(); await building;
+  delete sessionStore['collection-export:' + token].collectionUrl;
+  restart();
+  assert.equal((await resume(send, sender)).token, undefined);
+});

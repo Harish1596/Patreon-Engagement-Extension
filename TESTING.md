@@ -68,6 +68,40 @@ No live Patreon check, version bump or replacement store archive was performed.
 Existing downloaded files must be regenerated to receive this change.
 
 
+## November 6, 2026 — Reconnect collection sources after page refresh
+
+Collection source entries remain keyed to the original token, and the background
+can now return that token plus existing metadata on the next Download after a
+page refresh. Recovery is bound to the sender's tab, window and canonical numeric
+Patreon collection URL. It runs after retention/worker restoration, rejects busy,
+expired or cancelled sessions, and does not extend expiry by itself. Legacy
+metadata without a collection URL binding is safely rediscovered. Opening the
+chooser does not request recovery or fetch content.
+
+- RED: the new owner-recovery regression failed with no returned token before
+  the handler existed; the positive case then passed after implementation.
+- `npm run check`: 94 JavaScript files pass syntax checks.
+- `npm run test:tooling`: 153 pass, including recovery after worker restart,
+  source-cache hits without new post builds, unchanged lookup expiry, owner/tab/
+  window/collection/origin boundaries, cancellation, busy work and legacy records.
+- `npm test -- --workers=2`: 163 pass; two installed-Brave cases skip.
+- `npm run test:brave -- tests/installed-pdf.spec.js`: one installed-extension
+  scenario passes, including PDF download → refresh → another PDF download. Both
+  chapters are reported cached, collection API discovery count stays unchanged,
+  and CDP records no uncaught exceptions during that sequence. Subsequent PDF ZIP
+  and large-PDF renderer checks still pass.
+
+This uses synthetic collection/post pages in an isolated browser profile. It
+verifies cache reconnection, not the root cause or universal absence of the user's
+earlier context-invalidation error. Page reports and generated-file retry UI are
+not restored. Missing/evicted sources still fetch normally; the 512 MiB budget,
+source expiry, cancellation and browser-close cleanup are unchanged. No new
+permission, manifest version or store package was produced. Concurrent unrelated
+book-metadata edits appeared after the initial validation and were committed
+separately as `5f5b23d`. The tooling suite (153 pass), syntax checks (94 files)
+and installed Brave scenario (one pass) were rerun successfully against that
+integrated checkout; the full Chrome result above predates that separate commit.
+
 ## November 6, 2026 — PDF contents link styling
 
 Combined PDF contents now use blue (#1a0dab), underlined chapter titles. Page
