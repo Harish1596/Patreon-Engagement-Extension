@@ -164,7 +164,10 @@ may require an extension update.
 PDF generation has bounded input, output, image and rendering-time limits. A PDF
 currently allows 48 MiB of serialised input and 40 MiB of output, with a two-minute
 rendering deadline. Some scripts and emoji remain outside the bundled fonts'
-coverage. Unsupported characters and oversized documents produce explicit errors;
+coverage. The current source includes an unreleased local fallback for common
+CJK ideographs such as 天, alongside
+Latin and Cuneiform text; it loads only when needed and does not cover every CJK
+character or regional typography. Unsupported characters and oversized documents produce explicit errors;
 try separate files or another format. The [download guide](docs/usage.md) records
 image limits, supported font fallback and archive behaviour.
 

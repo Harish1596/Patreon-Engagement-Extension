@@ -8,8 +8,8 @@ const { spawnSync } = require("node:child_process");
 const FILES = Object.freeze([
   "shared/pdf.js", "shared/pdf-client.js", "background/offscreen.js", "background/pdf-renderer.js", "background/pdf-book.js",
   "export/pdf-worker.js", "export/pdf-host.js", "export/pdf-offscreen.js",
-  "vendor/pdfmake/pdfmake.min.js", "vendor/pdfmake/vfs_fonts.js", "vendor/pdfmake/coverage.js",
-  "vendor/pdfmake/LICENSE", "vendor/pdfmake/ROBOTO-LICENSE", "vendor/pdfmake/NOTO-SANS-LICENSE", "vendor/pdfmake/README.md",
+  "vendor/pdfmake/pdfmake.min.js", "vendor/pdfmake/vfs_fonts.js", "vendor/pdfmake/vfs_cjk.js", "vendor/pdfmake/coverage.js",
+  "vendor/pdfmake/LICENSE", "vendor/pdfmake/ROBOTO-LICENSE", "vendor/pdfmake/NOTO-SANS-LICENSE", "vendor/pdfmake/NOTO-SANS-SC-LICENSE", "vendor/pdfmake/README.md",
   "manifest.json", "shared/extension.js", "shared/zip.js", "shared/retry.js", "background/media.js", "background/retention.js", "background/post-cache.js", "background/disk-crypto.js", "background/epub-book.js", "background/markdown-book.js", "background/archives.js", "content/patreon-dom.js", "content/reader.js", "content/export.js", "content/archive-stream.js", "content/collection-export.js", "content/content.js",
   "content/content.css", "popup/links.js", "popup/popup.html", "popup/popup.js", "popup/popup.css",
   "export/chooser.html", "export/chooser.js", "export/chooser.css",

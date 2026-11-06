@@ -82,7 +82,13 @@ self.onmessage = async event => {
     for (const chapter of validated) await normalize(chapter, budget);
     if (book) { glyphs(book.title || ''); glyphs(book.downloadedAt || ''); }
     PatreonPdf.size({ chapters: validated, book });
-    const document = pdfMake.createPdf(PatreonPdf.definition(validated, book));
+    const definition = PatreonPdf.definition(validated, book);
+    function needsCjk(node) {
+      if (!node || typeof node !== 'object') return false;
+      return node.font === 'NotoSansSC' || Object.values(node).some(needsCjk);
+    }
+    if (needsCjk(definition.content)) importScripts('../vendor/pdfmake/vfs_cjk.js');
+    const document = pdfMake.createPdf(definition);
     // Stop accumulating as soon as output exceeds its explicit byte budget.
     const stream = await document.getStream();
     const chunks = []; let length = 0;

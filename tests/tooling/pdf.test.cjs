@@ -162,3 +162,21 @@ test('SVG text keeps its primary-font guard instead of silently dropping fallbac
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><text x="0" y="20">𒀭</text></svg>';
   await assert.rejects(render([adapter().chapter({ ...snapshot, assets: [{ dataUrl: 'data:image/svg+xml,' + encodeURIComponent(svg) }], body: { tag: 'img', image: 0 } })]), /SVG font.*U\+1202D/);
 });
+
+test('PDF preserves CJK ideographs alongside Latin and cuneiform across styles, metadata and links', async () => {
+  const input = { ...snapshot, title: 'Chapter 天 Ḫ𒀭', author: 'Creator 天', body: { tag: 'div', children: [
+    { tag: 'p', children: ['Regular 天地玄黃 中文 简体 繁體 Ḫ𒀭'] },
+    { tag: 'p', children: [{ tag: 'strong', children: ['Bold 天地'] }] },
+    { tag: 'p', children: [{ tag: 'em', children: ['Italic 天地'] }] },
+    { tag: 'p', children: [{ tag: 'strong', children: [{ tag: 'em', children: ['Both 天地'] }] }] },
+    { tag: 'p', children: [{ tag: 'a', href: 'https://example.com/cjk', children: ['Link 天地'] }] }
+  ] } };
+  const bytes = await render([adapter().chapter(input)], { title: 'Collection 天', source: 'https://www.patreon.com/collection/500', downloadedAt: 'Today' });
+  const { inspectPdf } = require('../helpers/pdf'); const doc = await inspectPdf(bytes);
+  assert.equal(doc.metadata.info.Title, 'Collection 天');
+  assert.ok(doc.pages[0].text.replace(/\s/g, '').includes('Chapter天Ḫ𒀭'));
+  assert.ok(doc.pages[0].annotations.some(item => item.dest), 'Mixed-font contents entry remains linked');
+  const text = doc.pages[1].text.replace(/\s/g, '');
+  for (const expected of ['Creator天', 'Regular天地玄黃中文简体繁體Ḫ𒀭', 'Bold天地', 'Italic天地', 'Both天地', 'Link天地']) assert.ok(text.includes(expected), expected + '\n' + text);
+  assert.ok(doc.pages[1].annotations.some(item => item.url === 'https://example.com/cjk'));
+});

@@ -2031,3 +2031,24 @@ rasterized sample confirms visible glyphs; the larger 75-chapter fixture also
 contains mixed-script text. These checks establish export behavior, not new live
 Patreon markup or verification of the user's private collection. Reader surfaces,
 extraction, access rules, cache lifecycle and PDF resource budgets are unchanged.
+
+
+**November 6 CJK PDF fallback:** The user reports a retained collection failing
+on U+5929 (天). A synthetic real-renderer regression reproduces the missing glyph
+in both existing font families. A pinned Noto Sans SC static OTF now supplies
+supported CJK document text, with a separate local VFS loaded only for documents
+that select it. Latin/Cuneiform coverage and styling retain their prior fonts;
+the single CJK regular face serves all style aliases and uses SC-locale designs.
+This is not universal CJK, Korean or regional Japanese typography support. SVG
+text keeps primary-font validation because document fallback does not rewrite it.
+The font and original license are hash-pinned; the packaged license also retains
+the font's copyright notice. No remote font request, CSP relaxation or permission
+change is involved. Font data increases package size, not the 512 MiB source-cache
+allowance or PDF input/output limits.
+
+Node, browser and installed-Brave fixtures extract CJK/Latin/Cuneiform content
+from post, Single PDF and PDF ZIP downloads, including metadata and linked contents.
+A larger 75-chapter image fixture includes 天 and passes the real runtime bridge;
+a visual raster confirms the glyph shape. No live Patreon page or private post
+body was inspected. This is an unreleased export-boundary update; page selectors,
+Reader surfaces, access rules and cache retention are unchanged.

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Fix PDF exports failing on U+5929 (天) and other supported CJK ideographs by
+  adding a bundled, on-demand Noto Sans SC fallback. Preserve existing Latin and
+  Cuneiform coverage, links and metadata without remote font requests.
+
 ## 1.2.0 — Release candidate
 
 This version is prepared locally; Chrome Web Store publication is not yet confirmed.

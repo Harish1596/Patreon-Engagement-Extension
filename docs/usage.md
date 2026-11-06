@@ -319,6 +319,11 @@ and Cyrillic text, including bold and italic faces. A bundled Noto Sans Cuneifor
 fallback renders cuneiform signs such as U+1202D alongside Latin text, using font
 runs that retain metadata, contents and links. The Cuneiform regular face serves
 all style aliases. Document text uses fallback; SVG text keeps primary-font coverage.
+The current source adds an unreleased Noto Sans SC regular fallback for common CJK ideographs,
+including U+5929 (天), while preserving Latin and Cuneiform text. Its local font
+asset loads only when needed; it is not downloaded from a font service. The font
+uses SC-locale glyph designs and its regular face serves all style aliases. This
+is not complete CJK, Korean or universal Unicode coverage.
 Unsupported characters (including many emoji and scripts
 outside that coverage) produce an explicit error suggesting EPUB or Markdown.
 GIF/WebP/AVIF images are converted to static PNGs when the browser can decode

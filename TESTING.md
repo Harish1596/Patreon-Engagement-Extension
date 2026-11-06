@@ -44,6 +44,53 @@ accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
 
+## November 6, 2026 — CJK PDF fallback for U+5929
+
+The reported retained-collection packaging failure at U+5929 (天) reproduced in
+the real renderer before the change. Neither existing primary Noto Sans nor the
+Cuneiform fallback had that glyph. A pinned, unmodified static Noto Sans SC OTF
+now supplies supported document-text runs, retaining Latin/Cuneiform text, contents
+links, metadata and external links. The SC regular face serves every style alias;
+its glyph designs are SC-localised, not a promise of all regional typography or
+all CJK/Korean/Unicode coverage. Unsupported characters still fail explicitly and
+SVG text retains its existing primary-font guard.
+
+The 8,331,336-byte upstream font and original OFL input are hash-verified during
+rebuilds. Its generated local `vfs_cjk.js` is separate from the unchanged base VFS;
+workers load it only when structured text selects NotoSansSC. The browser regression
+observes zero CJK asset loads for a Latin/Greek/Cyrillic PDF and one for the mixed
+CJK document. No fonts are retrieved remotely, and CSP/permissions are unchanged.
+The packaged font license includes its embedded Adobe copyright notice.
+
+Validation:
+
+- `npm test -- --workers=2 --output=/tmp/pdf-cjk-chrome-results`:
+  **158 passed, 2 Brave-only cases skipped**.
+- `npm run test:brave -- tests/pdf.spec.js tests/collection-pdf.spec.js tests/installed-pdf.spec.js --output=/tmp/pdf-cjk-native-final-results`:
+  **13 passed**. Actual installed post PDFs, combined collections and every PDF
+  ZIP entry independently extract 天地玄黃 alongside Latin diacritics/Cuneiform.
+- `npm run test:tooling`: **141 passed**; `npm run check`: **92 JavaScript files**.
+  The focused real-renderer suite passed **14 tests**.
+- A first sandboxed Chrome launch was blocked before app code; rerunning outside
+  that process sandbox passed. An initial installed Brave case timed out once;
+  an isolated diagnostic rerun passed every stage in 9.1 seconds and the final
+  13-test suite passed in 21.9 seconds. Diagnostic checkpoint logs were removed;
+  no production workaround was introduced for the transient timeout.
+- The 75-chapter mixed-script/image fixture passes the native runtime bridge:
+  33,635,369 input bytes and 21,885,651 PDF bytes. Independent Node extraction
+  checks all chapters across its 78 pages. Existing 48/40 MiB PDF limits remain.
+- Offline vendor regeneration reproduces all seven generated artifacts exactly.
+  A temporary package validates all **54 allowlisted files**, including the lazy
+  font asset and license, at **10,708,661 ZIP bytes**. The previous release ZIP in
+  dist was not overwritten; version metadata remains 1.2.0 until release preparation.
+- An independently rasterised mixed-script sample visibly renders the CJK glyphs
+  alongside existing scripts (`/tmp/pdf-cjk-sample.png`). `git diff --check` is clean.
+
+This is an unreleased source correction following the user's confirmation that
+1.2.0 was published. The private 75-post Patreon collection was not fetched or
+inspected. Membership/origin guards, cache lifecycle and file budgets are retained;
+the font/package-size increase is not a RAM-limit guarantee.
+
 ## November 5, 2026 — README and user guide refresh
 
 Reorganised the 1.2.0 README around reading customisation, post/collection download
