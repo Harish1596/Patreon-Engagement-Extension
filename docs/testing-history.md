@@ -2423,3 +2423,20 @@ browser execution was used. Card dimensions, thumbnail size and link destination
 are covered. No raw supplied content/media URLs are retained. No live Patreon
 verification, full tooling/export suite, release packaging or publication is
 claimed for this scoped CSS follow-up.
+
+
+## November 10, 2026 — Correct the inner collection-card background
+
+The user's Chrome screenshot shows the first collection-card fix was incomplete.
+Computed-style diagnostics identify the direct content span's dark background
+covering the correctly themed outer surface. The earlier fixture omitted this
+opaque inner layer; it now reproduces the measured color and fails before the
+new scoped rule, then passes. Both layers are checked across four presets and
+native restoration, including an outside-surface control.
+
+Final checks: **20 Chrome and 20 Brave appearance/detection tests passed**,
+**96-file syntax check passed**, and `git diff --check` passed. Elevated browser
+execution was used. Isolated live inspection hit a Patreon verification page.
+The supplied computed styles establish the failure, while correction verification
+is synthetic; live confirmation, full export/tooling suite and packaging remain
+outside this checkpoint. No raw diagnostics or original page payload retained.

@@ -275,6 +275,12 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface]
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 28%, transparent) !important;
 }
 
+/* The link's content span paints its own background over the outer surface. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="post-collections"] [class*="_cardWrapper"] > div > a > span:has(> [class*="_collectionThumbnailWrapper"]) {
+  background-color: var(--patreon-reader-background-color) !important;
+}
+
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]
 [data-tag="post-collections"] [class*="_cardWrapper"] svg[data-tag="IconArrowNe"] {
   fill: currentColor !important;

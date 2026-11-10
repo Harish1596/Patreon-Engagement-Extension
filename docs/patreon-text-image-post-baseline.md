@@ -2231,3 +2231,25 @@ colors, stable dimensions, image size/link destination, outside-surface isolatio
 Default and disabling Reader. These are synthetic native colors and browser
 fixtures, not a new live inspection of linked Patreon styles or a live check of
 the fix. The supplied screenshot establishes the reported appearance only.
+
+
+**November 10 collection-card inner background correction:** A subsequent Chrome
+screenshot shows the outline and arrow changed while the card interior stayed
+dark. User-supplied computed-style diagnostics establish that the outer surface
+is already Sepia (`rgb(244, 236, 216)`), but its link's direct content span paints
+`rgb(18, 18, 23)` over it. The link, thumbnail wrapper and other inspected
+containers are transparent; inspected background images are absent and
+before/after backgrounds are transparent. This corrects the incomplete earlier
+fixture, which gave only the outer surface an opaque background.
+
+The direct content span now follows Post Color as well. It is selected inside
+`post-collections` / `_cardWrapper` by the observed surface → link → span
+relationship and direct `_collectionThumbnailWrapper` child, rather than by the
+span's generated styled-component classes. The existing outer outline remains
+on the outer layer only. The regression now includes the measured opaque inner
+background and checks both layers for each preset, Default/disable restoration
+and outside-surface isolation. These assertions fail before the correction and
+pass afterward. The diagnostics are live user evidence of the failure; passing
+synthetic Chrome/Brave tests do not constitute live confirmation of the correction.
+An isolated public-page inspection encountered Patreon's verification page and
+provided no additional card-style evidence. Raw attachment data is not committed.

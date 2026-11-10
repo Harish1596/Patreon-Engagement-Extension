@@ -6,6 +6,25 @@ inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
+## November 10, 2026 — Collection-card inner background correction
+
+The user reports the previous fix still leaves the card interior dark. Supplied
+computed styles identify the direct content span's opaque `rgb(18, 18, 23)`
+background over the already themed outer surface. CSS now covers that span too.
+The updated fixture first fails on this inner background, then passes.
+
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 20 Chrome passes.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 20 Brave passes.
+- `npm run check`: passes, 96 JavaScript files.
+- `git diff --check`: passes.
+
+Both layers are checked for all four presets, Default/disable restoration and
+outside-surface isolation, alongside the existing text/arrow/layout checks.
+Browsers ran with elevated execution. An attempted isolated public-page inspection
+encountered Patreon's verification page and yielded no card styles. User diagnostics
+establish the failure's cause; the correction has synthetic browser verification
+and awaits live confirmation. No full export/tooling suite or ZIP rebuild.
+
 ## November 10, 2026 — In collection card Post Color follow-up
 
 The post's collection-link surface now follows Post Color with a subtle outline;
