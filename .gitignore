@@ -34,3 +34,8 @@ pnpm-debug.log*
 .vscode/
 *.swp
 *.swo
+
+# Cloudflare local secrets and provider state
+.dev.vars
+.dev.vars.*
+.wrangler/

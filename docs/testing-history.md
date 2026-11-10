@@ -2475,3 +2475,9 @@ was used. No raw page/media payload was retained. Avatar verification is
 synthetic pending live confirmation; no full export/tooling suite or ZIP rebuild.
 The user explicitly confirmed the previous collection-card color and complete
 border fix works, without itemizing a broader browser/scenario matrix.
+
+## November 10, 2026 — minimal analytics relay preparation
+
+User narrowed the next release to optional usage/active-installation statistics and deferred error reports and download outcomes. Prepared the strict three-event schema, stateless Cloudflare relay, public development Measurement ID configuration and self-contained dashboard bundle builder. Initial three relay tests failed before implementation; bundle test failed before its builder existed; final five targeted tests passed. Entry/bundle syntax checks passed. Test upstream is substituted: no real user data, GA4 API secret, deployment or live analytics request was used. Complete development ingestion and installation-count proof remains pending; no extension-side data collection is active.
+
+Verification for this step: `npm run test:tooling` passed **163 tests**; `npm run check` syntax-checked **99 JavaScript files**. Explicit syntax checks also passed for the relay entry, forwarding module and generated dashboard module. No browser suite was rerun because this step installs no runtime hooks or UI.

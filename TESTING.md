@@ -2112,3 +2112,11 @@ spec); 123 were not run. Both browsers aborted with SIGABRT and kill EPERM,
 including elevated execution. Later added skip/permission fixtures have not run.
 This is an environment blocker, not a passing rendered/browser/native-download
 check. No live Patreon request, account payload, image URL or permission was used.
+
+## November 10, 2026: development analytics relay only
+
+The minimal analytics scope is in [the implementation plan](docs/superpowers/plans/2026-11-10-minimal-analytics.md). The new schema/relay accepts only Reader usage, engagement-bar hiding and scoped download-start events. Five local tests cover privacy-field rejection, timestamp forwarding, upstream failure handling, health/method/body limits and execution of the generated dashboard bundle. The test transport substitutes Google; these are not live GA4 or Cloudflare checks.
+
+Generate the ignored dashboard artifact using `node scripts/build-analytics-relay.js`; deployment instructions are in [relay/README.md](relay/README.md). Development Measurement ID is public configuration. No secret, deployment, extension telemetry hooks, consent UI or production endpoint was added. GA4 secret validity, actual ingestion and filtered distinct-installation counts remain unverified until owner deployment and processed report inspection. Existing extension behavior remains unchanged; no browser test is claimed for this relay-only step.
+
+Verification for this step: `npm run test:tooling` passed **163 tests**; `npm run check` syntax-checked **99 JavaScript files**. Explicit syntax checks also passed for the relay entry, forwarding module and generated dashboard module. No browser suite was rerun because this step installs no runtime hooks or UI.
