@@ -6,6 +6,24 @@ inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
+## November 10, 2026 — Complete collection-card boundary
+
+Move the decorative line to an inset shadow on the visible content span and
+inherit native surface rounding through its link. The rendered regression fails
+against the previous committed styling and passes with the new boundary.
+
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 21 Chrome passes.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 21 Brave passes.
+- `npm run check`: passes, 96 JavaScript files.
+- `git diff --check`: passes.
+
+Pixel checks cover all four content edges, four presets and 1280px/390px widths;
+Sepia captures at both widths were visually reviewed. Test setup dismisses the
+Reader panel during capture so it cannot obscure the card, and samples a narrow
+edge band to tolerate fractional clipping. Existing dimensions, thumbnail/link,
+Default/disable and outside-surface checks pass. Browser execution is elevated.
+No new live confirmation, full export/tooling suite or release ZIP rebuild.
+
 ## November 10, 2026 — Collection-card inner background correction
 
 The user reports the previous fix still leaves the card interior dark. Supplied

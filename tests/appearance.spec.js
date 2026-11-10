@@ -321,9 +321,11 @@ for (const card of [true, false]) {
   });
 }
 
-test("In collection card follows every Post Color and restores native styling", async ({ page }) => {
+for (const width of [1280, 390]) {
+test(`In collection card follows every Post Color and restores native styling at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
   // Sanitized November 10 structure; no original content or media URLs.
-  const collection = `<div data-tag="post-collections"><h2>In collection</h2><div class="Changed_cardWrapper"><div class="Surface_root" style="background:rgb(18,18,22);border-radius:12px;padding:12px;display:inline-block"><a href="/collection/123"><span class="card-content" style="background:rgb(18,18,23);display:flex"><div class="Changed_collectionThumbnailWrapper"><img alt="Collection thumbnail" width="40" height="40" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3C/svg%3E"></div><div><span class="collection-title" style="color:white">Example collection</span><span class="Changed_postCountText" style="color:gray">12 posts</span></div><span><svg data-tag="IconArrowNe" width="24" height="24" style="fill:white"><path d="M0 0h10v10z"/></svg></span></span></a></div></div></div>`;
+  const collection = `<div data-tag="post-collections"><h2>In collection</h2><div class="Changed_cardWrapper"><div class="Surface_root" style="background:rgb(18,18,22);border-radius:12px;display:inline-block"><a href="/collection/123" style="text-decoration:none"><span class="card-content" style="background:rgb(18,18,23);display:flex;padding:12px;gap:12px"><div class="Changed_collectionThumbnailWrapper"><img alt="Collection thumbnail" width="40" height="40" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3C/svg%3E"></div><div style="display:flex;flex-direction:column"><span class="collection-title" style="color:white">Example collection</span><span class="Changed_postCountText" style="color:gray">12 posts</span></div><span><svg data-tag="IconArrowNe" width="24" height="24" style="fill:white"><path d="M0 0h10v10z"/></svg></span></span></a></div></div></div>`;
   const content = fixture.replace('</main>', `${collection}</main><aside id="outside-collection">${collection}</aside>`);
   await setup(page, { content, stored: { readerEnabled: true } });
   const card = page.locator('#post .Surface_root');
@@ -343,7 +345,29 @@ test("In collection card follows every Post Color and restores native styling", 
     await expect(card.locator('.collection-title')).toHaveCSS("color", ink);
     await expect(card.locator('[class*="_postCountText"]')).toHaveCSS("color", ink);
     await expect(card.locator('svg')).toHaveCSS("fill", ink);
-    expect(await card.evaluate(node => getComputedStyle(node).boxShadow)).toContain("0px 0px 0px 1px");
+    // Inspect the visible content edges, not merely the outer wrapper's shadow.
+    await button(page).click(); // Dismiss the panel so it cannot cover the card capture.
+    const contentSpan = card.locator(".card-content");
+    await expect(contentSpan).toHaveCSS("border-radius", "12px");
+    const capture = await contentSpan.screenshot({ path: test.info().outputPath(`collection-${name.replaceAll(" ", "-")}.png`) });
+    await button(page).click();
+    const pixels = await page.evaluate(async data => {
+      const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${data}`)).blob());
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d"); ctx.drawImage(bitmap, 0, 0);
+      // Fractional layout coordinates can add a blank row to a clipped screenshot.
+      const x = Math.floor(bitmap.width / 2), y = Math.floor(bitmap.height / 2);
+      const edges = [[], [], [], []];
+      for (let inset = 0; inset < 3; inset++) {
+        [[x, inset], [x, bitmap.height - 1 - inset], [inset, y], [bitmap.width - 1 - inset, y]]
+          .forEach(([px, py], edge) => edges[edge].push([...ctx.getImageData(px, py, 1, 1).data].slice(0, 3)));
+      }
+      bitmap.close(); return edges;
+    }, capture.toString("base64"));
+    const surfaceRgb = background.match(/\d+/g).map(Number);
+    for (const edge of pixels) expect(edge.some(pixel => pixel.some((value, channel) =>
+      Math.abs(value - surfaceRgb[channel]) > 10)), JSON.stringify(pixels)).toBe(true);
     expect(await card.evaluate(node => [node.offsetWidth, node.offsetHeight])).toEqual(size);
     await expect(card.locator('img')).toHaveCSS("width", "40px");
     await expect(card.locator('a')).toHaveAttribute("href", "/collection/123");
@@ -354,6 +378,7 @@ test("In collection card follows every Post Color and restores native styling", 
   await palette.getByRole("radio", { name: "Default", exact: true }).click();
   await expect(card).toHaveCSS("background-color", "rgb(18, 18, 22)");
   await expect(card.locator(".card-content")).toHaveCSS("background-color", "rgb(18, 18, 23)");
+  await expect(card.locator(".card-content")).toHaveCSS("box-shadow", "none");
   await expect(card).toHaveCSS("box-shadow", "none");
   await expect(card.locator('.collection-title')).toHaveCSS("color", "rgb(255, 255, 255)");
   await expect(card.locator('svg')).toHaveCSS("fill", "rgb(255, 255, 255)");
@@ -361,6 +386,8 @@ test("In collection card follows every Post Color and restores native styling", 
   await enable(page, false);
   await expect(card).toHaveCSS("background-color", "rgb(18, 18, 22)");
   await expect(card.locator(".card-content")).toHaveCSS("background-color", "rgb(18, 18, 23)");
+  await expect(card.locator(".card-content")).toHaveCSS("box-shadow", "none");
   await expect(card).toHaveCSS("box-shadow", "none");
   await expect(card.locator('.collection-title')).toHaveCSS("color", "rgb(255, 255, 255)");
 });
+}

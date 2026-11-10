@@ -2253,3 +2253,20 @@ pass afterward. The diagnostics are live user evidence of the failure; passing
 synthetic Chrome/Brave tests do not constitute live confirmation of the correction.
 An isolated public-page inspection encountered Patreon's verification page and
 provided no additional card-style evidence. Raw attachment data is not committed.
+
+
+**November 10 complete collection-card boundary:** A later supplied Sepia
+screenshot confirms the interior now adapts, but shows an incomplete top boundary.
+The decorative line now uses an inset one-pixel shadow on the visible,
+thumbnail-bearing content span instead of an outer-wrapper shadow. The link and
+content span inherit the surface div's native corner radius so the line encloses
+the visible content with matching rounding. No dimensions/padding are changed by
+runtime CSS; Default/disable releases these overrides.
+
+The sanitized test now captures the unobstructed content span at 1280px and 390px
+viewport widths and checks visible pixels on all four edges for every preset.
+It fails against the previous committed styling and passes after this refinement.
+Final Sepia captures were visually reviewed at both widths. This is synthetic
+rendering evidence, not a native stylesheet/layout measurement or new live
+confirmation. Earlier computed-shadow-only assertions did not establish a
+complete visible border and are superseded by these edge checks.

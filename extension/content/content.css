@@ -272,13 +272,21 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface]
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]
 [data-tag="post-collections"] [class*="_cardWrapper"] > div:has(> a [class*="_collectionThumbnailWrapper"]) {
   background-color: var(--patreon-reader-background-color) !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 28%, transparent) !important;
+  box-shadow: none !important;
 }
 
-/* The link's content span paints its own background over the outer surface. */
+/* Draw the boundary inside the visible content box, above its background.
+   A wrapper shadow can be covered by this independently painted span. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="post-collections"] [class*="_cardWrapper"] > div > a:has(> span > [class*="_collectionThumbnailWrapper"]) {
+  border-radius: inherit !important;
+}
+
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]
 [data-tag="post-collections"] [class*="_cardWrapper"] > div > a > span:has(> [class*="_collectionThumbnailWrapper"]) {
   background-color: var(--patreon-reader-background-color) !important;
+  border-radius: inherit !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 28%, transparent) !important;
 }
 
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]

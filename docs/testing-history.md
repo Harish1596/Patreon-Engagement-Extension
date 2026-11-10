@@ -2440,3 +2440,20 @@ execution was used. Isolated live inspection hit a Patreon verification page.
 The supplied computed styles establish the failure, while correction verification
 is synthetic; live confirmation, full export/tooling suite and packaging remain
 outside this checkpoint. No raw diagnostics or original page payload retained.
+
+
+## November 10, 2026 — Enclose the collection card with a complete boundary
+
+User screenshot shows an incomplete top line after the inner background fix.
+Move the line from the outer wrapper to an inset shadow on the visible content
+span; inherit the native surface radius through the link. Pixel checks now
+inspect all four unobstructed edges at 1280px and 390px for every preset, failing
+against the prior commit and passing after the refinement. Test setup was
+corrected to dismiss the appearance panel before capture and tolerate fractional
+screenshot clipping. Final Sepia captures were visually reviewed at both widths.
+
+**21 Chrome / 21 Brave appearance and detection checks pass**, as do the
+**96-file syntax check** and whitespace validation. Native dimensions, resets
+and outside-surface isolation remain covered. Elevated browser execution was
+used; these are synthetic checks, with no new live confirmation, full export or
+tooling suite, package rebuild or publication.
