@@ -2270,3 +2270,26 @@ Final Sepia captures were visually reviewed at both widths. This is synthetic
 rendering evidence, not a native stylesheet/layout measurement or new live
 confirmation. Earlier computed-shadow-only assertions did not establish a
 complete visible border and are superseded by these edge checks.
+
+
+**November 10 creator-avatar generated classes:** A supplied screenshot shows
+no separation border around the post creator's circular avatar on Light Green.
+The supplied fragment establishes `_avatarContainer` → creator link →
+`_container` with `_shapeCircle` / `_sizePx40` class suffixes → image. Generated
+prefixes replace the older readable CreatorByLine/Avatar module names, so the
+old shadow selector no longer matches. Raw image URLs and creator data are not
+retained. This adds observed markup alongside the original dated avatar baseline.
+
+The avatar shadow now matches the semantic `_avatarContainer` / `_container`
+suffixes and observed direct link/image structure inside the Reader surface.
+Explicit comment-thread, comment-row, comment-avatar and article-body exclusions
+keep the broader suffix matching within its intended boundary. These exclusions
+are defensive synthetic coverage, not new observations of comment markup.
+The one-pixel 45%-ink outline and existing soft shadow are unchanged, as are
+native dimensions, rounding, images, links and follow overlays. Default/disable
+restores native shadows. Tests cover generated and historical class patterns,
+all presets, square/circle shapes and exclusions; the generated-pattern case
+fails before the selector change and passes afterward. Live avatar confirmation
+is pending. Separately, the user explicitly confirmed that the preceding
+collection-card color and complete-border fix works; that report does not
+establish avatar behavior or a wider browser/scenario matrix.

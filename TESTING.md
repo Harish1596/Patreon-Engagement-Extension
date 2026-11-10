@@ -6,6 +6,26 @@ inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
+## November 10, 2026 — Restore creator-avatar border
+
+Supplied HTML shows generated class prefixes in the creator avatar structure.
+The shadow selector now recognizes semantic suffixes with direct link/image
+structure and explicit comment/article exclusions. Historical markup remains
+covered. Existing border/shadow colors, dimensions and native shapes are retained.
+
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 22 Chrome passes.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 22 Brave passes.
+- `npm run check`: passes, 96 JavaScript files.
+- `git diff --check`: passes.
+
+Generated-prefix border coverage fails before the fix and passes afterward;
+new synthetic comment nesting also exercises the explicit exclusion. Tests cover
+all presets, square/circle shapes, native size, follow controls, navigation,
+comment/article isolation, Default, disable and re-enable. Browser execution is
+elevated. No raw supplied media URL retained. Live avatar confirmation, full
+export/tooling suite and packaging were not performed. The user confirmed the
+preceding collection-card color/border fix works; that is a scoped live report.
+
 ## November 10, 2026 — Complete collection-card boundary
 
 Move the decorative line to an inset shadow on the visible content span and

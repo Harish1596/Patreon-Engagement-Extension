@@ -2457,3 +2457,21 @@ screenshot clipping. Final Sepia captures were visually reviewed at both widths.
 and outside-surface isolation remain covered. Elevated browser execution was
 used; these are synthetic checks, with no new live confirmation, full export or
 tooling suite, package rebuild or publication.
+
+
+## November 10, 2026 — Restore the creator-avatar separation border
+
+User screenshot/markup establish generated avatar class prefixes in place of
+the readable module names. Updated the shadow selector to semantic suffixes
+and direct link/image structure, with comment/article exclusions. The new
+generated-prefix regression fails before the change, then passes. A defensive
+synthetic comment-byline case also verifies exclusion from the widened selector.
+Existing outline/shadow values, square/circle shapes, native size and follow
+controls remain covered, together with reset, disable/re-enable and isolation.
+
+**22 Chrome / 22 Brave appearance/detection checks passed**, along with the
+**96-file syntax check** and whitespace validation. Elevated browser execution
+was used. No raw page/media payload was retained. Avatar verification is
+synthetic pending live confirmation; no full export/tooling suite or ZIP rebuild.
+The user explicitly confirmed the previous collection-card color and complete
+border fix works, without itemizing a broader browser/scenario matrix.

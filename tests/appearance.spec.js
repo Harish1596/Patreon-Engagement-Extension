@@ -65,14 +65,17 @@ test("reading swatches cover the full supplied post column and preserve native c
 
 
 
-test("creator avatar shadow follows custom colors and preserves other images and native controls", async ({ page }) => {
-  const avatar = (id, radius) => `<div class="CreatorByLine-module__test__avatarContainerWithFreeMembership">
-    <a href="#creator"><div id="${id}" class="Avatar-module__test__container" style="width:40px;height:40px;border-radius:${radius};box-shadow:0 1px 2px rgba(0,0,0,.1)">
+for (const generated of [false, true]) {
+test(`creator avatar shadow follows custom colors with generated classes ${generated}`, async ({ page }) => {
+  const bylineClass = generated ? "Changed_avatarContainer" : "CreatorByLine-module__test__avatarContainerWithFreeMembership";
+  const avatarClass = generated ? "Different_container Different_shapeCircle Different_sizePx40" : "Avatar-module__test__container";
+  const avatar = (id, radius) => `<div class="${bylineClass}">
+    <a href="#creator"><div id="${id}" class="${avatarClass}" style="width:40px;height:40px;border-radius:${radius};box-shadow:0 1px 2px rgba(0,0,0,.1)">
       <img alt="Creator avatar" width="40" height="40" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">
       <button class="CreatorByLine-module__test__followIcon" aria-label="Follow creator">+</button>
     </div></a></div>`;
   const content = fixture.replace('<main id="post">', `<nav>${avatar("nav-avatar", "50%")}</nav><main id="post">${avatar("square-avatar", "8px")}${avatar("circle-avatar", "50%")}`)
-    .replace('</main>', '<div data-tag="comment-avatar-wrapper"><div id="comment-avatar" class="Avatar-module__test__container" style="width:32px;height:32px">Comment avatar</div></div></main>');
+    .replace('</main>', `<div data-tag="content-card-comment-thread-container"><div data-tag="comment-row">${avatar("thread-avatar", "50%")}</div></div><div data-tag="comment-avatar-wrapper"><div id="comment-avatar" class="Avatar-module__test__container" style="width:32px;height:32px">Comment avatar</div></div></main>`);
   await setup(page, { content, stored: { readerEnabled: true } });
   await button(page).click();
   const square = page.locator("#square-avatar");
@@ -103,6 +106,7 @@ test("creator avatar shadow follows custom colors and preserves other images and
     await expect(square.locator("button")).toHaveCSS("box-shadow", followShadow);
     await expect(page.locator("#nav-avatar")).toHaveCSS("box-shadow", originalShadow);
     await expect(page.locator("#comment-avatar")).toHaveCSS("box-shadow", "none");
+    await expect(page.locator("#thread-avatar")).toHaveCSS("box-shadow", originalShadow);
     await expect(page.locator('[data-patreon-reader-body] img')).toHaveCSS("box-shadow", "none");
   }
   await change(page, "postColor", "");
@@ -113,6 +117,8 @@ test("creator avatar shadow follows custom colors and preserves other images and
   await enable(page, true);
   await expect(square).not.toHaveCSS("box-shadow", originalShadow);
 });
+
+}
 
 test("membership banner follows Post Color without changing Join buttons, images, or layout", async ({ page }) => {
   const banner = `<div data-testid="cta-banner-wrapper"><div class="PostBodies-module__newHash__singleColumnContent"><div class="CTABanner-module__newHash__root" style="background:rgb(28,28,32);border-radius:12px;padding:24px;display:flex;gap:16px;box-shadow:0 2px 4px rgba(0,0,0,.12)">
