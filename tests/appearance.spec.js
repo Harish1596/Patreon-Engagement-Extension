@@ -294,3 +294,29 @@ for (const nativeColor of ["white", "black"]) {
     await expect(page.locator("html")).not.toHaveAttribute("data-patreon-reader-action-hover", "");
   });
 }
+
+// Sanitized structure from the November 10 supplied full-post markup.
+for (const card of [true, false]) {
+  test(`Post Color covers full-post layers with post-card ${card}`, async ({ page }) => {
+    const content = fixture.replace('<main id="post">', `<nav id="outside" style="background:rgb(10,20,30)">Navigation</nav><main id="post" ${card ? 'data-tag="post-card"' : ''}><div id="full-outer" class="Changed_fullPostContentWrapper" style="background:black;padding:40px"><div id="full-inner" class="Changed_fullPostContent" style="background:black"><div id="full-post" class="Changed_fullPost" data-testid="full-post-wrapper" style="background:black">`)
+      .replace('</main>', '<div data-tag="content-card-comment-thread-container"><p id="full-comment">Comment</p></div></div></div></div></main>');
+    await setup(page, { content, stored: { readerEnabled: true, readerPreferences: { postColor: "#f4ecd8" } } });
+    await expect(page.locator("#full-outer")).toHaveAttribute("data-patreon-reader-surface", "");
+    for (const id of ["full-outer", "full-inner", "full-post"]) {
+      await expect(page.locator(`#${id}`)).toHaveCSS("background-color", "rgb(244, 236, 216)");
+    }
+    await expect(page.locator("#full-comment")).toHaveCSS("color", "rgb(91, 70, 54)");
+    await expect(page.locator("#outside")).toHaveCSS("background-color", "rgb(10, 20, 30)");
+    await expect(page.locator("#full-outer")).toHaveCSS("padding", "40px");
+    await button(page).click();
+    await dialog(page).getByRole("radio", { name: "Default", exact: true }).click();
+    for (const id of ["full-outer", "full-inner", "full-post"]) {
+      await expect(page.locator(`#${id}`)).toHaveCSS("background-color", "rgb(0, 0, 0)");
+    }
+    await change(page, "postColor", "#202124");
+    await expect(page.locator("#full-inner")).toHaveCSS("background-color", "rgb(32, 33, 36)");
+    await enable(page, false);
+    await expect(page.locator("[data-patreon-reader-surface]")).toHaveCount(0);
+    await expect(page.locator("#full-inner")).toHaveCSS("background-color", "rgb(0, 0, 0)");
+  });
+}

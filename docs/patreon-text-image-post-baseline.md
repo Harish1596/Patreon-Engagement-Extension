@@ -2161,3 +2161,44 @@ cover a missing runtime ID and throwing URL API, including a late chooser resize
 This is extension-UI lifecycle evidence, not new Patreon markup or a claim about
 all stale-runtime entry points elsewhere in the extension. No access, permission,
 cache/session retention or native download-state rules changed.
+
+
+**November 10 full-post layout / Post Color coverage:** A supplied screenshot
+shows Sepia on the article body while the title/byline/actions retain a dark
+background and receive Sepia foreground colors. The user supplies a rendered
+HTML fragment for a public text post. Its enclosing structure is now:
+
+```html
+<div class="HASH_fullPostContentWrapper">
+  <div class="HASH_fullPostContent">
+    <div class="HASH_fullPost" data-testid="full-post-wrapper">
+      <!-- Responsive titles, byline, main actions, article, collections, comments -->
+    </div>
+  </div>
+</div>
+```
+
+This is supplied markup evidence for an additional layout, not proof that all
+single-column pages have migrated. The fragment starts at the outer wrapper;
+ancestors outside it (including any post-card) are not established. Article
+`_postContent` / `_additionalStylesPostContentWrapper` hooks remain present.
+The full-post wrappers contain titles, main actions, article and comment thread;
+no generated hash or content identifier is used as a selector. The raw fragment,
+post text, media URLs and comments are not retained in the repository.
+
+Previously `surfaceFor()` recognized only the single-column layers, so this
+layout could fall back to a card or smaller discovery scope. Existing background
+CSS also omitted the full-post layers, allowing native surfaces to cover the
+chosen background. Reader now recognizes `_fullPostContentWrapper` alongside the
+historical outer wrapper, then the inner content classes, then either semantic
+post-wrapper test ID. Background CSS includes `_fullPostContent` and
+`full-post-wrapper` descendants of the selected surface. Typography, media,
+navigation, floating engagement and export boundaries retain their existing roles.
+
+Sanitized regressions cover full-post selection with/without a surrounding card,
+the semantic-test-ID fallback, historical single-column selection, layered dark
+backgrounds, comments, padding, Default restoration and disabling Reader. Native
+background colors in these fixtures are synthetic: the fragment supplies no
+linked stylesheet capture. Verification results and limits are in TESTING.md.
+The public URL could not be fetched in this session; no live browser confirmation
+of the fix is claimed.

@@ -2384,3 +2384,25 @@ Archive integrity, referenced assets and exact source bytes pass validation.
 SHA-256: `e7f0775838e9bffab3306f87e568d817898992ac741e6d216d18d91a54b1ca98`.
 The ZIP remains a local ignored artifact. No browser rerun, store upload, approval
 or publication is claimed; retain the exact artifact/checksum for submission.
+
+
+## November 10, 2026 — Restore full-post Post Color coverage
+
+User screenshot and supplied public-post HTML establish an additional full-post
+wrapper structure. The maintained reference records its sanitized shape and
+limits. Updated DOM surface selection and background CSS cover these layers;
+older single-column support remains.
+
+Before the fix, three new DOM tests failed (two full-post outer selections and
+the semantic-wrapper fallback); the two historical layout cases passed. The new
+Chrome regression also failed on missing outer surface selection. After the fix,
+all **158 tooling tests** and **19 Chrome / 19 Brave appearance/detection tests**
+pass. Syntax checks pass for **96 JavaScript files**; whitespace checks pass.
+Browser launch initially aborted under sandbox restrictions; elevated execution
+succeeded. Intermediate new browser tests required correcting panel opening and
+Default selection in their setup, then both passed in the final runs.
+
+Fixtures use synthetic dark background layers and sanitized content, not the raw
+attachment or native linked stylesheet. No live Patreon verification, full export
+suite, installed-extension suite, release ZIP rebuild or publication is claimed.
+The existing packaged 1.2.1 artifact remains the earlier checkpoint's bytes.

@@ -6,6 +6,32 @@ inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
+## November 10, 2026 — Full-post Post Color regression
+
+The supplied HTML uses `_fullPostContentWrapper` → `_fullPostContent` →
+`[data-testid="full-post-wrapper"]`. Reader now selects and colors these layers
+alongside the historical single-column layout. Sanitized fixtures cover both
+presence/absence of a surrounding post-card, full-column coverage, comments,
+untouched navigation/padding, Default reset and Reader disable cleanup.
+
+Current task checks:
+
+- `npm run check`: passes, 96 JavaScript files.
+- `npm run test:tooling`: 158 passed, including five DOM adapter cases.
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 19 passed in Chrome.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 19 passed.
+- `git diff --check`: passes.
+
+The new wrapper-selection regressions failed against the original code, then
+passed after the fix. Chrome first failed to launch inside the sandbox
+(SIGABRT/EPERM); elevated browser execution worked. Intermediate new browser
+tests had test-setup errors (opening the panel and choosing Default), corrected
+before the final passing runs. These are synthetic rendered checks, not a live
+Patreon session. The supplied public URL could not be fetched; no private/raw
+payloads were saved. Full export/installed-extension suites and release packaging
+were not rerun for this scoped background fix. The existing release ZIP predates
+this change.
+
 ## Current release status — November 6, 2026
 
 Source metadata is **1.2.1**. A validated local release ZIP is recorded in the
