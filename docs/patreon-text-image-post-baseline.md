@@ -2202,3 +2202,32 @@ background colors in these fixtures are synthetic: the fragment supplies no
 linked stylesheet capture. Verification results and limits are in TESTING.md.
 The public URL could not be fetched in this session; no live browser confirmation
 of the fix is claimed.
+
+
+**November 10 In collection card follow-up:** The user confirms the expanded
+post surface through a new Light Green screenshot, but the In collection card
+retains an opaque dark background behind dark Reader text. The supplied inner
+span contains a `_collectionThumbnailWrapper`, title/count spans and an
+`svg[data-tag="IconArrowNe"]`. The earlier supplied full-post fragment establishes
+its ancestors: `[data-tag="post-collections"]` → layout containers →
+`HASH_cardWrapper` → surface div → link → content span. The surface div's classes
+include generated `_root`, `_variantDefault`, `_elevationSubtle` and
+`_colorModeDark` suffixes; these shared design-system classes are not used as
+global selectors. No image URL, title or count is retained as fixture data.
+
+Reader now themes the direct surface div of a `_cardWrapper` inside
+`post-collections` only when it contains the thumbnail-bearing direct link.
+Its background follows Post Color and a one-pixel shadow outline using surface
+ink at 28% keeps it distinct without changing dimensions. The collection arrow
+uses currentColor fill. Existing Reader foreground rules provide title/count
+ink. Default/disable restores native styling. Link destinations, thumbnails,
+layout, article typography and collection-download behavior are preserved.
+This supersedes the historical statement that collection-card surfaces are not
+explicitly themed; the original observations above remain historical evidence.
+
+A sanitized browser regression first fails on the unchanged dark background,
+then passes for White, Sepia, Light Green and Charcoal, including title/count/arrow
+colors, stable dimensions, image size/link destination, outside-surface isolation,
+Default and disabling Reader. These are synthetic native colors and browser
+fixtures, not a new live inspection of linked Patreon styles or a live check of
+the fix. The supplied screenshot establishes the reported appearance only.

@@ -6,6 +6,24 @@ inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
+## November 10, 2026 — In collection card Post Color follow-up
+
+The post's collection-link surface now follows Post Color with a subtle outline;
+its arrow uses the matching ink. The supplied HTML/screenshot and sanitized
+structural boundary are recorded in the maintained reference.
+
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 20 passed in Chrome.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 20 passed.
+- `npm run check`: passes, 96 JavaScript files.
+- `git diff --check`: passes.
+
+The new test first reproduced the unchanged dark card, then passed for all four
+presets, Default/disable restoration, text/count/arrow colors, stable dimensions,
+thumbnail size, link destination and an untouched card outside the Reader surface.
+Browsers ran with elevated execution as in the preceding checkpoint. No raw
+content or signed media URL is saved. No new live Patreon confirmation, full
+browser/tooling suite or release ZIP rebuild is claimed for this CSS-only fix.
+
 ## November 10, 2026 — Full-post Post Color regression
 
 The supplied HTML uses `_fullPostContentWrapper` → `_fullPostContent` →

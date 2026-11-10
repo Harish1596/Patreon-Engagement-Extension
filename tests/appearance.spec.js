@@ -320,3 +320,43 @@ for (const card of [true, false]) {
     await expect(page.locator("#full-inner")).toHaveCSS("background-color", "rgb(0, 0, 0)");
   });
 }
+
+test("In collection card follows every Post Color and restores native styling", async ({ page }) => {
+  // Sanitized November 10 structure; no original content or media URLs.
+  const collection = `<div data-tag="post-collections"><h2>In collection</h2><div class="Changed_cardWrapper"><div class="Surface_root" style="background:rgb(18,18,22);border-radius:12px;padding:12px;display:inline-block"><a href="/collection/123"><span class="card-content"><div class="Changed_collectionThumbnailWrapper"><img alt="Collection thumbnail" width="40" height="40" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3C/svg%3E"></div><div><span class="collection-title" style="color:white">Example collection</span><span class="Changed_postCountText" style="color:gray">12 posts</span></div><span><svg data-tag="IconArrowNe" width="24" height="24" style="fill:white"><path d="M0 0h10v10z"/></svg></span></span></a></div></div></div>`;
+  const content = fixture.replace('</main>', `${collection}</main><aside id="outside-collection">${collection}</aside>`);
+  await setup(page, { content, stored: { readerEnabled: true } });
+  const card = page.locator('#post .Surface_root');
+  const outside = page.locator('#outside-collection .Surface_root');
+  const size = await card.evaluate(node => [node.offsetWidth, node.offsetHeight]);
+  await button(page).click();
+  const palette = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
+  for (const [name, background, ink] of [
+    ["White", "rgb(255, 255, 255)", "rgb(34, 34, 34)"],
+    ["Sepia", "rgb(244, 236, 216)", "rgb(91, 70, 54)"],
+    ["Light Green", "rgb(227, 237, 223)", "rgb(34, 34, 34)"],
+    ["Charcoal", "rgb(32, 33, 36)", "rgb(245, 245, 240)"]
+  ]) {
+    await palette.getByRole("radio", { name, exact: true }).click();
+    await expect(card).toHaveCSS("background-color", background);
+    await expect(card.locator('.collection-title')).toHaveCSS("color", ink);
+    await expect(card.locator('[class*="_postCountText"]')).toHaveCSS("color", ink);
+    await expect(card.locator('svg')).toHaveCSS("fill", ink);
+    expect(await card.evaluate(node => getComputedStyle(node).boxShadow)).toContain("0px 0px 0px 1px");
+    expect(await card.evaluate(node => [node.offsetWidth, node.offsetHeight])).toEqual(size);
+    await expect(card.locator('img')).toHaveCSS("width", "40px");
+    await expect(card.locator('a')).toHaveAttribute("href", "/collection/123");
+    await expect(outside).toHaveCSS("background-color", "rgb(18, 18, 22)");
+    await expect(outside.locator('svg')).toHaveCSS("fill", "rgb(255, 255, 255)");
+  }
+  await palette.getByRole("radio", { name: "Default", exact: true }).click();
+  await expect(card).toHaveCSS("background-color", "rgb(18, 18, 22)");
+  await expect(card).toHaveCSS("box-shadow", "none");
+  await expect(card.locator('.collection-title')).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(card.locator('svg')).toHaveCSS("fill", "rgb(255, 255, 255)");
+  await palette.getByRole("radio", { name: "Light Green", exact: true }).click();
+  await enable(page, false);
+  await expect(card).toHaveCSS("background-color", "rgb(18, 18, 22)");
+  await expect(card).toHaveCSS("box-shadow", "none");
+  await expect(card.locator('.collection-title')).toHaveCSS("color", "rgb(255, 255, 255)");
+});

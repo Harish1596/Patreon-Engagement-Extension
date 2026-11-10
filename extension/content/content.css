@@ -267,6 +267,19 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface]
     0 6px 18px rgba(0, 0, 0, .18) !important;
 }
 
+/* Collection cards have an opaque native surface beneath their link content.
+   Scope to the observed thumbnail-bearing card, preserving its layout/media. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="post-collections"] [class*="_cardWrapper"] > div:has(> a [class*="_collectionThumbnailWrapper"]) {
+  background-color: var(--patreon-reader-background-color) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 28%, transparent) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="post-collections"] [class*="_cardWrapper"] svg[data-tag="IconArrowNe"] {
+  fill: currentColor !important;
+}
+
 /* Theme the comment composer, not the surrounding login link or other forms.
    Keep native disabled opacity, permissions, input sizing, and error borders. */
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]

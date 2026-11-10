@@ -2406,3 +2406,20 @@ Fixtures use synthetic dark background layers and sanitized content, not the raw
 attachment or native linked stylesheet. No live Patreon verification, full export
 suite, installed-extension suite, release ZIP rebuild or publication is claimed.
 The existing packaged 1.2.1 artifact remains the earlier checkpoint's bytes.
+
+
+## November 10, 2026 — Theme the In collection card
+
+A user screenshot shows dark Reader ink on the collection card's native dark
+surface after full-post coverage was restored. Supplied structural evidence
+identifies the thumbnail-bearing link's surface inside post-collections.
+Scoped CSS now sets its matching Post Color, adds a subtle outline and makes the
+arrow follow the ink. The new synthetic regression fails before the fix and
+passes afterward across four presets, Default, disable cleanup and isolation.
+
+Checks: **20 Chrome and 20 Brave appearance/detection tests passed**; syntax
+checks pass for **96 JavaScript files** and `git diff --check` passes. Elevated
+browser execution was used. Card dimensions, thumbnail size and link destination
+are covered. No raw supplied content/media URLs are retained. No live Patreon
+verification, full tooling/export suite, release packaging or publication is
+claimed for this scoped CSS follow-up.
