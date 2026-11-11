@@ -1,0 +1,11 @@
+{
+  "name": "patreon-reader-analytics-dev",
+  "main": "index.mjs",
+  "compatibility_date": "2026-11-10",
+  "workers_dev": true,
+  "observability": { "enabled": false },
+  "vars": {
+    "GA_MEASUREMENT_ID": "G-TN322D96R3",
+    "GA_DEBUG_MODE": "true"
+  }
+}

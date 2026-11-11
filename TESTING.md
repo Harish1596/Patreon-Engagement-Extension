@@ -6,10 +6,121 @@ inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
+## November 11, 2026 — Version 1.2.2 metadata
+
+Manifest, package and both root lockfile version fields now match **1.2.2**.
+The changelog records full-post color, collection-card and creator-avatar fixes.
+`node --test tests/tooling/package.test.cjs`: **11 passed**. Direct
+`readPackage(process.cwd())` validation confirms version 1.2.2 and 54 allowlisted
+package files; `git diff --check` passes. No runtime change, browser rerun,
+release ZIP rebuild or store publication is claimed. Earlier release/version
+headings below retain their dated checkpoint meaning.
+
+## November 10, 2026 — Restore creator-avatar border
+
+Supplied HTML shows generated class prefixes in the creator avatar structure.
+The shadow selector now recognizes semantic suffixes with direct link/image
+structure and explicit comment/article exclusions. Historical markup remains
+covered. Existing border/shadow colors, dimensions and native shapes are retained.
+
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 22 Chrome passes.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 22 Brave passes.
+- `npm run check`: passes, 96 JavaScript files.
+- `git diff --check`: passes.
+
+Generated-prefix border coverage fails before the fix and passes afterward;
+new synthetic comment nesting also exercises the explicit exclusion. Tests cover
+all presets, square/circle shapes, native size, follow controls, navigation,
+comment/article isolation, Default, disable and re-enable. Browser execution is
+elevated. No raw supplied media URL retained. Live avatar confirmation, full
+export/tooling suite and packaging were not performed. The user confirmed the
+preceding collection-card color/border fix works; that is a scoped live report.
+
+## November 10, 2026 — Complete collection-card boundary
+
+Move the decorative line to an inset shadow on the visible content span and
+inherit native surface rounding through its link. The rendered regression fails
+against the previous committed styling and passes with the new boundary.
+
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 21 Chrome passes.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 21 Brave passes.
+- `npm run check`: passes, 96 JavaScript files.
+- `git diff --check`: passes.
+
+Pixel checks cover all four content edges, four presets and 1280px/390px widths;
+Sepia captures at both widths were visually reviewed. Test setup dismisses the
+Reader panel during capture so it cannot obscure the card, and samples a narrow
+edge band to tolerate fractional clipping. Existing dimensions, thumbnail/link,
+Default/disable and outside-surface checks pass. Browser execution is elevated.
+No new live confirmation, full export/tooling suite or release ZIP rebuild.
+
+## November 10, 2026 — Collection-card inner background correction
+
+The user reports the previous fix still leaves the card interior dark. Supplied
+computed styles identify the direct content span's opaque `rgb(18, 18, 23)`
+background over the already themed outer surface. CSS now covers that span too.
+The updated fixture first fails on this inner background, then passes.
+
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 20 Chrome passes.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 20 Brave passes.
+- `npm run check`: passes, 96 JavaScript files.
+- `git diff --check`: passes.
+
+Both layers are checked for all four presets, Default/disable restoration and
+outside-surface isolation, alongside the existing text/arrow/layout checks.
+Browsers ran with elevated execution. An attempted isolated public-page inspection
+encountered Patreon's verification page and yielded no card styles. User diagnostics
+establish the failure's cause; the correction has synthetic browser verification
+and awaits live confirmation. No full export/tooling suite or ZIP rebuild.
+
+## November 10, 2026 — In collection card Post Color follow-up
+
+The post's collection-link surface now follows Post Color with a subtle outline;
+its arrow uses the matching ink. The supplied HTML/screenshot and sanitized
+structural boundary are recorded in the maintained reference.
+
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 20 passed in Chrome.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 20 passed.
+- `npm run check`: passes, 96 JavaScript files.
+- `git diff --check`: passes.
+
+The new test first reproduced the unchanged dark card, then passed for all four
+presets, Default/disable restoration, text/count/arrow colors, stable dimensions,
+thumbnail size, link destination and an untouched card outside the Reader surface.
+Browsers ran with elevated execution as in the preceding checkpoint. No raw
+content or signed media URL is saved. No new live Patreon confirmation, full
+browser/tooling suite or release ZIP rebuild is claimed for this CSS-only fix.
+
+## November 10, 2026 — Full-post Post Color regression
+
+The supplied HTML uses `_fullPostContentWrapper` → `_fullPostContent` →
+`[data-testid="full-post-wrapper"]`. Reader now selects and colors these layers
+alongside the historical single-column layout. Sanitized fixtures cover both
+presence/absence of a surrounding post-card, full-column coverage, comments,
+untouched navigation/padding, Default reset and Reader disable cleanup.
+
+Current task checks:
+
+- `npm run check`: passes, 96 JavaScript files.
+- `npm run test:tooling`: 158 passed, including five DOM adapter cases.
+- `npm test -- tests/appearance.spec.js tests/detection.spec.js`: 19 passed in Chrome.
+- `npm run test:brave -- tests/appearance.spec.js tests/detection.spec.js`: 19 passed.
+- `git diff --check`: passes.
+
+The new wrapper-selection regressions failed against the original code, then
+passed after the fix. Chrome first failed to launch inside the sandbox
+(SIGABRT/EPERM); elevated browser execution worked. Intermediate new browser
+tests had test-setup errors (opening the panel and choosing Default), corrected
+before the final passing runs. These are synthetic rendered checks, not a live
+Patreon session. The supplied public URL could not be fetched; no private/raw
+payloads were saved. Full export/installed-extension suites and release packaging
+were not rerun for this scoped background fix. The existing release ZIP predates
+this change.
+
 ## Current release status — November 6, 2026
 
-Source metadata is **1.2.1**, prepared locally; no 1.2.1 release ZIP, store upload
-or publication has been recorded. The user confirmed 1.2.0 approval/publication
+Source metadata is **1.2.1**. A validated local release ZIP is recorded in the
+1.2.1 release notes; store upload or publication has not been confirmed. The user confirmed 1.2.0 approval/publication
 and later confirmed downloads were working during hotfix development. That does
 not establish a final 1.2.1 package/browser/viewer matrix. See the
 [current release record](docs/releases/1.2.1.md) for the remaining checklist.
@@ -59,6 +170,16 @@ itemized in this confirmation; it does not establish an exhaustive browser or
 accessibility matrix or guarantee compatibility with future Patreon UI changes.
 
 ## Automated checks
+
+## November 6, 2026 — Generate the 1.2.1 upload ZIP
+
+`npm run package` passes and creates `dist/patreon-reader-1.2.1.zip` with 54
+allowlisted files and root-level manifest version 1.2.1. Integrity, referenced
+assets and exact source bytes validate. Size: 10,710,913 bytes. SHA-256:
+`e7f0775838e9bffab3306f87e568d817898992ac741e6d216d18d91a54b1ca98`.
+
+The artifact is ignored by Git; its record is in docs/releases/1.2.1.md. This
+packaging task does not claim a new browser run, upload, approval or publication.
 
 ## November 6, 2026 — Documentation and privacy alignment for 1.2.1
 
@@ -2001,3 +2122,11 @@ spec); 123 were not run. Both browsers aborted with SIGABRT and kill EPERM,
 including elevated execution. Later added skip/permission fixtures have not run.
 This is an environment blocker, not a passing rendered/browser/native-download
 check. No live Patreon request, account payload, image URL or permission was used.
+
+## November 10, 2026: development analytics relay only
+
+The minimal analytics scope is in [the implementation plan](docs/superpowers/plans/2026-11-10-minimal-analytics.md). The new schema/relay accepts only Reader usage, engagement-bar hiding and scoped download-start events. Five local tests cover privacy-field rejection, timestamp forwarding, upstream failure handling, health/method/body limits and execution of the generated dashboard bundle. The test transport substitutes Google; these are not live GA4 or Cloudflare checks.
+
+Generate the ignored dashboard artifact using `node scripts/build-analytics-relay.js`; deployment instructions are in [relay/README.md](relay/README.md). Development Measurement ID is public configuration. No secret, deployment, extension telemetry hooks, consent UI or production endpoint was added. GA4 secret validity, actual ingestion and filtered distinct-installation counts remain unverified until owner deployment and processed report inspection. Existing extension behavior remains unchanged; no browser test is claimed for this relay-only step.
+
+Verification for this step: `npm run test:tooling` passed **163 tests**; `npm run check` syntax-checked **99 JavaScript files**. Explicit syntax checks also passed for the relay entry, forwarding module and generated dashboard module. No browser suite was rerun because this step installs no runtime hooks or UI.

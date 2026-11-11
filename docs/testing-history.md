@@ -2374,3 +2374,120 @@ package contains 54 allowlisted files and all 11 packaging tests pass after the
 policy update. This documentation-only pass did not rerun browsers or generate a
 new release ZIP, screenshot set, tag or publication. Current 1.2.1 release checks
 are listed in docs/releases/1.2.1.md and TESTING.md.
+
+
+## November 6, 2026 — Create the 1.2.1 Chrome Web Store ZIP
+
+`npm run package` validates and creates `dist/patreon-reader-1.2.1.zip`: 54
+allowlisted files, root-level manifest version 1.2.1, 10,710,913 bytes.
+Archive integrity, referenced assets and exact source bytes pass validation.
+SHA-256: `e7f0775838e9bffab3306f87e568d817898992ac741e6d216d18d91a54b1ca98`.
+The ZIP remains a local ignored artifact. No browser rerun, store upload, approval
+or publication is claimed; retain the exact artifact/checksum for submission.
+
+
+## November 10, 2026 — Restore full-post Post Color coverage
+
+User screenshot and supplied public-post HTML establish an additional full-post
+wrapper structure. The maintained reference records its sanitized shape and
+limits. Updated DOM surface selection and background CSS cover these layers;
+older single-column support remains.
+
+Before the fix, three new DOM tests failed (two full-post outer selections and
+the semantic-wrapper fallback); the two historical layout cases passed. The new
+Chrome regression also failed on missing outer surface selection. After the fix,
+all **158 tooling tests** and **19 Chrome / 19 Brave appearance/detection tests**
+pass. Syntax checks pass for **96 JavaScript files**; whitespace checks pass.
+Browser launch initially aborted under sandbox restrictions; elevated execution
+succeeded. Intermediate new browser tests required correcting panel opening and
+Default selection in their setup, then both passed in the final runs.
+
+Fixtures use synthetic dark background layers and sanitized content, not the raw
+attachment or native linked stylesheet. No live Patreon verification, full export
+suite, installed-extension suite, release ZIP rebuild or publication is claimed.
+The existing packaged 1.2.1 artifact remains the earlier checkpoint's bytes.
+
+
+## November 10, 2026 — Theme the In collection card
+
+A user screenshot shows dark Reader ink on the collection card's native dark
+surface after full-post coverage was restored. Supplied structural evidence
+identifies the thumbnail-bearing link's surface inside post-collections.
+Scoped CSS now sets its matching Post Color, adds a subtle outline and makes the
+arrow follow the ink. The new synthetic regression fails before the fix and
+passes afterward across four presets, Default, disable cleanup and isolation.
+
+Checks: **20 Chrome and 20 Brave appearance/detection tests passed**; syntax
+checks pass for **96 JavaScript files** and `git diff --check` passes. Elevated
+browser execution was used. Card dimensions, thumbnail size and link destination
+are covered. No raw supplied content/media URLs are retained. No live Patreon
+verification, full tooling/export suite, release packaging or publication is
+claimed for this scoped CSS follow-up.
+
+
+## November 10, 2026 — Correct the inner collection-card background
+
+The user's Chrome screenshot shows the first collection-card fix was incomplete.
+Computed-style diagnostics identify the direct content span's dark background
+covering the correctly themed outer surface. The earlier fixture omitted this
+opaque inner layer; it now reproduces the measured color and fails before the
+new scoped rule, then passes. Both layers are checked across four presets and
+native restoration, including an outside-surface control.
+
+Final checks: **20 Chrome and 20 Brave appearance/detection tests passed**,
+**96-file syntax check passed**, and `git diff --check` passed. Elevated browser
+execution was used. Isolated live inspection hit a Patreon verification page.
+The supplied computed styles establish the failure, while correction verification
+is synthetic; live confirmation, full export/tooling suite and packaging remain
+outside this checkpoint. No raw diagnostics or original page payload retained.
+
+
+## November 10, 2026 — Enclose the collection card with a complete boundary
+
+User screenshot shows an incomplete top line after the inner background fix.
+Move the line from the outer wrapper to an inset shadow on the visible content
+span; inherit the native surface radius through the link. Pixel checks now
+inspect all four unobstructed edges at 1280px and 390px for every preset, failing
+against the prior commit and passing after the refinement. Test setup was
+corrected to dismiss the appearance panel before capture and tolerate fractional
+screenshot clipping. Final Sepia captures were visually reviewed at both widths.
+
+**21 Chrome / 21 Brave appearance and detection checks pass**, as do the
+**96-file syntax check** and whitespace validation. Native dimensions, resets
+and outside-surface isolation remain covered. Elevated browser execution was
+used; these are synthetic checks, with no new live confirmation, full export or
+tooling suite, package rebuild or publication.
+
+
+## November 10, 2026 — Restore the creator-avatar separation border
+
+User screenshot/markup establish generated avatar class prefixes in place of
+the readable module names. Updated the shadow selector to semantic suffixes
+and direct link/image structure, with comment/article exclusions. The new
+generated-prefix regression fails before the change, then passes. A defensive
+synthetic comment-byline case also verifies exclusion from the widened selector.
+Existing outline/shadow values, square/circle shapes, native size and follow
+controls remain covered, together with reset, disable/re-enable and isolation.
+
+**22 Chrome / 22 Brave appearance/detection checks passed**, along with the
+**96-file syntax check** and whitespace validation. Elevated browser execution
+was used. No raw page/media payload was retained. Avatar verification is
+synthetic pending live confirmation; no full export/tooling suite or ZIP rebuild.
+The user explicitly confirmed the previous collection-card color and complete
+border fix works, without itemizing a broader browser/scenario matrix.
+
+## November 10, 2026 — minimal analytics relay preparation
+
+User narrowed the next release to optional usage/active-installation statistics and deferred error reports and download outcomes. Prepared the strict three-event schema, stateless Cloudflare relay, public development Measurement ID configuration and self-contained dashboard bundle builder. Initial three relay tests failed before implementation; bundle test failed before its builder existed; final five targeted tests passed. Entry/bundle syntax checks passed. Test upstream is substituted: no real user data, GA4 API secret, deployment or live analytics request was used. Complete development ingestion and installation-count proof remains pending; no extension-side data collection is active.
+
+Verification for this step: `npm run test:tooling` passed **163 tests**; `npm run check` syntax-checked **99 JavaScript files**. Explicit syntax checks also passed for the relay entry, forwarding module and generated dashboard module. No browser suite was rerun because this step installs no runtime hooks or UI.
+
+
+## November 11, 2026 — Prepare 1.2.2 version metadata and changelog
+
+Updated the manifest, package and both root lockfile version fields from 1.2.1
+to 1.2.2. Added changelog entries for full-post color coverage, collection-card
+color/border corrections and the creator-avatar border. All **11 packaging tests
+pass**; direct package-source validation confirms 1.2.2 and 54 allowlisted files.
+Whitespace validation passes. This metadata-only task does not rerun browsers,
+rebuild the project release ZIP or establish store upload/publication.

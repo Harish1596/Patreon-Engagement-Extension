@@ -65,14 +65,17 @@ test("reading swatches cover the full supplied post column and preserve native c
 
 
 
-test("creator avatar shadow follows custom colors and preserves other images and native controls", async ({ page }) => {
-  const avatar = (id, radius) => `<div class="CreatorByLine-module__test__avatarContainerWithFreeMembership">
-    <a href="#creator"><div id="${id}" class="Avatar-module__test__container" style="width:40px;height:40px;border-radius:${radius};box-shadow:0 1px 2px rgba(0,0,0,.1)">
+for (const generated of [false, true]) {
+test(`creator avatar shadow follows custom colors with generated classes ${generated}`, async ({ page }) => {
+  const bylineClass = generated ? "Changed_avatarContainer" : "CreatorByLine-module__test__avatarContainerWithFreeMembership";
+  const avatarClass = generated ? "Different_container Different_shapeCircle Different_sizePx40" : "Avatar-module__test__container";
+  const avatar = (id, radius) => `<div class="${bylineClass}">
+    <a href="#creator"><div id="${id}" class="${avatarClass}" style="width:40px;height:40px;border-radius:${radius};box-shadow:0 1px 2px rgba(0,0,0,.1)">
       <img alt="Creator avatar" width="40" height="40" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E">
       <button class="CreatorByLine-module__test__followIcon" aria-label="Follow creator">+</button>
     </div></a></div>`;
   const content = fixture.replace('<main id="post">', `<nav>${avatar("nav-avatar", "50%")}</nav><main id="post">${avatar("square-avatar", "8px")}${avatar("circle-avatar", "50%")}`)
-    .replace('</main>', '<div data-tag="comment-avatar-wrapper"><div id="comment-avatar" class="Avatar-module__test__container" style="width:32px;height:32px">Comment avatar</div></div></main>');
+    .replace('</main>', `<div data-tag="content-card-comment-thread-container"><div data-tag="comment-row">${avatar("thread-avatar", "50%")}</div></div><div data-tag="comment-avatar-wrapper"><div id="comment-avatar" class="Avatar-module__test__container" style="width:32px;height:32px">Comment avatar</div></div></main>`);
   await setup(page, { content, stored: { readerEnabled: true } });
   await button(page).click();
   const square = page.locator("#square-avatar");
@@ -103,6 +106,7 @@ test("creator avatar shadow follows custom colors and preserves other images and
     await expect(square.locator("button")).toHaveCSS("box-shadow", followShadow);
     await expect(page.locator("#nav-avatar")).toHaveCSS("box-shadow", originalShadow);
     await expect(page.locator("#comment-avatar")).toHaveCSS("box-shadow", "none");
+    await expect(page.locator("#thread-avatar")).toHaveCSS("box-shadow", originalShadow);
     await expect(page.locator('[data-patreon-reader-body] img')).toHaveCSS("box-shadow", "none");
   }
   await change(page, "postColor", "");
@@ -113,6 +117,8 @@ test("creator avatar shadow follows custom colors and preserves other images and
   await enable(page, true);
   await expect(square).not.toHaveCSS("box-shadow", originalShadow);
 });
+
+}
 
 test("membership banner follows Post Color without changing Join buttons, images, or layout", async ({ page }) => {
   const banner = `<div data-testid="cta-banner-wrapper"><div class="PostBodies-module__newHash__singleColumnContent"><div class="CTABanner-module__newHash__root" style="background:rgb(28,28,32);border-radius:12px;padding:24px;display:flex;gap:16px;box-shadow:0 2px 4px rgba(0,0,0,.12)">
@@ -293,4 +299,101 @@ for (const nativeColor of ["white", "black"]) {
     await expect(page.locator("[data-patreon-reader-actions]")).toHaveCount(0);
     await expect(page.locator("html")).not.toHaveAttribute("data-patreon-reader-action-hover", "");
   });
+}
+
+// Sanitized structure from the November 10 supplied full-post markup.
+for (const card of [true, false]) {
+  test(`Post Color covers full-post layers with post-card ${card}`, async ({ page }) => {
+    const content = fixture.replace('<main id="post">', `<nav id="outside" style="background:rgb(10,20,30)">Navigation</nav><main id="post" ${card ? 'data-tag="post-card"' : ''}><div id="full-outer" class="Changed_fullPostContentWrapper" style="background:black;padding:40px"><div id="full-inner" class="Changed_fullPostContent" style="background:black"><div id="full-post" class="Changed_fullPost" data-testid="full-post-wrapper" style="background:black">`)
+      .replace('</main>', '<div data-tag="content-card-comment-thread-container"><p id="full-comment">Comment</p></div></div></div></div></main>');
+    await setup(page, { content, stored: { readerEnabled: true, readerPreferences: { postColor: "#f4ecd8" } } });
+    await expect(page.locator("#full-outer")).toHaveAttribute("data-patreon-reader-surface", "");
+    for (const id of ["full-outer", "full-inner", "full-post"]) {
+      await expect(page.locator(`#${id}`)).toHaveCSS("background-color", "rgb(244, 236, 216)");
+    }
+    await expect(page.locator("#full-comment")).toHaveCSS("color", "rgb(91, 70, 54)");
+    await expect(page.locator("#outside")).toHaveCSS("background-color", "rgb(10, 20, 30)");
+    await expect(page.locator("#full-outer")).toHaveCSS("padding", "40px");
+    await button(page).click();
+    await dialog(page).getByRole("radio", { name: "Default", exact: true }).click();
+    for (const id of ["full-outer", "full-inner", "full-post"]) {
+      await expect(page.locator(`#${id}`)).toHaveCSS("background-color", "rgb(0, 0, 0)");
+    }
+    await change(page, "postColor", "#202124");
+    await expect(page.locator("#full-inner")).toHaveCSS("background-color", "rgb(32, 33, 36)");
+    await enable(page, false);
+    await expect(page.locator("[data-patreon-reader-surface]")).toHaveCount(0);
+    await expect(page.locator("#full-inner")).toHaveCSS("background-color", "rgb(0, 0, 0)");
+  });
+}
+
+for (const width of [1280, 390]) {
+test(`In collection card follows every Post Color and restores native styling at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  // Sanitized November 10 structure; no original content or media URLs.
+  const collection = `<div data-tag="post-collections"><h2>In collection</h2><div class="Changed_cardWrapper"><div class="Surface_root" style="background:rgb(18,18,22);border-radius:12px;display:inline-block"><a href="/collection/123" style="text-decoration:none"><span class="card-content" style="background:rgb(18,18,23);display:flex;padding:12px;gap:12px"><div class="Changed_collectionThumbnailWrapper"><img alt="Collection thumbnail" width="40" height="40" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3C/svg%3E"></div><div style="display:flex;flex-direction:column"><span class="collection-title" style="color:white">Example collection</span><span class="Changed_postCountText" style="color:gray">12 posts</span></div><span><svg data-tag="IconArrowNe" width="24" height="24" style="fill:white"><path d="M0 0h10v10z"/></svg></span></span></a></div></div></div>`;
+  const content = fixture.replace('</main>', `${collection}</main><aside id="outside-collection">${collection}</aside>`);
+  await setup(page, { content, stored: { readerEnabled: true } });
+  const card = page.locator('#post .Surface_root');
+  const outside = page.locator('#outside-collection .Surface_root');
+  const size = await card.evaluate(node => [node.offsetWidth, node.offsetHeight]);
+  await button(page).click();
+  const palette = dialog(page).getByRole("radiogroup", { name: "Post Color", exact: true });
+  for (const [name, background, ink] of [
+    ["White", "rgb(255, 255, 255)", "rgb(34, 34, 34)"],
+    ["Sepia", "rgb(244, 236, 216)", "rgb(91, 70, 54)"],
+    ["Light Green", "rgb(227, 237, 223)", "rgb(34, 34, 34)"],
+    ["Charcoal", "rgb(32, 33, 36)", "rgb(245, 245, 240)"]
+  ]) {
+    await palette.getByRole("radio", { name, exact: true }).click();
+    await expect(card).toHaveCSS("background-color", background);
+    await expect(card.locator(".card-content")).toHaveCSS("background-color", background);
+    await expect(card.locator('.collection-title')).toHaveCSS("color", ink);
+    await expect(card.locator('[class*="_postCountText"]')).toHaveCSS("color", ink);
+    await expect(card.locator('svg')).toHaveCSS("fill", ink);
+    // Inspect the visible content edges, not merely the outer wrapper's shadow.
+    await button(page).click(); // Dismiss the panel so it cannot cover the card capture.
+    const contentSpan = card.locator(".card-content");
+    await expect(contentSpan).toHaveCSS("border-radius", "12px");
+    const capture = await contentSpan.screenshot({ path: test.info().outputPath(`collection-${name.replaceAll(" ", "-")}.png`) });
+    await button(page).click();
+    const pixels = await page.evaluate(async data => {
+      const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${data}`)).blob());
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d"); ctx.drawImage(bitmap, 0, 0);
+      // Fractional layout coordinates can add a blank row to a clipped screenshot.
+      const x = Math.floor(bitmap.width / 2), y = Math.floor(bitmap.height / 2);
+      const edges = [[], [], [], []];
+      for (let inset = 0; inset < 3; inset++) {
+        [[x, inset], [x, bitmap.height - 1 - inset], [inset, y], [bitmap.width - 1 - inset, y]]
+          .forEach(([px, py], edge) => edges[edge].push([...ctx.getImageData(px, py, 1, 1).data].slice(0, 3)));
+      }
+      bitmap.close(); return edges;
+    }, capture.toString("base64"));
+    const surfaceRgb = background.match(/\d+/g).map(Number);
+    for (const edge of pixels) expect(edge.some(pixel => pixel.some((value, channel) =>
+      Math.abs(value - surfaceRgb[channel]) > 10)), JSON.stringify(pixels)).toBe(true);
+    expect(await card.evaluate(node => [node.offsetWidth, node.offsetHeight])).toEqual(size);
+    await expect(card.locator('img')).toHaveCSS("width", "40px");
+    await expect(card.locator('a')).toHaveAttribute("href", "/collection/123");
+    await expect(outside).toHaveCSS("background-color", "rgb(18, 18, 22)");
+    await expect(outside.locator(".card-content")).toHaveCSS("background-color", "rgb(18, 18, 23)");
+    await expect(outside.locator('svg')).toHaveCSS("fill", "rgb(255, 255, 255)");
+  }
+  await palette.getByRole("radio", { name: "Default", exact: true }).click();
+  await expect(card).toHaveCSS("background-color", "rgb(18, 18, 22)");
+  await expect(card.locator(".card-content")).toHaveCSS("background-color", "rgb(18, 18, 23)");
+  await expect(card.locator(".card-content")).toHaveCSS("box-shadow", "none");
+  await expect(card).toHaveCSS("box-shadow", "none");
+  await expect(card.locator('.collection-title')).toHaveCSS("color", "rgb(255, 255, 255)");
+  await expect(card.locator('svg')).toHaveCSS("fill", "rgb(255, 255, 255)");
+  await palette.getByRole("radio", { name: "Light Green", exact: true }).click();
+  await enable(page, false);
+  await expect(card).toHaveCSS("background-color", "rgb(18, 18, 22)");
+  await expect(card.locator(".card-content")).toHaveCSS("background-color", "rgb(18, 18, 23)");
+  await expect(card.locator(".card-content")).toHaveCSS("box-shadow", "none");
+  await expect(card).toHaveCSS("box-shadow", "none");
+  await expect(card.locator('.collection-title')).toHaveCSS("color", "rgb(255, 255, 255)");
+});
 }

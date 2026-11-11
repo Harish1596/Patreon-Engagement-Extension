@@ -45,9 +45,10 @@ Artwork regeneration does not upload or publish a store update.
 ## Release screenshots
 
 Current source version is 1.2.1. Its simplified result summary and reload-recovery
-UI postdate the 1.2.0 captures below. No 1.2.1 ZIP or refreshed screenshot set has
-been generated in this documentation pass. Package and validate the new build
-before regenerating captures; do not relabel old provenance as a new build.
+UI postdate the 1.2.0 captures below. A validated 1.2.1 ZIP is now recorded in the
+[release notes](../docs/releases/1.2.1.md); a refreshed screenshot set has not been
+generated. Use that validated build when regenerating captures; do not relabel
+old provenance as a new build.
 
 Version 1.2.0 screenshots are under `screenshots/1.2.0/`. They show the actual
 installed extension from the validated release ZIP on labelled synthetic pages,

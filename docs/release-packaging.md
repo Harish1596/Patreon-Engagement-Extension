@@ -1,6 +1,6 @@
 # Local release packaging
 
-Current source version: **1.2.1**. The next generated artifact is
+Current source version: **1.2.1**. The versioned upload artifact is
 `dist/patreon-reader-1.2.1.zip`. See the [1.2.1 release record](releases/1.2.1.md)
 for prepared changes, validation evidence and outstanding submission checks.
 The user confirmed 1.2.0 publication; its local ZIP and screenshots are historical

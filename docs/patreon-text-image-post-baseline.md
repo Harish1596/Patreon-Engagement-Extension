@@ -2161,3 +2161,135 @@ cover a missing runtime ID and throwing URL API, including a late chooser resize
 This is extension-UI lifecycle evidence, not new Patreon markup or a claim about
 all stale-runtime entry points elsewhere in the extension. No access, permission,
 cache/session retention or native download-state rules changed.
+
+
+**November 10 full-post layout / Post Color coverage:** A supplied screenshot
+shows Sepia on the article body while the title/byline/actions retain a dark
+background and receive Sepia foreground colors. The user supplies a rendered
+HTML fragment for a public text post. Its enclosing structure is now:
+
+```html
+<div class="HASH_fullPostContentWrapper">
+  <div class="HASH_fullPostContent">
+    <div class="HASH_fullPost" data-testid="full-post-wrapper">
+      <!-- Responsive titles, byline, main actions, article, collections, comments -->
+    </div>
+  </div>
+</div>
+```
+
+This is supplied markup evidence for an additional layout, not proof that all
+single-column pages have migrated. The fragment starts at the outer wrapper;
+ancestors outside it (including any post-card) are not established. Article
+`_postContent` / `_additionalStylesPostContentWrapper` hooks remain present.
+The full-post wrappers contain titles, main actions, article and comment thread;
+no generated hash or content identifier is used as a selector. The raw fragment,
+post text, media URLs and comments are not retained in the repository.
+
+Previously `surfaceFor()` recognized only the single-column layers, so this
+layout could fall back to a card or smaller discovery scope. Existing background
+CSS also omitted the full-post layers, allowing native surfaces to cover the
+chosen background. Reader now recognizes `_fullPostContentWrapper` alongside the
+historical outer wrapper, then the inner content classes, then either semantic
+post-wrapper test ID. Background CSS includes `_fullPostContent` and
+`full-post-wrapper` descendants of the selected surface. Typography, media,
+navigation, floating engagement and export boundaries retain their existing roles.
+
+Sanitized regressions cover full-post selection with/without a surrounding card,
+the semantic-test-ID fallback, historical single-column selection, layered dark
+backgrounds, comments, padding, Default restoration and disabling Reader. Native
+background colors in these fixtures are synthetic: the fragment supplies no
+linked stylesheet capture. Verification results and limits are in TESTING.md.
+The public URL could not be fetched in this session; no live browser confirmation
+of the fix is claimed.
+
+
+**November 10 In collection card follow-up:** The user confirms the expanded
+post surface through a new Light Green screenshot, but the In collection card
+retains an opaque dark background behind dark Reader text. The supplied inner
+span contains a `_collectionThumbnailWrapper`, title/count spans and an
+`svg[data-tag="IconArrowNe"]`. The earlier supplied full-post fragment establishes
+its ancestors: `[data-tag="post-collections"]` → layout containers →
+`HASH_cardWrapper` → surface div → link → content span. The surface div's classes
+include generated `_root`, `_variantDefault`, `_elevationSubtle` and
+`_colorModeDark` suffixes; these shared design-system classes are not used as
+global selectors. No image URL, title or count is retained as fixture data.
+
+Reader now themes the direct surface div of a `_cardWrapper` inside
+`post-collections` only when it contains the thumbnail-bearing direct link.
+Its background follows Post Color and a one-pixel shadow outline using surface
+ink at 28% keeps it distinct without changing dimensions. The collection arrow
+uses currentColor fill. Existing Reader foreground rules provide title/count
+ink. Default/disable restores native styling. Link destinations, thumbnails,
+layout, article typography and collection-download behavior are preserved.
+This supersedes the historical statement that collection-card surfaces are not
+explicitly themed; the original observations above remain historical evidence.
+
+A sanitized browser regression first fails on the unchanged dark background,
+then passes for White, Sepia, Light Green and Charcoal, including title/count/arrow
+colors, stable dimensions, image size/link destination, outside-surface isolation,
+Default and disabling Reader. These are synthetic native colors and browser
+fixtures, not a new live inspection of linked Patreon styles or a live check of
+the fix. The supplied screenshot establishes the reported appearance only.
+
+
+**November 10 collection-card inner background correction:** A subsequent Chrome
+screenshot shows the outline and arrow changed while the card interior stayed
+dark. User-supplied computed-style diagnostics establish that the outer surface
+is already Sepia (`rgb(244, 236, 216)`), but its link's direct content span paints
+`rgb(18, 18, 23)` over it. The link, thumbnail wrapper and other inspected
+containers are transparent; inspected background images are absent and
+before/after backgrounds are transparent. This corrects the incomplete earlier
+fixture, which gave only the outer surface an opaque background.
+
+The direct content span now follows Post Color as well. It is selected inside
+`post-collections` / `_cardWrapper` by the observed surface → link → span
+relationship and direct `_collectionThumbnailWrapper` child, rather than by the
+span's generated styled-component classes. The existing outer outline remains
+on the outer layer only. The regression now includes the measured opaque inner
+background and checks both layers for each preset, Default/disable restoration
+and outside-surface isolation. These assertions fail before the correction and
+pass afterward. The diagnostics are live user evidence of the failure; passing
+synthetic Chrome/Brave tests do not constitute live confirmation of the correction.
+An isolated public-page inspection encountered Patreon's verification page and
+provided no additional card-style evidence. Raw attachment data is not committed.
+
+
+**November 10 complete collection-card boundary:** A later supplied Sepia
+screenshot confirms the interior now adapts, but shows an incomplete top boundary.
+The decorative line now uses an inset one-pixel shadow on the visible,
+thumbnail-bearing content span instead of an outer-wrapper shadow. The link and
+content span inherit the surface div's native corner radius so the line encloses
+the visible content with matching rounding. No dimensions/padding are changed by
+runtime CSS; Default/disable releases these overrides.
+
+The sanitized test now captures the unobstructed content span at 1280px and 390px
+viewport widths and checks visible pixels on all four edges for every preset.
+It fails against the previous committed styling and passes after this refinement.
+Final Sepia captures were visually reviewed at both widths. This is synthetic
+rendering evidence, not a native stylesheet/layout measurement or new live
+confirmation. Earlier computed-shadow-only assertions did not establish a
+complete visible border and are superseded by these edge checks.
+
+
+**November 10 creator-avatar generated classes:** A supplied screenshot shows
+no separation border around the post creator's circular avatar on Light Green.
+The supplied fragment establishes `_avatarContainer` → creator link →
+`_container` with `_shapeCircle` / `_sizePx40` class suffixes → image. Generated
+prefixes replace the older readable CreatorByLine/Avatar module names, so the
+old shadow selector no longer matches. Raw image URLs and creator data are not
+retained. This adds observed markup alongside the original dated avatar baseline.
+
+The avatar shadow now matches the semantic `_avatarContainer` / `_container`
+suffixes and observed direct link/image structure inside the Reader surface.
+Explicit comment-thread, comment-row, comment-avatar and article-body exclusions
+keep the broader suffix matching within its intended boundary. These exclusions
+are defensive synthetic coverage, not new observations of comment markup.
+The one-pixel 45%-ink outline and existing soft shadow are unchanged, as are
+native dimensions, rounding, images, links and follow overlays. Default/disable
+restores native shadows. Tests cover generated and historical class patterns,
+all presets, square/circle shapes and exclusions; the generated-pattern case
+fails before the selector change and passes afterward. Live avatar confirmation
+is pending. Separately, the user explicitly confirmed that the preceding
+collection-card color and complete-border fix works; that report does not
+establish avatar behavior or a wider browser/scenario matrix.

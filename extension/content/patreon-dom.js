@@ -40,9 +40,10 @@
 
   function surfaceFor(like, scope) {
     // Prefer the outer wrapper before its shared-prefix inner column.
-    return like.closest('[class*="_singleColumnContentWrapper"]')
-      ?? like.closest('[class*="_singleColumnContent"]')
-      ?? like.closest('[data-testid="single-column-post-wrapper"]') ?? like.closest(CARD) ?? scope;
+    return like.closest('[class*="_fullPostContentWrapper"], [class*="_singleColumnContentWrapper"]')
+      ?? like.closest('[class*="_fullPostContent"], [class*="_singleColumnContent"]')
+      ?? like.closest('[data-testid="full-post-wrapper"], [data-testid="single-column-post-wrapper"]')
+      ?? like.closest(CARD) ?? scope;
   }
 
   function actionRowFor(like) {

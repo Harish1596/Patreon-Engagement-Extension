@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.2 — Prepared for release
+
+Prepared locally on November 11, 2026. Store upload or publication has not been
+confirmed for this version.
+
+- Restore Post Color across the full post column on Patreon's newer full-post
+  layout, including the title, byline, actions and comments.
+- Match In collection cards to Post Color, including their inner backgrounds,
+  text and arrows, with a complete border that follows the card's rounded corners.
+- Restore the creator-avatar separation border with Patreon's generated class
+  names, preserving native size and shape and excluding comment avatars.
+
 ## 1.2.1 — Prepared for release
 
 Prepared locally on November 6, 2026. A 1.2.1 store upload or publication has not

@@ -239,6 +239,8 @@ html[data-patreon-reader-text-color] :is([data-patreon-reader-body] a, [data-pat
 
 html[data-patreon-reader-background-color] [data-patreon-reader-surface],
 html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
+  [class*="_fullPostContent"],
+  [data-testid="full-post-wrapper"],
   [class*="_singleColumnContent"],
   [data-testid="single-column-post-wrapper"],
   [class*="_singleColumnPost"],
@@ -251,8 +253,11 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface] :is(
 /* Separate the post creator avatar from custom surfaces without resizing it.
    Preserve native avatar shape, image rendering, and any follow-button overlay. */
 html[data-patreon-reader-background-color] [data-patreon-reader-surface]
-[class*="CreatorByLine-module__"][class*="__avatarContainer"]
-[class*="Avatar-module__"][class*="__container"] {
+[class*="_avatarContainer"] > a > [class*="_container"]:has(> img):not(:where(
+  [data-tag="content-card-comment-thread-container"] *,
+  [data-tag="comment-row"] *, [data-tag="comment-avatar-wrapper"] *,
+  [data-patreon-reader-body] *
+)) {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 45%, transparent),
     0 2px 6px rgba(0, 0, 0, .2) !important;
 }
@@ -263,6 +268,33 @@ html[data-patreon-reader-background-color] [data-patreon-reader-surface]
 [data-testid="cta-banner-wrapper"] [class*="CTABanner-module__"][class*="__root"] {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 28%, transparent),
     0 6px 18px rgba(0, 0, 0, .18) !important;
+}
+
+/* Collection cards have an opaque native surface beneath their link content.
+   Scope to the observed thumbnail-bearing card, preserving its layout/media. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="post-collections"] [class*="_cardWrapper"] > div:has(> a [class*="_collectionThumbnailWrapper"]) {
+  background-color: var(--patreon-reader-background-color) !important;
+  box-shadow: none !important;
+}
+
+/* Draw the boundary inside the visible content box, above its background.
+   A wrapper shadow can be covered by this independently painted span. */
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="post-collections"] [class*="_cardWrapper"] > div > a:has(> span > [class*="_collectionThumbnailWrapper"]) {
+  border-radius: inherit !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="post-collections"] [class*="_cardWrapper"] > div > a > span:has(> [class*="_collectionThumbnailWrapper"]) {
+  background-color: var(--patreon-reader-background-color) !important;
+  border-radius: inherit !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--patreon-reader-surface-color) 28%, transparent) !important;
+}
+
+html[data-patreon-reader-background-color] [data-patreon-reader-surface]
+[data-tag="post-collections"] [class*="_cardWrapper"] svg[data-tag="IconArrowNe"] {
+  fill: currentColor !important;
 }
 
 /* Theme the comment composer, not the surrounding login link or other forms.
