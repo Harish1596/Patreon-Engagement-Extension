@@ -6,6 +6,16 @@ inventory, and UI-drift investigation procedure as architectural evidence.
 Its observations are distinct from the synthetic and installed-extension tests
 below; documenting the captures does not establish live behavioral coverage.
 
+## November 11, 2026 — Version 1.2.2 metadata
+
+Manifest, package and both root lockfile version fields now match **1.2.2**.
+The changelog records full-post color, collection-card and creator-avatar fixes.
+`node --test tests/tooling/package.test.cjs`: **11 passed**. Direct
+`readPackage(process.cwd())` validation confirms version 1.2.2 and 54 allowlisted
+package files; `git diff --check` passes. No runtime change, browser rerun,
+release ZIP rebuild or store publication is claimed. Earlier release/version
+headings below retain their dated checkpoint meaning.
+
 ## November 10, 2026 — Restore creator-avatar border
 
 Supplied HTML shows generated class prefixes in the creator avatar structure.

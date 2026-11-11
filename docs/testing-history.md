@@ -2481,3 +2481,13 @@ border fix works, without itemizing a broader browser/scenario matrix.
 User narrowed the next release to optional usage/active-installation statistics and deferred error reports and download outcomes. Prepared the strict three-event schema, stateless Cloudflare relay, public development Measurement ID configuration and self-contained dashboard bundle builder. Initial three relay tests failed before implementation; bundle test failed before its builder existed; final five targeted tests passed. Entry/bundle syntax checks passed. Test upstream is substituted: no real user data, GA4 API secret, deployment or live analytics request was used. Complete development ingestion and installation-count proof remains pending; no extension-side data collection is active.
 
 Verification for this step: `npm run test:tooling` passed **163 tests**; `npm run check` syntax-checked **99 JavaScript files**. Explicit syntax checks also passed for the relay entry, forwarding module and generated dashboard module. No browser suite was rerun because this step installs no runtime hooks or UI.
+
+
+## November 11, 2026 — Prepare 1.2.2 version metadata and changelog
+
+Updated the manifest, package and both root lockfile version fields from 1.2.1
+to 1.2.2. Added changelog entries for full-post color coverage, collection-card
+color/border corrections and the creator-avatar border. All **11 packaging tests
+pass**; direct package-source validation confirms 1.2.2 and 54 allowlisted files.
+Whitespace validation passes. This metadata-only task does not rerun browsers,
+rebuild the project release ZIP or establish store upload/publication.
